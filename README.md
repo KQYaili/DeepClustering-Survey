@@ -6,9 +6,9 @@
 
 ## 当前状态
 
-实验队列在 WSL2 里跑，机器是 RTX 5070 Ti Laptop（12 GB）。协议写在 `configs/protocol.yaml`，并且在看到任何测试集指标之前已经固定。测试集标签只在 `src/evaluation/metrics.py` 里使用。没有填过预期数字。
+实验队列已经跑完，机器是 WSL2 里的 RTX 5070 Ti Laptop（12 GB）。协议写在 `configs/protocol.yaml`，并且在看到任何测试集指标之前已经固定。测试集标签只在 `src/evaluation/metrics.py` 里使用。没有填过预期数字。
 
-仓库里的表是队列中途的快照。Fashion-MNIST 上 K-means、PCA + K-means、GMM、AE + K-means、DEC、IDEC 已各有 3 个种子。MNIST、对比学习、CIFAR-10 和后面的消融还在跑，那些格子保持空白。
+`results/raw` 里 805 条记录全部成功。CIFAR-10 的 GMM 种子 0 第一次因下载到一半的压缩包失败，补全文件后重跑成功。模型权重在 `results/checkpoints`，不进入 Git。
 
 `scripts/run_queue.py --dry-run` 会列出全部作业。已完成的指标在 `results/raw/`，汇总表和图由 `scripts/analyze.py` 从这些 JSON 生成。失败的作业保留错误信息，不会被换一个种子再挑。
 

@@ -1,0 +1,45 @@
+{
+  "status": "ok",
+  "job": {
+    "experiment": "E03_noise",
+    "dataset": "mnist",
+    "method": "dec",
+    "seed": 2,
+    "k": 10,
+    "latent_dim": 10,
+    "lambda_recon": 0.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 1.0,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 10,
+    "noise_std": 0.2
+  },
+  "noise_std": 0.2,
+  "metrics": {
+    "acc": 0.6189,
+    "nmi": 0.5926448433359459,
+    "ari": 0.398081093712161,
+    "silhouette": 0.5620721578598022,
+    "counts": [
+      769,
+      743,
+      20,
+      1253,
+      1017,
+      829,
+      3200,
+      823,
+      404,
+      942
+    ],
+    "max_fraction": 0.32,
+    "n_nonempty": 10,
+    "entropy": 2.024319879401681,
+    "entropy_norm": 0.8791509532312062
+  },
+  "n_test": 10000
+}

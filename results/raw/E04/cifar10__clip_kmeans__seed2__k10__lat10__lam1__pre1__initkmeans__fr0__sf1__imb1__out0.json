@@ -1,0 +1,63 @@
+{
+  "status": "ok",
+  "job": {
+    "experiment": "E04",
+    "dataset": "cifar10",
+    "method": "clip_kmeans",
+    "seed": 2,
+    "k": 10,
+    "latent_dim": 10,
+    "lambda_recon": 1.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 1.0,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 25
+  },
+  "metrics": {
+    "acc": 0.8145,
+    "nmi": 0.7383775207135456,
+    "ari": 0.6058385203872496,
+    "silhouette": 0.11300189793109894,
+    "counts": [
+      194,
+      194,
+      158,
+      177,
+      141,
+      439,
+      193,
+      149,
+      181,
+      174
+    ],
+    "max_fraction": 0.2195,
+    "n_nonempty": 10,
+    "entropy": 2.236523128916742,
+    "entropy_norm": 0.9713096535375362
+  },
+  "recon_sse": null,
+  "n_parameters": 5120,
+  "time_train_sec": 3.6006520888768137,
+  "time_infer_sec": 0.004830182995647192,
+  "time_feature_sec": 35.75253479601815,
+  "peak_gpu_mb": 729.8505859375,
+  "external_pretrain": true,
+  "external_data": "OpenAI WIT, frozen ViT-B/32",
+  "history": {
+    "epochs_ran": 0,
+    "extended": false,
+    "stopped_early": false,
+    "train_loss": [],
+    "pretrain_loss": [],
+    "ae_cache_hit": null,
+    "backbone_cache_hit": null
+  },
+  "n_train": 10000,
+  "n_test": 2000,
+  "wall_sec": 40.94474853994325,
+  "attempts": 1
+}

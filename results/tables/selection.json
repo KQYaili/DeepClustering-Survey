@@ -1,4 +1,16 @@
 {
+  "cifar10": {
+    "choice": "dinov2+kmeans",
+    "reason": "pretrained_embedding_kmeans",
+    "evidence": {
+      "pretrained_kmeans_ari": 0.6219010333575266,
+      "best_from_scratch": {
+        "method": "idec_ari",
+        "ari": 0.0543420498787082
+      }
+    },
+    "notes": []
+  },
   "fashion_mnist": {
     "choice": "pca_kmeans",
     "reason": "classical_baseline",
@@ -7,8 +19,19 @@
       "time_sec": 1.5245587926668425
     },
     "notes": [
-      "idec_rule_blocked_missing_noise",
+      "idec_rejected_on_noise_retention",
       "classical_tie_broken_by_time"
+    ]
+  },
+  "mnist": {
+    "choice": "ae_kmeans",
+    "reason": "nonlinear_representation_before_kmeans",
+    "evidence": {
+      "ae_kmeans_ari": 0.5869117750725935,
+      "pca_kmeans_ari": 0.34610203652520677
+    },
+    "notes": [
+      "idec_rejected_on_noise_retention"
     ]
   }
 }

@@ -1,0 +1,63 @@
+{
+  "status": "ok",
+  "job": {
+    "experiment": "E04",
+    "dataset": "cifar10",
+    "method": "dinov2_kmeans",
+    "seed": 2,
+    "k": 10,
+    "latent_dim": 10,
+    "lambda_recon": 1.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 1.0,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 25
+  },
+  "metrics": {
+    "acc": 0.7455,
+    "nmi": 0.7327139785478968,
+    "ari": 0.6034789372204379,
+    "silhouette": 0.06770958006381989,
+    "counts": [
+      185,
+      189,
+      335,
+      154,
+      227,
+      178,
+      144,
+      98,
+      187,
+      303
+    ],
+    "max_fraction": 0.1675,
+    "n_nonempty": 10,
+    "entropy": 2.246822535637615,
+    "entropy_norm": 0.9757826290432885
+  },
+  "recon_sse": null,
+  "n_parameters": 3840,
+  "time_train_sec": 2.8179647703655064,
+  "time_infer_sec": 0.004360732156783342,
+  "time_feature_sec": 24.7898765290156,
+  "peak_gpu_mb": 235.02978515625,
+  "external_pretrain": true,
+  "external_data": "LVD-142M, frozen ViT-S/14",
+  "history": {
+    "epochs_ran": 0,
+    "extended": false,
+    "stopped_early": false,
+    "train_loss": [],
+    "pretrain_loss": [],
+    "ae_cache_hit": null,
+    "backbone_cache_hit": null
+  },
+  "n_train": 10000,
+  "n_test": 2000,
+  "wall_sec": 29.0094963950105,
+  "attempts": 1
+}

@@ -1,0 +1,45 @@
+{
+  "status": "ok",
+  "job": {
+    "experiment": "E03_noise",
+    "dataset": "cifar10",
+    "method": "pca_kmeans",
+    "seed": 2,
+    "k": 10,
+    "latent_dim": 10,
+    "lambda_recon": 1.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 1.0,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 15,
+    "noise_std": 0.3
+  },
+  "noise_std": 0.3,
+  "metrics": {
+    "acc": 0.195,
+    "nmi": 0.07706256475976066,
+    "ari": 0.03198223176043697,
+    "silhouette": 0.10664309561252594,
+    "counts": [
+      266,
+      397,
+      143,
+      168,
+      106,
+      206,
+      72,
+      292,
+      151,
+      199
+    ],
+    "max_fraction": 0.1985,
+    "n_nonempty": 10,
+    "entropy": 2.2010417228956247,
+    "entropy_norm": 0.955900274692396
+  },
+  "n_test": 2000
+}

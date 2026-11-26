@@ -1,0 +1,13 @@
+numpy
+scipy
+scikit-learn
+pyyaml
+matplotlib
+seaborn
+tqdm
+pillow
+torch
+torchvision
+umap-learn
+open-clip-torch
+python-pptx

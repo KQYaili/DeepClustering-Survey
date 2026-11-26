@@ -1,0 +1,119 @@
+# Pre-registered course protocol. Do not change a value in response to test-set metrics.
+version: 1
+registered_before_test_metrics: true
+
+splits:
+  mnist: {n_train: 20000, n_test: 10000}
+  fashion_mnist: {n_train: 20000, n_test: 10000}
+  cifar10: {n_train: 10000, n_test: 2000}
+
+k_default: 10
+seeds: [0, 1, 2]
+batch_size: 256
+grad_clip: 5.0
+finetune_seed_offset: 1009
+
+extension:
+  enabled: true
+  extra_epochs: 10
+  relative_drop: 0.05
+  window: 5
+
+early_stop:
+  enabled: true
+  min_epoch: 10
+  assignment_tol: 0.001
+
+# L_cluster = mean over samples of KL(p_i || q_i)
+# L_recon   = mean over samples of ||x - xhat||_2^2   (sum over pixels, not the mean)
+# L_IDEC    = L_cluster + lambda_recon * L_recon
+# This lambda is not Guo et al. 2017's gamma. Their objective is L_recon + gamma L_cluster.
+losses:
+  cluster: mean_per_sample_kl
+  reconstruction: mean_per_image_sum_of_squares
+
+ae:
+  mlp_dims: [784, 500, 500, 2000, 10]
+  epochs: 50
+  lr: 0.001
+
+dec:
+  epochs: 50
+  lr: 0.0001
+  alpha: 1.0
+
+idec:
+  epochs: 50
+  lr: 0.0001
+  lambda_recon: 1.0
+
+vade:
+  pretrain_epochs: 50
+  elbo_epochs: 50
+  lr: 0.001
+  logvar_bias: -2.0
+
+simclr:
+  epochs: 100
+  lr: 0.0003
+  weight_decay: 0.0001
+  temperature: 0.5
+  backbone_dim: 128
+  projection_dim: 128
+
+cc:
+  epochs: 100
+  lr: 0.0003
+  weight_decay: 0.0001
+  instance_temperature: 0.5
+  cluster_temperature: 1.0
+  backbone_dim: 128
+
+kmeans:
+  n_init: 20
+
+pca:
+  n_components: 10
+
+gmm:
+  covariance: diag
+  n_init: 1
+  max_iter: 100
+  reg_covar: 1.0e-6
+
+e02:
+  dataset: fashion_mnist
+  seed: 0
+  lambdas: [0.0, 0.01, 0.1, 1.0, 10.0]
+  latent_dims: [2, 10, 32, 64, 128]
+
+e03:
+  dataset: fashion_mnist
+  seed: 0
+  methods: [kmeans, ae_kmeans, dec, idec, cc]
+  noise_std: [0.0, 0.1, 0.2, 0.3]
+  imbalance: [1, 5, 10, 50]
+  sample_frac: [0.01, 0.05, 0.1, 0.25, 1.0]
+  k_values: [5, 8, 10, 12, 15, 20]
+  outlier_frac: [0.0, 0.05, 0.1, 0.2]
+
+e04:
+  dataset: cifar10
+  seed: 0
+  encoders: [random_cnn, ae, simclr, dinov2, clip]
+  clusterers: [kmeans, gmm, dec_head]
+  dec_head_epochs: 20
+  dec_head_lr: 0.001
+  l2_normalize_encoders: [dinov2, clip]
+
+selection:
+  ari_margin: 0.02
+  pretrain_margin: 0.05
+  second_stage_margin: 0.02
+  noise_retention_floor: 0.90
+
+silhouette:
+  max_points: 2000
+  note: >
+    Silhouette is computed in each method's own embedding. Do not rank methods
+    by silhouette across spaces of different dimension.

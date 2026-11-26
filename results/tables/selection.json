@@ -1,0 +1,14 @@
+{
+  "fashion_mnist": {
+    "choice": "pca_kmeans",
+    "reason": "classical_baseline",
+    "evidence": {
+      "ari": 0.3565017134275336,
+      "time_sec": 1.5245587926668425
+    },
+    "notes": [
+      "idec_rule_blocked_missing_noise",
+      "classical_tie_broken_by_time"
+    ]
+  }
+}

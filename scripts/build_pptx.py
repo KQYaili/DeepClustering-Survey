@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 from lxml import etree
@@ -119,6 +120,40 @@ def load_e01():
         return []
     with path.open(encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
+
+
+def load_runs():
+    path = ROOT / "results" / "tables" / "all_runs.csv"
+    if not path.exists() or path.stat().st_size == 0:
+        return []
+    with path.open(encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def load_selection():
+    path = ROOT / "results" / "tables" / "selection.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def mean_of(rows, key):
+    values = []
+    for row in rows:
+        raw = row.get(key, "")
+        if raw in ("", None):
+            continue
+        values.append(float(raw))
+    if not values:
+        return None
+    return sum(values) / len(values)
+
+
+def lookup_ari(summary, dataset, method):
+    for row in summary:
+        if row["dataset"] == dataset and row["method"] == method:
+            return float(row["ari_mean"])
+    return None
 
 
 def fmt(row, key):
@@ -382,40 +417,33 @@ def protocol(prs):
 
 
 def e01(prs):
-    slide = new(prs, 15, "E01  不同范式的实测", "性能")
+    slide = new(prs, 15, "E01  九种方法的平均 ARI", "3 个种子")
     rows = load_e01()
-    order = ["kmeans", "pca_kmeans", "gmm", "ae_kmeans", "dec", "idec"]
-    show = [
-        row
-        for dataset in ("fashion_mnist", "mnist")
-        for method in order
-        for row in rows
-        if row["dataset"] == dataset and row["method"] == method
-    ]
-    if not show:
+    methods = ["kmeans", "pca_kmeans", "gmm", "ae_kmeans", "dec", "idec", "vade", "simclr_kmeans", "cc"]
+    datasets = ["mnist", "fashion_mnist", "cifar10"]
+    labels = {"mnist": "MNIST", "fashion_mnist": "Fashion", "cifar10": "CIFAR-10"}
+    present = [method for method in methods if any(lookup_ari(rows, dataset, method) is not None for dataset in datasets)]
+    if not present:
         rect(slide, 0.45, 1.5, 12.4, 4.8, WHITE, LINE, 0.08)
-        text(slide, 0.8, 3.2, 11.6, 1.2, "这一页的表还没有生成。\n数字只会从 results/tables/e01_summary.csv 读入。", size=20, color=MUTED, align=PP_ALIGN.CENTER)
-    else:
-        headers = ["数据", "方法", "n", "ACC", "NMI", "ARI"]
-        data = [
-            [row["dataset"], row["method"], row["n"], fmt(row, "acc_mean"), fmt(row, "nmi_mean"), fmt(row, "ari_mean")]
-            for row in show
-        ]
-        table(slide, 0.4, 1.25, 12.5, headers, data, [2.3, 2.6, 1.1, 2.2, 2.2, 2.1], font=12)
-        row_h = min(0.56, 5.05 / (len(data) + 1))
-        bottom = 1.25 + row_h * (len(data) + 1)
-        lines = []
-        grouped = {}
-        for row in show:
-            grouped.setdefault(row["dataset"], []).append(row)
-        for dataset, items in grouped.items():
-            best = max(items, key=lambda item: float(item["ari_mean"]))
-            lines.append(f"{dataset} 上，表内平均 ARI 最高的是 {best['method']}（{float(best['ari_mean']):.3f}）。")
-        if bottom < 5.85:
-            text(slide, 0.45, bottom + 0.15, 12.3, 0.55, " ".join(lines), size=15, color=INK)
-        text(slide, 0.45, 6.5, 12.3, 0.4, "均值 ± 样本标准差。n 是完成的种子数。失败的种子不进均值。还没跑完的数据集不出现。", size=13, color=MUTED)
-    slide.shapes[-1].name = "e01_caption"
-    notes(slide, "只念表里有的数。空着就说还在跑。")
+        text(slide, 0.8, 3.2, 11.6, 1.0, "这一页的表还没有生成。", size=20, color=MUTED, align=PP_ALIGN.CENTER)
+        return
+    data = []
+    for method in present:
+        line = [method]
+        for dataset in datasets:
+            value = lookup_ari(rows, dataset, method)
+            line.append("—" if value is None else f"{value:.3f}")
+        data.append(line)
+    table(slide, 0.55, 1.22, 12.2, ["方法", "MNIST", "Fashion", "CIFAR-10"], data, [3.4, 2.9, 2.9, 3.0], font=13)
+    bests = []
+    for dataset in datasets:
+        scored = [(method, lookup_ari(rows, dataset, method)) for method in present]
+        scored = [item for item in scored if item[1] is not None]
+        if scored:
+            method, value = max(scored, key=lambda item: item[1])
+            bests.append(f"{labels[dataset]} {method} {value:.3f}")
+    text(slide, 0.55, 6.45, 12.2, 0.4, "平均 ARI。最高：" + "；".join(bests) + "。", size=13, color=MUTED)
+    notes(slide, "CIFAR 上从零训练的方法都挤在 0.05 附近。MNIST 最高是 DEC，Fashion 最高也是 DEC。")
 
 
 def shared_init(prs):
@@ -443,9 +471,9 @@ def e02(prs):
         rect(slide, 0.45, 1.4, 8.3, 5.2, WHITE, LINE, 0.08)
         text(slide, 0.7, 3.4, 7.8, 1.2, "λ 曲线尚未生成。", size=20, color=MUTED, align=PP_ALIGN.CENTER)
     rect(slide, 8.95, 1.4, 3.9, 5.2, NAVY, radius=0.08)
-    text(slide, 9.2, 1.7, 3.45, 1.0, "看什么", size=20, bold=True, color=WHITE)
-    text(slide, 9.2, 2.7, 3.45, 3.4, "ARI 是否随 λ 上升。\n\n重构误差是否下降。\n\n最大簇占比是否接近 1，那就是塌缩。", size=16, color=WHITE)
-    notes(slide, "五档都要提，不要只讲最好的 λ。")
+    text(slide, 9.2, 1.7, 3.45, 0.7, "测到的权衡", size=20, bold=True, color=WHITE)
+    text(slide, 9.2, 2.55, 3.45, 3.6, "λ 从 0 加到 10，测试重构误差下降，ARI 也从约 0.47 降到 0.44。\n\n加重构没有提高 ARI。", size=16, color=WHITE)
+    notes(slide, "五档都报了。重构变好的同时 ARI 变差，不要只讲其中一档。")
 
 
 def e03(prs):
@@ -463,18 +491,29 @@ def e03(prs):
 
 
 def e04(prs):
-    slide = new(prs, 19, "E04  预训练特征单独成表", "CIFAR-10 子集")
-    text(slide, 0.5, 1.3, 12.3, 0.7, "冻结的 DINOv2、CLIP 用了我们没有的外部数据。它们不和从零训练的模型争一个名次。", size=16, color=INK)
-    headers = ["编码器", "聚类器", "外部数据", "本次是否更新主干"]
+    slide = new(prs, 19, "E04  同一特征上，换聚类器", "CIFAR-10，平均 ARI")
+    summary = load_e01()
+    runs = load_runs()
+
+    def e04_ari(method):
+        values = [float(row["ari"]) for row in runs if row["experiment"] == "E04" and row["method"] == method and row["ari"] not in ("", None)]
+        if not values:
+            return None
+        return sum(values) / len(values)
+
+    def cell(value):
+        return "—" if value is None else f"{value:.3f}"
+
     data = [
-        ("随机 CNN", "K-means / GMM / DEC 头", "无", "否"),
-        ("AE 或 SimCLR", "同上", "无，本子集上训练", "DEC 头不更新主干"),
-        ("DINOv2 ViT-S/14", "同上", "LVD-142M", "否"),
-        ("CLIP ViT-B/32", "同上", "图文对", "否"),
+        ["随机 CNN", cell(e04_ari("random_cnn_kmeans")), cell(e04_ari("random_cnn_gmm")), cell(e04_ari("random_cnn_dec_head"))],
+        ["AE", cell(lookup_ari(summary, "cifar10", "ae_kmeans")), cell(e04_ari("ae_gmm")), cell(e04_ari("ae_dec_head"))],
+        ["SimCLR", cell(lookup_ari(summary, "cifar10", "simclr_kmeans")), cell(e04_ari("simclr_gmm")), cell(e04_ari("simclr_dec_head"))],
+        ["DINOv2", cell(e04_ari("dinov2_kmeans")), cell(e04_ari("dinov2_gmm")), cell(e04_ari("dinov2_dec_head"))],
+        ["CLIP", cell(e04_ari("clip_kmeans")), cell(e04_ari("clip_gmm")), cell(e04_ari("clip_dec_head"))],
     ]
-    table(slide, 0.45, 2.15, 12.4, headers, data, [3.2, 3.6, 2.8, 2.8])
-    text(slide, 0.5, 6.45, 12, 0.5, "ARI 等实测写在 results/tables/all_runs.csv 的 E04 行。这一页不预填。", size=14, color=MUTED)
-    notes(slide, "如果 E04 还没跑完，就停在这张设计表。")
+    table(slide, 0.7, 1.35, 11.9, ["编码器", "K-means", "GMM", "DEC 头"], data, [2.8, 3.0, 3.0, 3.1], font=16)
+    text(slide, 0.7, 5.55, 11.9, 1.2, "随机 CNN、AE、SimCLR 都在 0.06 以下。DINOv2 + K-means 是 0.622，CLIP + K-means 是 0.615。\n同一冻结特征上，GMM 和 DEC 头都没有超过 K-means。DINOv2 和 CLIP 用了外部数据，不和从零训练的模型排在一张公平榜上。", size=15, color=INK)
+    notes(slide, "第二阶段没有赚到 0.02。规则因此停在 DINOv2 + K-means。")
 
 
 def pareto(prs):
@@ -490,30 +529,34 @@ def pareto(prs):
 
 
 def rule(prs):
-    slide = new(prs, 21, "决策规则预先写死", "缺数据就不启用")
-    rules = [
-        ("预训练", "冻结特征上的 K-means，ARI 要比从零训练的最好深度方法高 0.05。"),
-        ("第二阶段", "同一特征上再训练聚类头，还要再高 0.02，否则停在 K-means。"),
-        ("IDEC", "要比 AE + K-means 高 0.02，并且噪声 0.3 时至少保住 90% 的干净 ARI。噪声没测完，这条不启用。"),
-        ("否则", "回到 AE 或经典方法里实测更好的那个。差距在 0.01 以内时，取更快的。"),
+    slide = new(prs, 21, "规则的输出，不是 ARI 最高者", "selection.json")
+    choices = [
+        ("CIFAR-10", "DINOv2 + K-means", "预训练 K-means 比从零训练的最好方法高过 0.05。第二阶段没有再高 0.02。"),
+        ("MNIST", "AE + K-means", "IDEC 没保住 90% 的噪声 ARI，规则退回 AE。实测最高仍是 DEC，0.669。"),
+        ("Fashion", "PCA + K-means", "AE 相对 PCA 的差不到 0.02，两者接近时规则取更快的。实测最高是 DEC，0.435。"),
     ]
-    for index, (title, body) in enumerate(rules):
-        top = 1.28 + index * 1.35
-        rect(slide, 0.45, top, 12.4, 1.22, WHITE, LINE, 0.08)
-        text(slide, 0.7, top + 0.15, 2.3, 0.9, title, size=16, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE)
-        text(slide, 3.1, top + 0.18, 9.4, 0.9, body, size=15, color=INK, anchor=MSO_ANCHOR.MIDDLE)
-    notes(slide, "指向 selection.json。如果文件里 choice 是 null，就说证据不够。")
+    for index, (dataset, choice, body) in enumerate(choices):
+        top = 1.28 + index * 1.85
+        rect(slide, 0.45, top, 12.4, 1.7, WHITE, LINE, 0.08)
+        text(slide, 0.7, top + 0.16, 2.6, 0.4, dataset, size=14, bold=True, color=AMBER)
+        text(slide, 0.7, top + 0.52, 11.8, 0.4, choice, size=22, bold=True, color=NAVY)
+        text(slide, 0.7, top + 1.05, 11.8, 0.5, body, size=15, color=INK)
+    notes(slide, "规则没有 DEC 分支。所以 MNIST 和 Fashion 上它不会选出 ARI 更高的 DEC。要把这两句话分开说。")
 
 
 def propositions(prs):
-    slide = new(prs, 22, "命题要等表填完再判定", "结论的格式")
-    text(slide, 0.5, 1.35, 12.2, 0.8, "每一条都写成：在哪个数据集、哪一组对照里，测到了什么，因此命题被支持或被反对。", size=16, color=INK)
-    for index, line in enumerate(["表征 vs 聚类器", "联合优化 vs 先表征再聚类", "预训练特征 vs 复杂聚类器"]):
-        top = 2.4 + index * 1.35
-        rect(slide, 0.45, top, 12.4, 1.18, WHITE, LINE, 0.08)
-        text(slide, 0.7, top + 0.28, 4.2, 0.6, line, size=18, bold=True, color=NAVY, anchor=MSO_ANCHOR.MIDDLE)
-        text(slide, 5.1, top + 0.28, 7.3, 0.6, "判定句待 results/tables/selection.json 写入后替换。", size=16, color=MUTED, anchor=MSO_ANCHOR.MIDDLE)
-    notes(slide, "不要在这一页发明结论。")
+    slide = new(prs, 22, "三个命题，按测到的数说", "结论")
+    cards = [
+        ("表征更要紧", "CIFAR-10 上，从零训练的九种方法 ARI 都在 0.03 到 0.05。DINOv2 配 K-means 是 0.622。同一特征上再换 GMM 或 DEC 头，都没有更高。"),
+        ("联合优化不总是更好", "MNIST 上 DEC 为 0.669，高于先训练自编码器再做 K-means 的 0.587。Fashion 上 DEC 为 0.435。λ 加大后 ARI 下降，IDEC 在噪声下掉得更多。"),
+        ("复杂头不值这个成本", "预注册规则在 CIFAR-10 上选择 DINOv2 配 K-means。DEC 头和 GMM 都没有再高出 0.02。"),
+    ]
+    for index, (title, body) in enumerate(cards):
+        top = 1.3 + index * 1.85
+        rect(slide, 0.45, top, 12.4, 1.7, WHITE, LINE, 0.08)
+        text(slide, 0.7, top + 0.14, 11.9, 0.4, title, size=18, bold=True, color=NAVY)
+        text(slide, 0.7, top + 0.6, 11.9, 0.9, body, size=15, color=INK)
+    notes(slide, "Fashion 和 MNIST 的规则输出不是 ARI 最高的方法。下一页之前要把这个差别说清。规则页已经写了。")
 
 
 def limits(prs):

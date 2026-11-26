@@ -7,6 +7,19 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score, silhouette_score
 
 
+def evaluation_labels(dataset: str, indices: np.ndarray) -> np.ndarray:
+    """Read the official answers for these indices only at final scoring."""
+    from runtime.paths import data_root
+
+    cache = data_root() / f"{dataset}_full.npz"
+    if cache.exists():
+        with np.load(cache, allow_pickle=False) as arrays:
+            return arrays["test_y"][indices]
+    from datasets.data import official_dataset
+
+    return np.asarray(official_dataset(dataset, train=False).targets, dtype=np.int64)[indices]
+
+
 def clustering_accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     y_true = np.asarray(y_true, dtype=np.int64).reshape(-1)
     y_pred = np.asarray(y_pred, dtype=np.int64).reshape(-1)

@@ -8,6 +8,7 @@ venv/
 data/
 results/checkpoints/
 results/cache/
+results/history/*/results/cache/
 results/queue/
 results/queue.log
 presentation/preview/

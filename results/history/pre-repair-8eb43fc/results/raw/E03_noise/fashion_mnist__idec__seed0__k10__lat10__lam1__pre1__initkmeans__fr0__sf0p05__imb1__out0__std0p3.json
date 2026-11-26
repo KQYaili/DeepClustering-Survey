@@ -1,0 +1,45 @@
+{
+  "status": "ok",
+  "job": {
+    "experiment": "E03_noise",
+    "dataset": "fashion_mnist",
+    "method": "idec",
+    "seed": 0,
+    "k": 10,
+    "latent_dim": 10,
+    "lambda_recon": 1.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 0.05,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 61,
+    "noise_std": 0.3
+  },
+  "noise_std": 0.3,
+  "metrics": {
+    "acc": 0.3047,
+    "nmi": 0.3704519972184686,
+    "ari": 0.20089929186435232,
+    "silhouette": 0.2523338794708252,
+    "counts": [
+      0,
+      2345,
+      0,
+      218,
+      1601,
+      2633,
+      87,
+      3110,
+      5,
+      1
+    ],
+    "max_fraction": 0.311,
+    "n_nonempty": 8,
+    "entropy": 1.4773929455973773,
+    "entropy_norm": 0.641623603875732
+  },
+  "n_test": 10000
+}

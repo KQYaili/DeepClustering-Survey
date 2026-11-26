@@ -1,0 +1,39 @@
+source,experiment,attempts,error
+results/attempts/E01/cifar10__gmm__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0/attempt-1.json,E01,1,"Traceback (most recent call last):
+  File ""/mnt/c/Users/lgd/Documents/DeepClustering-Survey/scripts/run_one.py"", line 120, in <module>
+    main()
+    ~~~~^^
+  File ""/mnt/c/Users/lgd/Documents/DeepClustering-Survey/scripts/run_one.py"", line 97, in main
+    execute(job)
+    ~~~~~~~^^^^^
+  File ""/mnt/c/Users/lgd/Documents/DeepClustering-Survey/scripts/run_one.py"", line 30, in execute
+    x_train, _y_train, x_test, y_test = materialize(
+                                        ~~~~~~~~~~~^
+        job[""dataset""],
+        ^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        float(job[""outlier_frac""]),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File ""/mnt/c/Users/lgd/Documents/DeepClustering-Survey/src/datasets/data.py"", line 132, in materialize
+    train_x, train_y, test_x, test_y = load_full(dataset)
+                                       ~~~~~~~~~^^^^^^^^^
+  File ""/mnt/c/Users/lgd/Documents/DeepClustering-Survey/src/datasets/data.py"", line 27, in load_full
+    train_x, train_y, test_x, test_y = _download(dataset)
+                                       ~~~~~~~~~^^^^^^^^^
+  File ""/mnt/c/Users/lgd/Documents/DeepClustering-Survey/src/datasets/data.py"", line 41, in _download
+    train = cls(root=root, train=True, download=True, transform=transform)
+  File ""/home/lgd/venvs/dc-extra/torchvision/datasets/cifar.py"", line 66, in __init__
+    self.download()
+    ~~~~~~~~~~~~~^^
+  File ""/home/lgd/venvs/dc-extra/torchvision/datasets/cifar.py"", line 139, in download
+    download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/home/lgd/venvs/dc-extra/torchvision/datasets/utils.py"", line 393, in download_and_extract_archive
+    download_url(url, download_root, filename, md5)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File ""/home/lgd/venvs/dc-extra/torchvision/datasets/utils.py"", line 137, in download_url
+    raise RuntimeError(""File not found or corrupted."")
+RuntimeError: File not found or corrupted.
+"

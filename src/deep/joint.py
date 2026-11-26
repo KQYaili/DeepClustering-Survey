@@ -29,9 +29,11 @@ from runtime.paths import ae_cache_path
 
 
 def _epoch_plan(planned: int, losses: list[float], extended: bool, stopped_early: bool, epoch: int, protocol: dict):
-    if stopped_early or extended or epoch != planned:
-        return planned, extended
     rule = protocol["extension"]
+    if extended:
+        return planned + int(rule["extra_epochs"]), True
+    if stopped_early or epoch != planned:
+        return planned, False
     if rule["enabled"] and loss_still_falling(losses, rule["window"], rule["relative_drop"]):
         return planned + int(rule["extra_epochs"]), True
     return planned, extended
@@ -203,7 +205,9 @@ def train_joint(job: dict, protocol: dict, images: np.ndarray, dev: torch.device
     seed_everything(int(job["seed"]) + int(protocol["finetune_seed_offset"]))
     with torch.no_grad():
         initial = embed_array(lambda batch: model.encode(batch), images, int(protocol["batch_size"]), dev)
-    centers_np = init_centers_from_embeddings(initial, int(job["k"]), int(job["seed"]), job["center_init"])
+    centers_np = init_centers_from_embeddings(
+        initial, int(job["k"]), int(job["seed"]), job["center_init"], int(protocol["kmeans"]["n_init"])
+    )
     centers = torch.nn.Parameter(torch.tensor(centers_np, dtype=torch.float32, device=dev))
     for parameter in encoder_parameters(model):
         parameter.requires_grad_(not bool(job["freeze_encoder"]))

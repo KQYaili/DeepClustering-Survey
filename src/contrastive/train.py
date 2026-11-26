@@ -217,12 +217,12 @@ def simclr_backbone_path(job: dict) -> Path:
 def ensure_simclr(job, protocol, images, dev):
     cfg = protocol["simclr"]
     path = simclr_backbone_path(job)
+    seed_everything(int(job["seed"]))
     net = SimCLRNet(job["dataset"], int(cfg["backbone_dim"]), int(cfg["projection_dim"])).to(dev)
     if path.exists():
         blob = torch.load(path, map_location=dev, weights_only=False)
         net.load_state_dict(blob["state_dict"])
         return net, {"train_loss": blob.get("train_loss", []), "extended": blob.get("extended", False), "epochs_ran": blob.get("epochs_ran", 0), "stopped_early": False, "backbone_cache_hit": True}
-    seed_everything(int(job["seed"]))
     optimizer = torch.optim.Adam(net.parameters(), lr=float(cfg["lr"]), weight_decay=float(cfg["weight_decay"]))
 
     def batch_fn(view_a, view_b):

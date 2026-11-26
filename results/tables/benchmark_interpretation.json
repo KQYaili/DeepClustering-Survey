@@ -1,0 +1,108 @@
+{
+  "mnist": {
+    "choice": "ae_kmeans",
+    "reason": "nonlinear_representation_before_kmeans",
+    "evidence": {
+      "ae_kmeans_ari": 0.5869117750725935,
+      "pca_kmeans_ari": 0.34610203652520677
+    },
+    "notes": [
+      "idec_rejected_on_noise_retention"
+    ],
+    "inputs": {
+      "ae_kmeans_ari": 0.5869117750725935,
+      "ae_kmeans_time_sec": 28.563464830319088,
+      "cc_ari": 0.09441673018837456,
+      "cc_time_sec": 204.92242386036864,
+      "dec_ari": 0.6690257411375277,
+      "dec_time_sec": 18.59442375972867,
+      "gmm_ari": 0.17763029559171997,
+      "gmm_time_sec": 7.933113003460069,
+      "idec_ari": 0.6207724485986215,
+      "idec_time_sec": 40.28043258097023,
+      "kmeans_ari": 0.3680318811864785,
+      "kmeans_time_sec": 18.467066247792292,
+      "pca_kmeans_ari": 0.34610203652520677,
+      "pca_kmeans_time_sec": 1.5967139654482405,
+      "simclr_kmeans_ari": 0.17645338918646214,
+      "simclr_kmeans_time_sec": 194.3255960542398,
+      "vade_ari": 0.6599418584749909,
+      "vade_time_sec": 65.35546447709203,
+      "idec_retention": 0.49738784707410766
+    },
+    "use": "Retrospective only. The IDEC noise gate applies to IDEC only."
+  },
+  "fashion_mnist": {
+    "choice": "pca_kmeans",
+    "reason": "classical_baseline",
+    "evidence": {
+      "ari": 0.3565017134275336,
+      "time_sec": 1.5245587926668425
+    },
+    "notes": [
+      "idec_rejected_on_noise_retention",
+      "classical_tie_broken_by_time"
+    ],
+    "inputs": {
+      "ae_kmeans_ari": 0.37309354255034877,
+      "ae_kmeans_time_sec": 37.70267432772865,
+      "cc_ari": 0.1880849902723757,
+      "cc_time_sec": 220.20415633544326,
+      "dec_ari": 0.4348939358474733,
+      "dec_time_sec": 22.301049953637023,
+      "gmm_ari": 0.31957059326227183,
+      "gmm_time_sec": 10.632547993989041,
+      "idec_ari": 0.4011095187608347,
+      "idec_time_sec": 40.53656588851785,
+      "kmeans_ari": 0.36532062352414174,
+      "kmeans_time_sec": 12.616321118082851,
+      "pca_kmeans_ari": 0.3565017134275336,
+      "pca_kmeans_time_sec": 1.5245587926668425,
+      "simclr_kmeans_ari": 0.20833928452692288,
+      "simclr_kmeans_time_sec": 215.52113880589604,
+      "vade_ari": 0.38723311906757624,
+      "vade_time_sec": 61.37971503287554,
+      "idec_retention": 0.5059935585223262
+    },
+    "use": "Retrospective only. The IDEC noise gate applies to IDEC only."
+  },
+  "cifar10": {
+    "choice": "dinov2+kmeans",
+    "reason": "pretrained_embedding_kmeans",
+    "evidence": {
+      "pretrained_kmeans_ari": 0.6219010333575266,
+      "best_from_scratch": {
+        "method": "idec_ari",
+        "ari": 0.0543420498787082
+      }
+    },
+    "notes": [],
+    "inputs": {
+      "ae_kmeans_ari": 0.052548107536343154,
+      "ae_kmeans_time_sec": 16.153562115039676,
+      "cc_ari": 0.030162989472477583,
+      "cc_time_sec": 149.07782146862397,
+      "dec_ari": 0.04591698121402083,
+      "dec_time_sec": 17.68941757005329,
+      "gmm_ari": 0.050760603380333356,
+      "gmm_time_sec": 69.88388283085078,
+      "idec_ari": 0.0543420498787082,
+      "idec_time_sec": 22.077971257890265,
+      "kmeans_ari": 0.03854359162430081,
+      "kmeans_time_sec": 28.605243934318423,
+      "pca_kmeans_ari": 0.03929240882258787,
+      "pca_kmeans_time_sec": 1.7144131092354655,
+      "simclr_kmeans_ari": 0.037671370904315236,
+      "simclr_kmeans_time_sec": 225.30756546075767,
+      "vade_ari": 0.05008919485530061,
+      "vade_time_sec": 40.828994658465184,
+      "idec_retention": 0.8917134954026071,
+      "best_pretrained_encoder": "dinov2",
+      "pretrained_kmeans_ari": 0.6219010333575266,
+      "pretrained_paired_kmeans_ari": 0.6360542388579097,
+      "pretrained_best_second_ari": 0.573850499813568,
+      "pretrained_second_name": "dinov2_gmm"
+    },
+    "use": "Retrospective only. The IDEC noise gate applies to IDEC only."
+  }
+}

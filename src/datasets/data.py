@@ -1,86 +1,72 @@
-"""Dataset splits. Labels leave this module only for subset construction and final evaluation."""
+"""Image inputs and split indices for the official torchvision datasets."""
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import numpy as np
 
 from runtime.paths import data_root, split_dir
 
 
+# (torchvision class name, official training size, official test size)
 OFFICIAL = {
-    "mnist": ("MNIST", 1, 28),
-    "fashion_mnist": ("FashionMNIST", 1, 28),
-    "cifar10": ("CIFAR10", 3, 32),
+    "mnist": ("MNIST", 60000, 10000),
+    "fashion_mnist": ("FashionMNIST", 60000, 10000),
+    "cifar10": ("CIFAR10", 50000, 10000),
 }
 
 
-def load_full(dataset: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    if dataset not in OFFICIAL:
-        raise ValueError(dataset)
+def official_dataset(dataset: str, train: bool):
+    from torchvision import datasets
+
+    name = OFFICIAL[dataset][0]
+    return getattr(datasets, name)(root=data_root() / "torchvision", train=train, download=True)
+
+
+def _images(dataset: str, train: bool, indices: np.ndarray) -> np.ndarray:
     cache = data_root() / f"{dataset}_full.npz"
     if cache.exists():
-        stored = np.load(cache)
-        return stored["train_x"], stored["train_y"], stored["test_x"], stored["test_y"]
-    train_x, train_y, test_x, test_y = _download(dataset)
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(cache, train_x=train_x, train_y=train_y, test_x=test_x, test_y=test_y)
-    return train_x, train_y, test_x, test_y
+        with np.load(cache, allow_pickle=False) as arrays:
+            return arrays["train_x" if train else "test_x"][indices]
+    pixels = np.asarray(official_dataset(dataset, train).data)[indices]
+    if pixels.ndim == 3:
+        pixels = pixels[:, None, :, :]
+    else:
+        pixels = pixels.transpose(0, 3, 1, 2)
+    return np.ascontiguousarray(pixels, dtype=np.float32) / 255.0
 
 
-def _download(dataset: str):
-    from torchvision import datasets, transforms
-
-    name, channels, _size = OFFICIAL[dataset]
-    root = data_root() / "torchvision"
-    root.mkdir(parents=True, exist_ok=True)
-    transform = transforms.ToTensor()
-    cls = getattr(datasets, name)
-    train = cls(root=root, train=True, download=True, transform=transform)
-    test = cls(root=root, train=False, download=True, transform=transform)
-    return _stack(train, channels), _labels(train), _stack(test, channels), _labels(test)
-
-
-def _stack(dataset, channels: int) -> np.ndarray:
-    images = np.empty((len(dataset), channels, dataset[0][0].shape[-2], dataset[0][0].shape[-1]), dtype=np.float32)
-    # dataset[0] may download-trigger; use the tensor shape from the first item after a direct loop
-    first, _ = dataset[0]
-    images = np.empty((len(dataset),) + tuple(first.shape), dtype=np.float32)
-    for i in range(len(dataset)):
-        image, _label = dataset[i]
-        images[i] = image.numpy()
-    return images
-
-
-def _labels(dataset) -> np.ndarray:
-    labels = np.empty(len(dataset), dtype=np.int64)
-    for i in range(len(dataset)):
-        _image, label = dataset[i]
-        labels[i] = int(label)
-    return labels
+def _training_classes(dataset: str) -> np.ndarray:
+    cache = data_root() / f"{dataset}_full.npz"
+    if cache.exists():
+        with np.load(cache, allow_pickle=False) as arrays:
+            return arrays["train_y"]
+    return np.asarray(official_dataset(dataset, train=True).targets, dtype=np.int64)
 
 
 def base_indices(dataset: str, n_train: int, n_test: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
-    _train_x, train_y, _test_x, test_y = load_full(dataset)
     path = split_dir() / f"{dataset}_seed{seed}_ntr{n_train}_nte{n_test}.npz"
     if path.exists():
-        stored = np.load(path)
-        return stored["train_idx"], stored["test_idx"]
+        with np.load(path, allow_pickle=False) as stored:
+            return stored["train_idx"], stored["test_idx"]
+    _, total_train, total_test = OFFICIAL[dataset]
     rng = np.random.default_rng(seed)
-    n_train = min(int(n_train), len(train_y))
-    n_test = min(int(n_test), len(test_y))
-    train_idx = rng.choice(len(train_y), size=n_train, replace=False).astype(np.int64)
-    test_idx = rng.choice(len(test_y), size=n_test, replace=False).astype(np.int64)
+    train_idx = rng.choice(total_train, size=min(int(n_train), total_train), replace=False).astype(np.int64)
+    test_idx = rng.choice(total_test, size=min(int(n_test), total_test), replace=False).astype(np.int64)
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(path, train_idx=train_idx, test_idx=test_idx)
+    # Each writer produces the same split. Publish only complete NPZ files.
+    with NamedTemporaryFile(dir=path.parent, suffix=".npz", delete=False) as tmp:
+        temp_path = Path(tmp.name)
+        np.savez(tmp, train_idx=train_idx, test_idx=test_idx)
+    temp_path.replace(path)
     return train_idx, test_idx
 
 
 def training_subset(
     train_idx: np.ndarray,
-    train_y: np.ndarray,
+    train_y: np.ndarray | None,
     sample_frac: float,
     imbalance: float,
     seed: int,
@@ -91,6 +77,8 @@ def training_subset(
         size = max(1, int(round(len(idx) * float(sample_frac))))
         idx = rng.choice(idx, size=min(size, len(idx)), replace=False).astype(np.int64)
     if imbalance > 1.0:
+        if train_y is None:
+            raise ValueError("training classes required to construct the imbalance condition")
         labels = train_y[idx]
         classes, counts = np.unique(labels, return_counts=True)
         majority = classes[int(np.argmax(counts))]
@@ -127,13 +115,26 @@ def add_gaussian_noise(images: np.ndarray, std: float, seed: int) -> np.ndarray:
     return np.clip(noisy, 0.0, 1.0).astype(np.float32)
 
 
-def materialize(dataset: str, protocol: dict, seed: int, sample_frac: float, imbalance: float, outlier_frac: float):
+def _split(dataset: str, protocol: dict, seed: int):
     spec = protocol["splits"][dataset]
-    train_x, train_y, test_x, test_y = load_full(dataset)
-    train_idx, test_idx = base_indices(dataset, spec["n_train"], spec["n_test"], seed)
-    subset = training_subset(train_idx, train_y, sample_frac, imbalance, seed)
-    x_train = apply_outliers(train_x[subset], outlier_frac, seed)
-    y_train = train_y[subset]
-    x_test = test_x[test_idx]
-    y_test = test_y[test_idx]
-    return x_train, y_train, x_test, y_test
+    return base_indices(dataset, spec["n_train"], spec["n_test"], seed)
+
+
+def training_images(dataset: str, protocol: dict, seed: int, sample_frac: float = 1.0,
+                    imbalance: float = 1.0, outlier_frac: float = 0.0):
+    train_idx, _ = _split(dataset, protocol, seed)
+    classes = _training_classes(dataset) if imbalance > 1 else None
+    indices = training_subset(train_idx, classes, sample_frac, imbalance, seed)
+    images = _images(dataset, True, indices)
+    return apply_outliers(images, outlier_frac, seed), indices
+
+
+def evaluation_images(dataset: str, protocol: dict, seed: int):
+    _, indices = _split(dataset, protocol, seed)
+    return _images(dataset, False, indices), indices
+
+
+def materialize(dataset: str, protocol: dict, seed: int, sample_frac: float, imbalance: float, outlier_frac: float):
+    train, _ = training_images(dataset, protocol, seed, sample_frac, imbalance, outlier_frac)
+    test, indices = evaluation_images(dataset, protocol, seed)
+    return train, test, indices

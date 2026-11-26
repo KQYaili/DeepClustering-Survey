@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -92,8 +93,43 @@ def json_ready(value):
 
 def write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(json_ready(payload), indent=2, ensure_ascii=False), encoding="utf-8")
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as temp:
+        temp_path = Path(temp.name)
+        try:
+            json.dump(json_ready(payload), temp, indent=2, ensure_ascii=False)
+        except BaseException:
+            temp.close()
+            temp_path.unlink(missing_ok=True)
+            raise
+    try:
+        temp_path.replace(path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def retryable_infrastructure(error: str) -> bool:
+    return any(message in error for message in (
+        "File not found or corrupted.", "CUDA out of memory", "OutOfMemoryError",
+        "ConnectionError:", "ConnectionResetError:", "TimeoutError:", "URLError:",
+        "Temporary failure in name resolution", "No space left on device",
+    ))
+
+
+def pending_result(path: Path) -> bool:
+    if not path.exists():
+        return True
+    record = read_json(path)
+    return (record.get("status") == "failed" and int(record.get("attempts", 1)) < 2
+            and retryable_infrastructure(record.get("error", "")))
+
+
+def record_failure(destination: Path, job: dict, error: str) -> None:
+    attempts = int(read_json(destination).get("attempts", 1)) + 1 if destination.exists() else 1
+    record = {"status": "failed", "job": job, "error": error, "attempts": attempts}
+    archive = destination.parents[2] / "attempts" / job["experiment"] / destination.stem
+    write_json(archive / f"attempt-{attempts}.json", record)
+    write_json(destination, record)

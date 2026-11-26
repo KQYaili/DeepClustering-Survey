@@ -208,13 +208,13 @@ def _collect_mu(net: VaDENet, images: np.ndarray, dev: torch.device) -> np.ndarr
     return np.concatenate(chunks).astype(np.float32)
 
 
-def _init_mixture(net: VaDENet, images: np.ndarray, seed: int, dev: torch.device) -> None:
+def _init_mixture(net: VaDENet, images: np.ndarray, seed: int, dev: torch.device, n_init: int) -> None:
     from sklearn.cluster import KMeans
 
     latent = _collect_mu(net, images, dev)
     if len(latent) < net.n_clusters:
         raise ValueError(f"too_few_samples: {len(latent)} < k={net.n_clusters}")
-    kmeans = KMeans(n_clusters=net.n_clusters, n_init=20, random_state=seed)
+    kmeans = KMeans(n_clusters=net.n_clusters, n_init=n_init, random_state=seed)
     labels = kmeans.fit_predict(latent)
     centers = torch.tensor(kmeans.cluster_centers_, dtype=torch.float32, device=dev)
     net.mu_c.data.copy_(centers)
@@ -293,7 +293,7 @@ def train_vade(job: dict, protocol: dict, images: np.ndarray, dev: torch.device)
     )
     for parameter in net.parameters():
         parameter.requires_grad_(True)
-    _init_mixture(net, images, int(job["seed"]), dev)
+    _init_mixture(net, images, int(job["seed"]), dev, int(protocol["kmeans"]["n_init"]))
     seed_everything(int(job["seed"]) + int(protocol["finetune_seed_offset"]))
     optimizer = torch.optim.Adam(net.parameters(), lr=float(cfg["lr"]))
     elbo_loss, elbo_ext, stopped, elbo_epochs = _run_loop(

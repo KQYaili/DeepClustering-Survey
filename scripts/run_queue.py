@@ -13,22 +13,22 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from runtime.paths import job_id, project_root, read_json, result_path  # noqa: E402
+from runtime.paths import job_id, pending_result, project_root, read_json, record_failure, result_path  # noqa: E402
 
 
 def load_protocol() -> dict:
     return yaml.safe_load((ROOT / "configs" / "protocol.yaml").read_text(encoding="utf-8"))
 
 
-def _base(**kwargs) -> dict:
+def _base(protocol: dict, **kwargs) -> dict:
     job = {
         "experiment": "E01",
         "dataset": "mnist",
         "method": "kmeans",
         "seed": 0,
-        "k": 10,
-        "latent_dim": 10,
-        "lambda_recon": 1.0,
+        "k": int(protocol["k_default"]),
+        "latent_dim": int(protocol["ae"]["mlp_dims"][-1]),
+        "lambda_recon": float(protocol["idec"]["lambda_recon"]),
         "pretrain": True,
         "center_init": "kmeans",
         "freeze_encoder": False,
@@ -64,6 +64,7 @@ def build_jobs(protocol: dict) -> list[dict]:
             for seed in seeds:
                 jobs.append(
                     _base(
+                        protocol,
                         experiment="E01",
                         dataset=dataset,
                         method=method,
@@ -75,6 +76,7 @@ def build_jobs(protocol: dict) -> list[dict]:
         for seed in seeds:
             jobs.append(
                 _base(
+                    protocol,
                     experiment="E01",
                     dataset="cifar10",
                     method=method,
@@ -86,6 +88,7 @@ def build_jobs(protocol: dict) -> list[dict]:
     for value in fashion["lambdas"]:
         jobs.append(
             _base(
+                protocol,
                 experiment="E02",
                 dataset=fashion["dataset"],
                 method="idec",
@@ -97,12 +100,12 @@ def build_jobs(protocol: dict) -> list[dict]:
     for dim in fashion["latent_dims"]:
         jobs.append(
             _base(
+                protocol,
                 experiment="E02",
                 dataset=fashion["dataset"],
                 method="idec",
                 seed=int(fashion["seed"]),
                 latent_dim=int(dim),
-                lambda_recon=1.0,
                 priority=30,
             )
         )
@@ -113,11 +116,11 @@ def build_jobs(protocol: dict) -> list[dict]:
     ):
         jobs.append(
             _base(
+                protocol,
                 experiment="E02",
                 dataset=fashion["dataset"],
                 method="idec",
                 seed=int(fashion["seed"]),
-                lambda_recon=1.0,
                 priority=32,
                 **extra,
             )
@@ -129,6 +132,7 @@ def build_jobs(protocol: dict) -> list[dict]:
                 continue
             jobs.append(
                 _base(
+                    protocol,
                     experiment="E03",
                     dataset=robust["dataset"],
                     method=method,
@@ -142,6 +146,7 @@ def build_jobs(protocol: dict) -> list[dict]:
                 continue
             jobs.append(
                 _base(
+                    protocol,
                     experiment="E03",
                     dataset=robust["dataset"],
                     method=method,
@@ -155,6 +160,7 @@ def build_jobs(protocol: dict) -> list[dict]:
                 continue
             jobs.append(
                 _base(
+                    protocol,
                     experiment="E03",
                     dataset=robust["dataset"],
                     method=method,
@@ -168,6 +174,7 @@ def build_jobs(protocol: dict) -> list[dict]:
                 continue
             jobs.append(
                 _base(
+                    protocol,
                     experiment="E03",
                     dataset=robust["dataset"],
                     method=method,
@@ -187,6 +194,7 @@ def build_jobs(protocol: dict) -> list[dict]:
                 priority = 25 if encoder in {"dinov2", "clip", "random_cnn"} else 45
                 jobs.append(
                     _base(
+                        protocol,
                         experiment="E04",
                         dataset=e04["dataset"],
                         method=method,
@@ -198,18 +206,6 @@ def build_jobs(protocol: dict) -> list[dict]:
     for job in jobs:
         dedup[job_id(job) + job["experiment"]] = job
     return sorted(dedup.values(), key=lambda job: (job["priority"], job["dataset"], job["method"], job["seed"]))
-
-
-def _should_skip(path: Path) -> bool:
-    if not path.exists():
-        return False
-    record = read_json(path)
-    if record.get("status") == "ok":
-        return True
-    error = record.get("error", "")
-    if "too_few_samples" in error:
-        return True
-    return int(record.get("attempts", 1)) >= 2
 
 
 def main() -> None:
@@ -225,7 +221,7 @@ def main() -> None:
     env["PYTHONUNBUFFERED"] = "1"
     log_path = project_root() / "results" / "queue.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    pending = [job for job in jobs if not _should_skip(result_path(job))]
+    pending = [job for job in jobs if pending_result(result_path(job))]
     print(f"queue {len(pending)} pending / {len(jobs)} total", flush=True)
     for index, job in enumerate(pending, start=1):
         slot = project_root() / "results" / "queue"
@@ -235,7 +231,7 @@ def main() -> None:
         print(f"[{index}/{len(pending)}] {job['experiment']} {job['dataset']} {job['method']} seed {job['seed']}", flush=True)
         with log_path.open("a", encoding="utf-8") as handle:
             handle.write(f"\n===== {spec.name} =====\n")
-            subprocess.run(
+            process = subprocess.run(
                 [sys.executable, str(ROOT / "scripts" / "run_one.py"), "--job-file", str(spec)],
                 cwd=ROOT,
                 env=env,
@@ -243,8 +239,12 @@ def main() -> None:
                 stderr=subprocess.STDOUT,
                 check=False,
             )
-    subprocess.run([sys.executable, str(ROOT / "scripts" / "eval_noise.py")], cwd=ROOT, env=env, check=False)
-    subprocess.run([sys.executable, str(ROOT / "scripts" / "analyze.py")], cwd=ROOT, env=env, check=False)
+        if process.returncode and not result_path(job).exists():
+            record_failure(result_path(job), job, f"Worker exited with code {process.returncode}; see results/queue.log")
+    for script in ("eval_noise.py", "export_embeddings.py", "eval_train_stability.py", "analyze.py"):
+        subprocess.run([sys.executable, str(ROOT / "scripts" / script)], cwd=ROOT, env=env, check=True)
+    if any(read_json(result_path(job)).get("status") != "ok" for job in jobs):
+        raise SystemExit("Some training jobs failed. See results/raw and results/attempts.")
 
 
 if __name__ == "__main__":

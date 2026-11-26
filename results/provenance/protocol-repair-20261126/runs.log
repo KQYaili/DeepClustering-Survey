@@ -1,0 +1,1257 @@
+===== E03__fashion_mnist__ae_kmeans__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf0p01__imb1__out0.json =====
+ae epoch 1/50 sse 130.1646
+ae epoch 2/50 sse 127.4818
+ae epoch 3/50 sse 118.0294
+ae epoch 4/50 sse 97.0800
+ae epoch 5/50 sse 102.1641
+ae epoch 6/50 sse 95.4353
+ae epoch 7/50 sse 82.8273
+ae epoch 8/50 sse 75.1239
+ae epoch 9/50 sse 72.5796
+ae epoch 10/50 sse 71.8005
+ae epoch 11/50 sse 69.3440
+ae epoch 12/50 sse 67.0292
+ae epoch 13/50 sse 65.7059
+ae epoch 14/50 sse 64.2209
+ae epoch 15/50 sse 62.9925
+ae epoch 16/50 sse 62.3232
+ae epoch 17/50 sse 61.7780
+ae epoch 18/50 sse 61.1885
+ae epoch 19/50 sse 60.5965
+ae epoch 20/50 sse 60.0059
+ae epoch 21/50 sse 59.4429
+ae epoch 22/50 sse 58.8852
+ae epoch 23/50 sse 58.3868
+ae epoch 24/50 sse 58.0032
+ae epoch 25/50 sse 57.4943
+ae epoch 26/50 sse 56.8208
+ae epoch 27/50 sse 56.1105
+ae epoch 28/50 sse 55.5592
+ae epoch 29/50 sse 54.9313
+ae epoch 30/50 sse 54.2832
+ae epoch 31/50 sse 53.5675
+ae epoch 32/50 sse 52.9636
+ae epoch 33/50 sse 52.4042
+ae epoch 34/50 sse 51.7137
+ae epoch 35/50 sse 51.0154
+ae epoch 36/50 sse 50.2661
+ae epoch 37/50 sse 49.3826
+ae epoch 38/50 sse 48.5988
+ae epoch 39/50 sse 47.8123
+ae epoch 40/50 sse 47.0082
+ae epoch 41/50 sse 46.6866
+ae epoch 42/50 sse 45.1415
+ae epoch 43/50 sse 43.5884
+ae epoch 44/50 sse 42.2125
+ae epoch 45/50 sse 41.4733
+ae epoch 46/50 sse 39.9788
+ae epoch 47/50 sse 38.3902
+ae epoch 48/50 sse 37.6268
+ae epoch 49/50 sse 37.9658
+ae epoch 50/60 sse 36.0626
+ae epoch 51/60 sse 41.2006
+ae epoch 52/60 sse 40.2602
+ae epoch 53/60 sse 35.5776
+ae epoch 54/60 sse 37.6347
+ae epoch 55/60 sse 36.9502
+ae epoch 56/60 sse 36.5414
+ae epoch 57/60 sse 36.3817
+ae epoch 58/60 sse 34.5396
+ae epoch 59/60 sse 34.2669
+ae epoch 60/60 sse 34.3444
+OK E03 fashion_mnist ae_kmeans seed 0 ACC 0.3678 NMI 0.4225 ARI 0.2161
+===== E03__fashion_mnist__ae_kmeans__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf0p05__imb1__out0.json =====
+ae epoch 1/50 sse 122.0537
+ae epoch 2/50 sse 90.4573
+ae epoch 3/50 sse 72.8293
+ae epoch 4/50 sse 66.9779
+ae epoch 5/50 sse 64.6008
+ae epoch 6/50 sse 62.9234
+ae epoch 7/50 sse 60.3620
+ae epoch 8/50 sse 56.2685
+ae epoch 9/50 sse 52.7005
+ae epoch 10/50 sse 49.5757
+ae epoch 11/50 sse 45.8944
+ae epoch 12/50 sse 42.4432
+ae epoch 13/50 sse 41.9065
+ae epoch 14/50 sse 38.3516
+ae epoch 15/50 sse 35.7646
+ae epoch 16/50 sse 34.5414
+ae epoch 17/50 sse 33.3080
+ae epoch 18/50 sse 32.3303
+ae epoch 19/50 sse 31.1630
+ae epoch 20/50 sse 30.3334
+ae epoch 21/50 sse 29.8971
+ae epoch 22/50 sse 29.7873
+ae epoch 23/50 sse 29.4604
+ae epoch 24/50 sse 28.8949
+ae epoch 25/50 sse 28.5121
+ae epoch 26/50 sse 28.1763
+ae epoch 27/50 sse 27.6448
+ae epoch 28/50 sse 27.5072
+ae epoch 29/50 sse 27.5772
+ae epoch 30/50 sse 27.2567
+ae epoch 31/50 sse 26.7545
+ae epoch 32/50 sse 26.5580
+ae epoch 33/50 sse 26.2924
+ae epoch 34/50 sse 25.8676
+ae epoch 35/50 sse 25.8257
+ae epoch 36/50 sse 24.8741
+ae epoch 37/50 sse 24.5022
+ae epoch 38/50 sse 24.2360
+ae epoch 39/50 sse 23.9483
+ae epoch 40/50 sse 23.4719
+ae epoch 41/50 sse 23.4558
+ae epoch 42/50 sse 22.7222
+ae epoch 43/50 sse 22.4300
+ae epoch 44/50 sse 21.8539
+ae epoch 45/50 sse 21.6439
+ae epoch 46/50 sse 21.8765
+ae epoch 47/50 sse 21.0920
+ae epoch 48/50 sse 20.8149
+ae epoch 49/50 sse 20.6826
+ae epoch 50/60 sse 20.5170
+ae epoch 51/60 sse 20.5209
+ae epoch 52/60 sse 20.1641
+ae epoch 53/60 sse 20.2225
+ae epoch 54/60 sse 20.4175
+ae epoch 55/60 sse 20.1530
+ae epoch 56/60 sse 19.7313
+ae epoch 57/60 sse 19.8100
+ae epoch 58/60 sse 19.6071
+ae epoch 59/60 sse 19.2937
+ae epoch 60/60 sse 19.3634
+OK E03 fashion_mnist ae_kmeans seed 0 ACC 0.4406 NMI 0.4871 ARI 0.2826
+===== E03__fashion_mnist__dec__seed0__k10__lat10__lam0__pre1__initkmeans__fr0__sf0p01__imb1__out0.json =====
+joint epoch 1/50 loss 0.1980 delta na
+joint epoch 2/50 loss 0.1968 delta 0.00500
+joint epoch 3/50 loss 0.1959 delta 0.03500
+joint epoch 4/50 loss 0.1954 delta 0.01000
+joint epoch 5/50 loss 0.1960 delta 0.00000
+joint epoch 6/50 loss 0.1966 delta 0.00000
+joint epoch 7/50 loss 0.1965 delta 0.00500
+joint epoch 8/50 loss 0.1962 delta 0.00500
+joint epoch 9/50 loss 0.1959 delta 0.00000
+joint epoch 10/50 loss 0.1955 delta 0.00000 stop
+OK E03 fashion_mnist dec seed 0 ACC 0.3639 NMI 0.4241 ARI 0.2194
+===== E03__fashion_mnist__dec__seed0__k10__lat10__lam0__pre1__initkmeans__fr0__sf0p05__imb1__out0.json =====
+joint epoch 1/50 loss 0.2049 delta na
+joint epoch 2/50 loss 0.2064 delta 0.03900
+joint epoch 3/50 loss 0.2076 delta 0.03200
+joint epoch 4/50 loss 0.2085 delta 0.03100
+joint epoch 5/50 loss 0.2097 delta 0.01900
+joint epoch 6/50 loss 0.2099 delta 0.01100
+joint epoch 7/50 loss 0.2105 delta 0.01300
+joint epoch 8/50 loss 0.2107 delta 0.00700
+joint epoch 9/50 loss 0.2108 delta 0.00600
+joint epoch 10/50 loss 0.2104 delta 0.00900
+joint epoch 11/50 loss 0.2106 delta 0.00800
+joint epoch 12/50 loss 0.2105 delta 0.00800
+joint epoch 13/50 loss 0.2104 delta 0.00800
+joint epoch 14/50 loss 0.2098 delta 0.00500
+joint epoch 15/50 loss 0.2098 delta 0.00800
+joint epoch 16/50 loss 0.2089 delta 0.00400
+joint epoch 17/50 loss 0.2086 delta 0.00700
+joint epoch 18/50 loss 0.2083 delta 0.00500
+joint epoch 19/50 loss 0.2073 delta 0.00700
+joint epoch 20/50 loss 0.2068 delta 0.00400
+joint epoch 21/50 loss 0.2064 delta 0.00500
+joint epoch 22/50 loss 0.2067 delta 0.00700
+joint epoch 23/50 loss 0.2057 delta 0.01000
+joint epoch 24/50 loss 0.2052 delta 0.00300
+joint epoch 25/50 loss 0.2040 delta 0.00100
+joint epoch 26/50 loss 0.2039 delta 0.00100
+joint epoch 27/50 loss 0.2032 delta 0.00500
+joint epoch 28/50 loss 0.2023 delta 0.00500
+joint epoch 29/50 loss 0.2012 delta 0.00400
+joint epoch 30/50 loss 0.2006 delta 0.00200
+joint epoch 31/50 loss 0.1998 delta 0.00000 stop
+OK E03 fashion_mnist dec seed 0 ACC 0.5080 NMI 0.5254 ARI 0.3439
+===== E03__fashion_mnist__idec__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf0p01__imb1__out0.json =====
+joint epoch 1/50 loss 33.7696 delta na
+joint epoch 2/50 loss 32.8878 delta 0.03000
+joint epoch 3/50 loss 32.5743 delta 0.04500
+joint epoch 4/50 loss 32.2882 delta 0.03000
+joint epoch 5/50 loss 32.1426 delta 0.01000
+joint epoch 6/50 loss 31.9956 delta 0.00500
+joint epoch 7/50 loss 31.8488 delta 0.00000
+joint epoch 8/50 loss 31.6892 delta 0.01000
+joint epoch 9/50 loss 31.5264 delta 0.02000
+joint epoch 10/50 loss 31.4182 delta 0.01000
+joint epoch 11/50 loss 31.2922 delta 0.00500
+joint epoch 12/50 loss 31.1907 delta 0.01000
+joint epoch 13/50 loss 31.0909 delta 0.01000
+joint epoch 14/50 loss 30.9786 delta 0.02000
+joint epoch 15/50 loss 30.8754 delta 0.00500
+joint epoch 16/50 loss 30.7705 delta 0.01500
+joint epoch 17/50 loss 30.6703 delta 0.01000
+joint epoch 18/50 loss 30.5716 delta 0.02000
+joint epoch 19/50 loss 30.4723 delta 0.01000
+joint epoch 20/50 loss 30.3691 delta 0.01500
+joint epoch 21/50 loss 30.2711 delta 0.01000
+joint epoch 22/50 loss 30.1753 delta 0.01000
+joint epoch 23/50 loss 30.0814 delta 0.01000
+joint epoch 24/50 loss 29.9810 delta 0.00000 stop
+OK E03 fashion_mnist idec seed 0 ACC 0.3989 NMI 0.4374 ARI 0.2479
+===== E03__fashion_mnist__idec__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf0p05__imb1__out0.json =====
+joint epoch 1/50 loss 19.1052 delta na
+joint epoch 2/50 loss 18.7417 delta 0.02600
+joint epoch 3/50 loss 18.6270 delta 0.01600
+joint epoch 4/50 loss 18.5618 delta 0.01800
+joint epoch 5/50 loss 18.5105 delta 0.01200
+joint epoch 6/50 loss 18.4683 delta 0.00900
+joint epoch 7/50 loss 18.4244 delta 0.00900
+joint epoch 8/50 loss 18.3858 delta 0.00500
+joint epoch 9/50 loss 18.3470 delta 0.00700
+joint epoch 10/50 loss 18.3127 delta 0.00800
+joint epoch 11/50 loss 18.2812 delta 0.01200
+joint epoch 12/50 loss 18.2455 delta 0.00900
+joint epoch 13/50 loss 18.2181 delta 0.00600
+joint epoch 14/50 loss 18.1934 delta 0.00800
+joint epoch 15/50 loss 18.1635 delta 0.00700
+joint epoch 16/50 loss 18.1389 delta 0.00700
+joint epoch 17/50 loss 18.1096 delta 0.00900
+joint epoch 18/50 loss 18.0855 delta 0.01000
+joint epoch 19/50 loss 18.0502 delta 0.00500
+joint epoch 20/50 loss 18.0295 delta 0.00400
+joint epoch 21/50 loss 17.9983 delta 0.00600
+joint epoch 22/50 loss 17.9724 delta 0.01000
+joint epoch 23/50 loss 17.9442 delta 0.00700
+joint epoch 24/50 loss 17.9131 delta 0.00800
+joint epoch 25/50 loss 17.8857 delta 0.01200
+joint epoch 26/50 loss 17.8620 delta 0.01300
+joint epoch 27/50 loss 17.8369 delta 0.00300
+joint epoch 28/50 loss 17.8050 delta 0.00300
+joint epoch 29/50 loss 17.7877 delta 0.00200
+joint epoch 30/50 loss 17.7631 delta 0.00300
+joint epoch 31/50 loss 17.7347 delta 0.00700
+joint epoch 32/50 loss 17.7102 delta 0.00500
+joint epoch 33/50 loss 17.6803 delta 0.00700
+joint epoch 34/50 loss 17.6513 delta 0.01100
+joint epoch 35/50 loss 17.6301 delta 0.00700
+joint epoch 36/50 loss 17.6009 delta 0.01100
+joint epoch 37/50 loss 17.5739 delta 0.00600
+joint epoch 38/50 loss 17.5437 delta 0.00600
+joint epoch 39/50 loss 17.5159 delta 0.00700
+joint epoch 40/50 loss 17.4854 delta 0.00500
+joint epoch 41/50 loss 17.4527 delta 0.01200
+joint epoch 42/50 loss 17.4270 delta 0.00700
+joint epoch 43/50 loss 17.3964 delta 0.01100
+joint epoch 44/50 loss 17.3637 delta 0.00800
+joint epoch 45/50 loss 17.3301 delta 0.00800
+joint epoch 46/50 loss 17.3021 delta 0.01100
+joint epoch 47/50 loss 17.2751 delta 0.00900
+joint epoch 48/50 loss 17.2474 delta 0.00600
+joint epoch 49/50 loss 17.2075 delta 0.01000
+joint epoch 50/50 loss 17.1835 delta 0.00600
+OK E03 fashion_mnist idec seed 0 ACC 0.4770 NMI 0.5054 ARI 0.3135
+===== E01__cifar10__simclr_kmeans__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 6.0239
+contrastive epoch 2/100 loss 5.4099
+contrastive epoch 3/100 loss 5.1084
+contrastive epoch 4/100 loss 5.0355
+contrastive epoch 5/100 loss 4.9497
+contrastive epoch 6/100 loss 4.8792
+contrastive epoch 7/100 loss 4.8630
+contrastive epoch 8/100 loss 4.8205
+contrastive epoch 9/100 loss 4.8061
+contrastive epoch 10/100 loss 4.7948
+contrastive epoch 11/100 loss 4.7860
+contrastive epoch 12/100 loss 4.7702
+contrastive epoch 13/100 loss 4.7528
+contrastive epoch 14/100 loss 4.7342
+contrastive epoch 15/100 loss 4.7185
+contrastive epoch 16/100 loss 4.7051
+contrastive epoch 17/100 loss 4.6919
+contrastive epoch 18/100 loss 4.6938
+contrastive epoch 19/100 loss 4.6722
+contrastive epoch 20/100 loss 4.6649
+contrastive epoch 21/100 loss 4.6468
+contrastive epoch 22/100 loss 4.6490
+contrastive epoch 23/100 loss 4.6427
+contrastive epoch 24/100 loss 4.6335
+contrastive epoch 25/100 loss 4.6364
+contrastive epoch 26/100 loss 4.6334
+contrastive epoch 27/100 loss 4.6218
+contrastive epoch 28/100 loss 4.6343
+contrastive epoch 29/100 loss 4.6183
+contrastive epoch 30/100 loss 4.6163
+contrastive epoch 31/100 loss 4.6095
+contrastive epoch 32/100 loss 4.6097
+contrastive epoch 33/100 loss 4.6042
+contrastive epoch 34/100 loss 4.6036
+contrastive epoch 35/100 loss 4.6011
+contrastive epoch 36/100 loss 4.5998
+contrastive epoch 37/100 loss 4.6012
+contrastive epoch 38/100 loss 4.5940
+contrastive epoch 39/100 loss 4.5912
+contrastive epoch 40/100 loss 4.5877
+contrastive epoch 41/100 loss 4.5886
+contrastive epoch 42/100 loss 4.5877
+contrastive epoch 43/100 loss 4.5842
+contrastive epoch 44/100 loss 4.5807
+contrastive epoch 45/100 loss 4.5789
+contrastive epoch 46/100 loss 4.5750
+contrastive epoch 47/100 loss 4.5708
+contrastive epoch 48/100 loss 4.5746
+contrastive epoch 49/100 loss 4.5729
+contrastive epoch 50/100 loss 4.5723
+contrastive epoch 51/100 loss 4.5737
+contrastive epoch 52/100 loss 4.5655
+contrastive epoch 53/100 loss 4.5603
+contrastive epoch 54/100 loss 4.5639
+contrastive epoch 55/100 loss 4.5633
+contrastive epoch 56/100 loss 4.5654
+contrastive epoch 57/100 loss 4.5589
+contrastive epoch 58/100 loss 4.5538
+contrastive epoch 59/100 loss 4.5570
+contrastive epoch 60/100 loss 4.5525
+contrastive epoch 61/100 loss 4.5486
+contrastive epoch 62/100 loss 4.5526
+contrastive epoch 63/100 loss 4.5527
+contrastive epoch 64/100 loss 4.5489
+contrastive epoch 65/100 loss 4.5479
+contrastive epoch 66/100 loss 4.5467
+contrastive epoch 67/100 loss 4.5488
+===== E01__cifar10__simclr_kmeans__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 6.0239
+contrastive epoch 2/100 loss 5.4099
+contrastive epoch 3/100 loss 5.1084
+contrastive epoch 4/100 loss 5.0355
+contrastive epoch 5/100 loss 4.9497
+contrastive epoch 6/100 loss 4.8792
+contrastive epoch 7/100 loss 4.8630
+contrastive epoch 8/100 loss 4.8205
+contrastive epoch 9/100 loss 4.8061
+contrastive epoch 10/100 loss 4.7948
+contrastive epoch 11/100 loss 4.7860
+contrastive epoch 12/100 loss 4.7702
+contrastive epoch 13/100 loss 4.7528
+contrastive epoch 14/100 loss 4.7342
+contrastive epoch 15/100 loss 4.7185
+contrastive epoch 16/100 loss 4.7051
+contrastive epoch 17/100 loss 4.6919
+contrastive epoch 18/100 loss 4.6938
+contrastive epoch 19/100 loss 4.6722
+contrastive epoch 20/100 loss 4.6649
+contrastive epoch 21/100 loss 4.6468
+contrastive epoch 22/100 loss 4.6490
+contrastive epoch 23/100 loss 4.6427
+contrastive epoch 24/100 loss 4.6335
+contrastive epoch 25/100 loss 4.6364
+contrastive epoch 26/100 loss 4.6334
+contrastive epoch 27/100 loss 4.6218
+contrastive epoch 28/100 loss 4.6343
+contrastive epoch 29/100 loss 4.6183
+contrastive epoch 30/100 loss 4.6163
+contrastive epoch 31/100 loss 4.6095
+contrastive epoch 32/100 loss 4.6097
+contrastive epoch 33/100 loss 4.6042
+contrastive epoch 34/100 loss 4.6036
+contrastive epoch 35/100 loss 4.6011
+contrastive epoch 36/100 loss 4.5998
+contrastive epoch 37/100 loss 4.6012
+contrastive epoch 38/100 loss 4.5940
+contrastive epoch 39/100 loss 4.5912
+contrastive epoch 40/100 loss 4.5877
+contrastive epoch 41/100 loss 4.5886
+contrastive epoch 42/100 loss 4.5877
+contrastive epoch 43/100 loss 4.5842
+contrastive epoch 44/100 loss 4.5807
+contrastive epoch 45/100 loss 4.5789
+contrastive epoch 46/100 loss 4.5750
+contrastive epoch 47/100 loss 4.5708
+contrastive epoch 48/100 loss 4.5746
+contrastive epoch 49/100 loss 4.5729
+contrastive epoch 50/100 loss 4.5723
+contrastive epoch 51/100 loss 4.5737
+contrastive epoch 52/100 loss 4.5655
+contrastive epoch 53/100 loss 4.5603
+contrastive epoch 54/100 loss 4.5639
+contrastive epoch 55/100 loss 4.5633
+contrastive epoch 56/100 loss 4.5654
+contrastive epoch 57/100 loss 4.5589
+contrastive epoch 58/100 loss 4.5538
+contrastive epoch 59/100 loss 4.5570
+contrastive epoch 60/100 loss 4.5525
+contrastive epoch 61/100 loss 4.5486
+contrastive epoch 62/100 loss 4.5526
+contrastive epoch 63/100 loss 4.5527
+contrastive epoch 64/100 loss 4.5489
+contrastive epoch 65/100 loss 4.5479
+contrastive epoch 66/100 loss 4.5467
+contrastive epoch 67/100 loss 4.5488
+contrastive epoch 68/100 loss 4.5494
+contrastive epoch 69/100 loss 4.5396
+contrastive epoch 70/100 loss 4.5401
+contrastive epoch 71/100 loss 4.5437
+contrastive epoch 72/100 loss 4.5408
+contrastive epoch 73/100 loss 4.5396
+contrastive epoch 74/100 loss 4.5392
+contrastive epoch 75/100 loss 4.5382
+contrastive epoch 76/100 loss 4.5336
+contrastive epoch 77/100 loss 4.5361
+contrastive epoch 78/100 loss 4.5353
+contrastive epoch 79/100 loss 4.5327
+contrastive epoch 80/100 loss 4.5357
+contrastive epoch 81/100 loss 4.5347
+contrastive epoch 82/100 loss 4.5387
+contrastive epoch 83/100 loss 4.5302
+contrastive epoch 84/100 loss 4.5386
+contrastive epoch 85/100 loss 4.5285
+contrastive epoch 86/100 loss 4.5262
+contrastive epoch 87/100 loss 4.5350
+contrastive epoch 88/100 loss 4.5245
+contrastive epoch 89/100 loss 4.5267
+contrastive epoch 90/100 loss 4.5229
+contrastive epoch 91/100 loss 4.5241
+contrastive epoch 92/100 loss 4.5249
+contrastive epoch 93/100 loss 4.5239
+contrastive epoch 94/100 loss 4.5232
+contrastive epoch 95/100 loss 4.5186
+contrastive epoch 96/100 loss 4.5201
+contrastive epoch 97/100 loss 4.5178
+contrastive epoch 98/100 loss 4.5253
+contrastive epoch 99/100 loss 4.5199
+contrastive epoch 100/100 loss 4.5209
+OK E01 cifar10 simclr_kmeans seed 0 ACC 0.1950 NMI 0.0909 ARI 0.0333
+===== E01__cifar10__simclr_kmeans__seed1__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.9895
+contrastive epoch 2/100 loss 5.3811
+contrastive epoch 3/100 loss 5.1087
+contrastive epoch 4/100 loss 5.0396
+contrastive epoch 5/100 loss 4.9743
+contrastive epoch 6/100 loss 4.9140
+contrastive epoch 7/100 loss 4.8762
+contrastive epoch 8/100 loss 4.8415
+contrastive epoch 9/100 loss 4.8138
+contrastive epoch 10/100 loss 4.7769
+contrastive epoch 11/100 loss 4.7396
+contrastive epoch 12/100 loss 4.7236
+contrastive epoch 13/100 loss 4.7028
+contrastive epoch 14/100 loss 4.6954
+contrastive epoch 15/100 loss 4.6916
+contrastive epoch 16/100 loss 4.6848
+contrastive epoch 17/100 loss 4.6639
+contrastive epoch 18/100 loss 4.6618
+contrastive epoch 19/100 loss 4.6586
+contrastive epoch 20/100 loss 4.6519
+contrastive epoch 21/100 loss 4.6465
+contrastive epoch 22/100 loss 4.6456
+contrastive epoch 23/100 loss 4.6407
+contrastive epoch 24/100 loss 4.6326
+contrastive epoch 25/100 loss 4.6266
+contrastive epoch 26/100 loss 4.6258
+contrastive epoch 27/100 loss 4.6287
+contrastive epoch 28/100 loss 4.6240
+contrastive epoch 29/100 loss 4.6234
+contrastive epoch 30/100 loss 4.6200
+contrastive epoch 31/100 loss 4.6064
+contrastive epoch 32/100 loss 4.6080
+contrastive epoch 33/100 loss 4.6106
+contrastive epoch 34/100 loss 4.6089
+contrastive epoch 35/100 loss 4.6050
+contrastive epoch 36/100 loss 4.6095
+contrastive epoch 37/100 loss 4.6047
+contrastive epoch 38/100 loss 4.5943
+contrastive epoch 39/100 loss 4.5955
+contrastive epoch 40/100 loss 4.5946
+contrastive epoch 41/100 loss 4.5881
+contrastive epoch 42/100 loss 4.5895
+contrastive epoch 43/100 loss 4.5862
+contrastive epoch 44/100 loss 4.5854
+contrastive epoch 45/100 loss 4.5895
+contrastive epoch 46/100 loss 4.5855
+contrastive epoch 47/100 loss 4.5786
+contrastive epoch 48/100 loss 4.5726
+contrastive epoch 49/100 loss 4.5735
+contrastive epoch 50/100 loss 4.5776
+contrastive epoch 51/100 loss 4.5744
+contrastive epoch 52/100 loss 4.5813
+contrastive epoch 53/100 loss 4.5735
+contrastive epoch 54/100 loss 4.5644
+contrastive epoch 55/100 loss 4.5667
+contrastive epoch 56/100 loss 4.5667
+contrastive epoch 57/100 loss 4.5673
+contrastive epoch 58/100 loss 4.5609
+contrastive epoch 59/100 loss 4.5632
+contrastive epoch 60/100 loss 4.5671
+contrastive epoch 61/100 loss 4.5663
+contrastive epoch 62/100 loss 4.5595
+contrastive epoch 63/100 loss 4.5603
+contrastive epoch 64/100 loss 4.5596
+contrastive epoch 65/100 loss 4.5580
+contrastive epoch 66/100 loss 4.5549
+contrastive epoch 67/100 loss 4.5512
+contrastive epoch 68/100 loss 4.5517
+contrastive epoch 69/100 loss 4.5551
+contrastive epoch 70/100 loss 4.5517
+contrastive epoch 71/100 loss 4.5457
+contrastive epoch 72/100 loss 4.5464
+contrastive epoch 73/100 loss 4.5442
+contrastive epoch 74/100 loss 4.5446
+contrastive epoch 75/100 loss 4.5443
+contrastive epoch 76/100 loss 4.5489
+contrastive epoch 77/100 loss 4.5389
+contrastive epoch 78/100 loss 4.5399
+contrastive epoch 79/100 loss 4.5432
+contrastive epoch 80/100 loss 4.5433
+contrastive epoch 81/100 loss 4.5343
+contrastive epoch 82/100 loss 4.5368
+contrastive epoch 83/100 loss 4.5384
+contrastive epoch 84/100 loss 4.5394
+contrastive epoch 85/100 loss 4.5349
+contrastive epoch 86/100 loss 4.5302
+contrastive epoch 87/100 loss 4.5321
+contrastive epoch 88/100 loss 4.5325
+contrastive epoch 89/100 loss 4.5286
+contrastive epoch 90/100 loss 4.5328
+contrastive epoch 91/100 loss 4.5299
+contrastive epoch 92/100 loss 4.5307
+contrastive epoch 93/100 loss 4.5295
+contrastive epoch 94/100 loss 4.5311
+contrastive epoch 95/100 loss 4.5235
+contrastive epoch 96/100 loss 4.5309
+contrastive epoch 97/100 loss 4.5271
+contrastive epoch 98/100 loss 4.5251
+contrastive epoch 99/100 loss 4.5229
+contrastive epoch 100/100 loss 4.5202
+OK E01 cifar10 simclr_kmeans seed 1 ACC 0.2050 NMI 0.0910 ARI 0.0319
+===== E01__cifar10__simclr_kmeans__seed2__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 6.0037
+contrastive epoch 2/100 loss 5.3953
+contrastive epoch 3/100 loss 5.1053
+contrastive epoch 4/100 loss 5.0271
+contrastive epoch 5/100 loss 4.9510
+contrastive epoch 6/100 loss 4.9147
+contrastive epoch 7/100 loss 4.8784
+contrastive epoch 8/100 loss 4.8474
+contrastive epoch 9/100 loss 4.8032
+contrastive epoch 10/100 loss 4.7713
+contrastive epoch 11/100 loss 4.7519
+contrastive epoch 12/100 loss 4.7354
+contrastive epoch 13/100 loss 4.7290
+contrastive epoch 14/100 loss 4.7181
+contrastive epoch 15/100 loss 4.7104
+contrastive epoch 16/100 loss 4.6977
+contrastive epoch 17/100 loss 4.6930
+contrastive epoch 18/100 loss 4.6753
+contrastive epoch 19/100 loss 4.6697
+contrastive epoch 20/100 loss 4.6759
+contrastive epoch 21/100 loss 4.6570
+contrastive epoch 22/100 loss 4.6557
+contrastive epoch 23/100 loss 4.6424
+contrastive epoch 24/100 loss 4.6387
+contrastive epoch 25/100 loss 4.6342
+contrastive epoch 26/100 loss 4.6289
+contrastive epoch 27/100 loss 4.6295
+contrastive epoch 28/100 loss 4.6232
+contrastive epoch 29/100 loss 4.6161
+contrastive epoch 30/100 loss 4.6153
+contrastive epoch 31/100 loss 4.6102
+contrastive epoch 32/100 loss 4.6057
+contrastive epoch 33/100 loss 4.6051
+contrastive epoch 34/100 loss 4.6015
+contrastive epoch 35/100 loss 4.6012
+contrastive epoch 36/100 loss 4.6027
+contrastive epoch 37/100 loss 4.5997
+contrastive epoch 38/100 loss 4.5928
+contrastive epoch 39/100 loss 4.5837
+contrastive epoch 40/100 loss 4.5847
+contrastive epoch 41/100 loss 4.5841
+contrastive epoch 42/100 loss 4.5776
+contrastive epoch 43/100 loss 4.5797
+contrastive epoch 44/100 loss 4.5756
+contrastive epoch 45/100 loss 4.5748
+contrastive epoch 46/100 loss 4.5697
+contrastive epoch 47/100 loss 4.5701
+contrastive epoch 48/100 loss 4.5721
+contrastive epoch 49/100 loss 4.5648
+contrastive epoch 50/100 loss 4.5671
+contrastive epoch 51/100 loss 4.5633
+contrastive epoch 52/100 loss 4.5691
+contrastive epoch 53/100 loss 4.5636
+contrastive epoch 54/100 loss 4.5621
+contrastive epoch 55/100 loss 4.5613
+contrastive epoch 56/100 loss 4.5616
+contrastive epoch 57/100 loss 4.5561
+contrastive epoch 58/100 loss 4.5592
+contrastive epoch 59/100 loss 4.5517
+contrastive epoch 60/100 loss 4.5564
+contrastive epoch 61/100 loss 4.5550
+contrastive epoch 62/100 loss 4.5500
+contrastive epoch 63/100 loss 4.5546
+contrastive epoch 64/100 loss 4.5498
+contrastive epoch 65/100 loss 4.5512
+contrastive epoch 66/100 loss 4.5507
+contrastive epoch 67/100 loss 4.5452
+contrastive epoch 68/100 loss 4.5433
+contrastive epoch 69/100 loss 4.5432
+contrastive epoch 70/100 loss 4.5555
+contrastive epoch 71/100 loss 4.5401
+contrastive epoch 72/100 loss 4.5443
+contrastive epoch 73/100 loss 4.5399
+contrastive epoch 74/100 loss 4.5395
+contrastive epoch 75/100 loss 4.5382
+contrastive epoch 76/100 loss 4.5389
+contrastive epoch 77/100 loss 4.5396
+contrastive epoch 78/100 loss 4.5356
+contrastive epoch 79/100 loss 4.5343
+contrastive epoch 80/100 loss 4.5330
+contrastive epoch 81/100 loss 4.5356
+contrastive epoch 82/100 loss 4.5337
+contrastive epoch 83/100 loss 4.5307
+contrastive epoch 84/100 loss 4.5332
+contrastive epoch 85/100 loss 4.5356
+contrastive epoch 86/100 loss 4.5321
+contrastive epoch 87/100 loss 4.5269
+contrastive epoch 88/100 loss 4.5285
+contrastive epoch 89/100 loss 4.5281
+contrastive epoch 90/100 loss 4.5273
+contrastive epoch 91/100 loss 4.5257
+contrastive epoch 92/100 loss 4.5309
+contrastive epoch 93/100 loss 4.5256
+contrastive epoch 94/100 loss 4.5235
+contrastive epoch 95/100 loss 4.5243
+contrastive epoch 96/100 loss 4.5229
+contrastive epoch 97/100 loss 4.5192
+contrastive epoch 98/100 loss 4.5284
+contrastive epoch 99/100 loss 4.5231
+contrastive epoch 100/100 loss 4.5207
+OK E01 cifar10 simclr_kmeans seed 2 ACC 0.2125 NMI 0.1049 ARI 0.0478
+===== E01__fashion_mnist__simclr_kmeans__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.6181
+contrastive epoch 2/100 loss 4.9644
+contrastive epoch 3/100 loss 4.7954
+contrastive epoch 4/100 loss 4.7437
+contrastive epoch 5/100 loss 4.7124
+contrastive epoch 6/100 loss 4.6990
+contrastive epoch 7/100 loss 4.6770
+contrastive epoch 8/100 loss 4.6571
+contrastive epoch 9/100 loss 4.6451
+contrastive epoch 10/100 loss 4.6300
+contrastive epoch 11/100 loss 4.6237
+contrastive epoch 12/100 loss 4.6114
+contrastive epoch 13/100 loss 4.6023
+contrastive epoch 14/100 loss 4.5930
+contrastive epoch 15/100 loss 4.5867
+contrastive epoch 16/100 loss 4.5806
+contrastive epoch 17/100 loss 4.5800
+contrastive epoch 18/100 loss 4.5714
+contrastive epoch 19/100 loss 4.5735
+contrastive epoch 20/100 loss 4.5660
+contrastive epoch 21/100 loss 4.5592
+contrastive epoch 22/100 loss 4.5604
+contrastive epoch 23/100 loss 4.5553
+contrastive epoch 24/100 loss 4.5499
+contrastive epoch 25/100 loss 4.5497
+contrastive epoch 26/100 loss 4.5472
+contrastive epoch 27/100 loss 4.5416
+contrastive epoch 28/100 loss 4.5395
+contrastive epoch 29/100 loss 4.5400
+contrastive epoch 30/100 loss 4.5337
+contrastive epoch 31/100 loss 4.5356
+contrastive epoch 32/100 loss 4.5268
+contrastive epoch 33/100 loss 4.5289
+contrastive epoch 34/100 loss 4.5253
+contrastive epoch 35/100 loss 4.5242
+contrastive epoch 36/100 loss 4.5209
+contrastive epoch 37/100 loss 4.5204
+contrastive epoch 38/100 loss 4.5153
+contrastive epoch 39/100 loss 4.5137
+contrastive epoch 40/100 loss 4.5130
+contrastive epoch 41/100 loss 4.5114
+contrastive epoch 42/100 loss 4.5133
+contrastive epoch 43/100 loss 4.5144
+contrastive epoch 44/100 loss 4.5083
+contrastive epoch 45/100 loss 4.5078
+contrastive epoch 46/100 loss 4.5055
+contrastive epoch 47/100 loss 4.5038
+contrastive epoch 48/100 loss 4.5015
+contrastive epoch 49/100 loss 4.5014
+contrastive epoch 50/100 loss 4.4982
+contrastive epoch 51/100 loss 4.4971
+contrastive epoch 52/100 loss 4.4977
+contrastive epoch 53/100 loss 4.4960
+contrastive epoch 54/100 loss 4.4985
+contrastive epoch 55/100 loss 4.4907
+contrastive epoch 56/100 loss 4.4933
+contrastive epoch 57/100 loss 4.4907
+contrastive epoch 58/100 loss 4.4930
+contrastive epoch 59/100 loss 4.4897
+contrastive epoch 60/100 loss 4.4898
+contrastive epoch 61/100 loss 4.4869
+contrastive epoch 62/100 loss 4.4874
+contrastive epoch 63/100 loss 4.4831
+contrastive epoch 64/100 loss 4.4829
+contrastive epoch 65/100 loss 4.4822
+contrastive epoch 66/100 loss 4.4806
+contrastive epoch 67/100 loss 4.4820
+contrastive epoch 68/100 loss 4.4811
+contrastive epoch 69/100 loss 4.4746
+contrastive epoch 70/100 loss 4.4801
+contrastive epoch 71/100 loss 4.4789
+contrastive epoch 72/100 loss 4.4735
+contrastive epoch 73/100 loss 4.4765
+contrastive epoch 74/100 loss 4.4744
+contrastive epoch 75/100 loss 4.4738
+contrastive epoch 76/100 loss 4.4710
+contrastive epoch 77/100 loss 4.4721
+contrastive epoch 78/100 loss 4.4699
+contrastive epoch 79/100 loss 4.4739
+contrastive epoch 80/100 loss 4.4671
+contrastive epoch 81/100 loss 4.4672
+contrastive epoch 82/100 loss 4.4678
+contrastive epoch 83/100 loss 4.4645
+contrastive epoch 84/100 loss 4.4663
+contrastive epoch 85/100 loss 4.4684
+contrastive epoch 86/100 loss 4.4633
+contrastive epoch 87/100 loss 4.4634
+contrastive epoch 88/100 loss 4.4624
+contrastive epoch 89/100 loss 4.4595
+contrastive epoch 90/100 loss 4.4632
+contrastive epoch 91/100 loss 4.4615
+contrastive epoch 92/100 loss 4.4578
+contrastive epoch 93/100 loss 4.4589
+contrastive epoch 94/100 loss 4.4576
+contrastive epoch 95/100 loss 4.4589
+contrastive epoch 96/100 loss 4.4552
+contrastive epoch 97/100 loss 4.4549
+contrastive epoch 98/100 loss 4.4569
+contrastive epoch 99/100 loss 4.4527
+contrastive epoch 100/100 loss 4.4537
+OK E01 fashion_mnist simclr_kmeans seed 0 ACC 0.3196 NMI 0.3176 ARI 0.2137
+===== E01__fashion_mnist__simclr_kmeans__seed1__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.6004
+contrastive epoch 2/100 loss 4.9530
+contrastive epoch 3/100 loss 4.8008
+contrastive epoch 4/100 loss 4.7743
+contrastive epoch 5/100 loss 4.7285
+contrastive epoch 6/100 loss 4.7061
+contrastive epoch 7/100 loss 4.6884
+contrastive epoch 8/100 loss 4.6686
+contrastive epoch 9/100 loss 4.6588
+contrastive epoch 10/100 loss 4.6374
+contrastive epoch 11/100 loss 4.6313
+contrastive epoch 12/100 loss 4.6211
+contrastive epoch 13/100 loss 4.6099
+contrastive epoch 14/100 loss 4.6066
+contrastive epoch 15/100 loss 4.5971
+contrastive epoch 16/100 loss 4.5917
+contrastive epoch 17/100 loss 4.5866
+contrastive epoch 18/100 loss 4.5785
+contrastive epoch 19/100 loss 4.5792
+contrastive epoch 20/100 loss 4.5722
+contrastive epoch 21/100 loss 4.5668
+contrastive epoch 22/100 loss 4.5675
+contrastive epoch 23/100 loss 4.5599
+contrastive epoch 24/100 loss 4.5610
+contrastive epoch 25/100 loss 4.5535
+contrastive epoch 26/100 loss 4.5515
+contrastive epoch 27/100 loss 4.5481
+contrastive epoch 28/100 loss 4.5446
+contrastive epoch 29/100 loss 4.5412
+contrastive epoch 30/100 loss 4.5360
+contrastive epoch 31/100 loss 4.5362
+contrastive epoch 32/100 loss 4.5349
+contrastive epoch 33/100 loss 4.5296
+contrastive epoch 34/100 loss 4.5238
+contrastive epoch 35/100 loss 4.5279
+contrastive epoch 36/100 loss 4.5212
+contrastive epoch 37/100 loss 4.5208
+contrastive epoch 38/100 loss 4.5180
+contrastive epoch 39/100 loss 4.5224
+contrastive epoch 40/100 loss 4.5144
+contrastive epoch 41/100 loss 4.5134
+contrastive epoch 42/100 loss 4.5082
+contrastive epoch 43/100 loss 4.5104
+contrastive epoch 44/100 loss 4.5090
+contrastive epoch 45/100 loss 4.5047
+contrastive epoch 46/100 loss 4.5061
+contrastive epoch 47/100 loss 4.5038
+contrastive epoch 48/100 loss 4.4975
+contrastive epoch 49/100 loss 4.5005
+contrastive epoch 50/100 loss 4.4967
+contrastive epoch 51/100 loss 4.4974
+contrastive epoch 52/100 loss 4.4945
+contrastive epoch 53/100 loss 4.4951
+contrastive epoch 54/100 loss 4.4933
+contrastive epoch 55/100 loss 4.4922
+contrastive epoch 56/100 loss 4.4909
+contrastive epoch 57/100 loss 4.4892
+contrastive epoch 58/100 loss 4.4881
+contrastive epoch 59/100 loss 4.4865
+contrastive epoch 60/100 loss 4.4843
+contrastive epoch 61/100 loss 4.4832
+contrastive epoch 62/100 loss 4.4833
+contrastive epoch 63/100 loss 4.4835
+contrastive epoch 64/100 loss 4.4805
+contrastive epoch 65/100 loss 4.4793
+contrastive epoch 66/100 loss 4.4794
+contrastive epoch 67/100 loss 4.4769
+contrastive epoch 68/100 loss 4.4782
+contrastive epoch 69/100 loss 4.4753
+contrastive epoch 70/100 loss 4.4747
+contrastive epoch 71/100 loss 4.4720
+contrastive epoch 72/100 loss 4.4738
+contrastive epoch 73/100 loss 4.4708
+contrastive epoch 74/100 loss 4.4711
+contrastive epoch 75/100 loss 4.4710
+contrastive epoch 76/100 loss 4.4701
+contrastive epoch 77/100 loss 4.4676
+contrastive epoch 78/100 loss 4.4672
+contrastive epoch 79/100 loss 4.4677
+contrastive epoch 80/100 loss 4.4671
+contrastive epoch 81/100 loss 4.4661
+contrastive epoch 82/100 loss 4.4631
+contrastive epoch 83/100 loss 4.4626
+contrastive epoch 84/100 loss 4.4609
+contrastive epoch 85/100 loss 4.4611
+contrastive epoch 86/100 loss 4.4606
+contrastive epoch 87/100 loss 4.4604
+contrastive epoch 88/100 loss 4.4608
+contrastive epoch 89/100 loss 4.4621
+contrastive epoch 90/100 loss 4.4605
+contrastive epoch 91/100 loss 4.4598
+contrastive epoch 92/100 loss 4.4574
+contrastive epoch 93/100 loss 4.4563
+contrastive epoch 94/100 loss 4.4564
+contrastive epoch 95/100 loss 4.4535
+contrastive epoch 96/100 loss 4.4540
+contrastive epoch 97/100 loss 4.4564
+contrastive epoch 98/100 loss 4.4550
+contrastive epoch 99/100 loss 4.4534
+contrastive epoch 100/100 loss 4.4543
+OK E01 fashion_mnist simclr_kmeans seed 1 ACC 0.3210 NMI 0.3311 ARI 0.2166
+===== E01__fashion_mnist__simclr_kmeans__seed2__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.5268
+contrastive epoch 2/100 loss 4.9237
+contrastive epoch 3/100 loss 4.7925
+contrastive epoch 4/100 loss 4.7188
+contrastive epoch 5/100 loss 4.6890
+contrastive epoch 6/100 loss 4.6674
+contrastive epoch 7/100 loss 4.6504
+contrastive epoch 8/100 loss 4.6285
+contrastive epoch 9/100 loss 4.6140
+contrastive epoch 10/100 loss 4.6083
+contrastive epoch 11/100 loss 4.5961
+contrastive epoch 12/100 loss 4.5907
+contrastive epoch 13/100 loss 4.5820
+contrastive epoch 14/100 loss 4.5805
+contrastive epoch 15/100 loss 4.5791
+contrastive epoch 16/100 loss 4.5658
+contrastive epoch 17/100 loss 4.5646
+contrastive epoch 18/100 loss 4.5584
+contrastive epoch 19/100 loss 4.5571
+contrastive epoch 20/100 loss 4.5559
+contrastive epoch 21/100 loss 4.5499
+contrastive epoch 22/100 loss 4.5457
+contrastive epoch 23/100 loss 4.5414
+contrastive epoch 24/100 loss 4.5403
+contrastive epoch 25/100 loss 4.5384
+contrastive epoch 26/100 loss 4.5372
+contrastive epoch 27/100 loss 4.5320
+contrastive epoch 28/100 loss 4.5307
+contrastive epoch 29/100 loss 4.5265
+contrastive epoch 30/100 loss 4.5229
+contrastive epoch 31/100 loss 4.5207
+contrastive epoch 32/100 loss 4.5254
+contrastive epoch 33/100 loss 4.5175
+contrastive epoch 34/100 loss 4.5155
+contrastive epoch 35/100 loss 4.5160
+contrastive epoch 36/100 loss 4.5141
+contrastive epoch 37/100 loss 4.5127
+contrastive epoch 38/100 loss 4.5103
+contrastive epoch 39/100 loss 4.5066
+contrastive epoch 40/100 loss 4.5084
+contrastive epoch 41/100 loss 4.5072
+contrastive epoch 42/100 loss 4.5041
+contrastive epoch 43/100 loss 4.5075
+contrastive epoch 44/100 loss 4.5009
+contrastive epoch 45/100 loss 4.4992
+contrastive epoch 46/100 loss 4.5007
+contrastive epoch 47/100 loss 4.4977
+contrastive epoch 48/100 loss 4.4942
+contrastive epoch 49/100 loss 4.4964
+contrastive epoch 50/100 loss 4.4911
+contrastive epoch 51/100 loss 4.4933
+contrastive epoch 52/100 loss 4.4915
+contrastive epoch 53/100 loss 4.4928
+contrastive epoch 54/100 loss 4.4865
+contrastive epoch 55/100 loss 4.4869
+contrastive epoch 56/100 loss 4.4867
+contrastive epoch 57/100 loss 4.4856
+contrastive epoch 58/100 loss 4.4847
+contrastive epoch 59/100 loss 4.4864
+contrastive epoch 60/100 loss 4.4851
+contrastive epoch 61/100 loss 4.4819
+contrastive epoch 62/100 loss 4.4790
+contrastive epoch 63/100 loss 4.4833
+contrastive epoch 64/100 loss 4.4774
+contrastive epoch 65/100 loss 4.4782
+contrastive epoch 66/100 loss 4.4749
+contrastive epoch 67/100 loss 4.4786
+contrastive epoch 68/100 loss 4.4737
+contrastive epoch 69/100 loss 4.4734
+contrastive epoch 70/100 loss 4.4686
+contrastive epoch 71/100 loss 4.4711
+contrastive epoch 72/100 loss 4.4690
+contrastive epoch 73/100 loss 4.4685
+contrastive epoch 74/100 loss 4.4712
+contrastive epoch 75/100 loss 4.4681
+contrastive epoch 76/100 loss 4.4683
+contrastive epoch 77/100 loss 4.4682
+contrastive epoch 78/100 loss 4.4638
+contrastive epoch 79/100 loss 4.4627
+contrastive epoch 80/100 loss 4.4638
+contrastive epoch 81/100 loss 4.4641
+contrastive epoch 82/100 loss 4.4629
+contrastive epoch 83/100 loss 4.4623
+contrastive epoch 84/100 loss 4.4620
+contrastive epoch 85/100 loss 4.4608
+contrastive epoch 86/100 loss 4.4599
+contrastive epoch 87/100 loss 4.4610
+contrastive epoch 88/100 loss 4.4607
+contrastive epoch 89/100 loss 4.4596
+contrastive epoch 90/100 loss 4.4587
+contrastive epoch 91/100 loss 4.4607
+contrastive epoch 92/100 loss 4.4562
+contrastive epoch 93/100 loss 4.4553
+contrastive epoch 94/100 loss 4.4544
+contrastive epoch 95/100 loss 4.4525
+contrastive epoch 96/100 loss 4.4525
+contrastive epoch 97/100 loss 4.4526
+contrastive epoch 98/100 loss 4.4510
+contrastive epoch 99/100 loss 4.4507
+contrastive epoch 100/100 loss 4.4521
+OK E01 fashion_mnist simclr_kmeans seed 2 ACC 0.3323 NMI 0.3081 ARI 0.1947
+===== E01__mnist__simclr_kmeans__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.8109
+contrastive epoch 2/100 loss 5.2558
+contrastive epoch 3/100 loss 5.0417
+contrastive epoch 4/100 loss 4.8869
+contrastive epoch 5/100 loss 4.8264
+contrastive epoch 6/100 loss 4.8094
+contrastive epoch 7/100 loss 4.7722
+contrastive epoch 8/100 loss 4.7664
+contrastive epoch 9/100 loss 4.7436
+contrastive epoch 10/100 loss 4.7192
+contrastive epoch 11/100 loss 4.6993
+contrastive epoch 12/100 loss 4.6903
+contrastive epoch 13/100 loss 4.6741
+contrastive epoch 14/100 loss 4.6571
+contrastive epoch 15/100 loss 4.6455
+contrastive epoch 16/100 loss 4.6350
+contrastive epoch 17/100 loss 4.6255
+contrastive epoch 18/100 loss 4.6143
+contrastive epoch 19/100 loss 4.6026
+contrastive epoch 20/100 loss 4.5883
+contrastive epoch 21/100 loss 4.5780
+contrastive epoch 22/100 loss 4.5715
+contrastive epoch 23/100 loss 4.5717
+contrastive epoch 24/100 loss 4.5644
+contrastive epoch 25/100 loss 4.5612
+contrastive epoch 26/100 loss 4.5558
+contrastive epoch 27/100 loss 4.5498
+contrastive epoch 28/100 loss 4.5409
+contrastive epoch 29/100 loss 4.5453
+contrastive epoch 30/100 loss 4.5433
+contrastive epoch 31/100 loss 4.5330
+contrastive epoch 32/100 loss 4.5279
+contrastive epoch 33/100 loss 4.5308
+contrastive epoch 34/100 loss 4.5272
+contrastive epoch 35/100 loss 4.5225
+contrastive epoch 36/100 loss 4.5250
+contrastive epoch 37/100 loss 4.5183
+contrastive epoch 38/100 loss 4.5190
+contrastive epoch 39/100 loss 4.5125
+contrastive epoch 40/100 loss 4.5118
+contrastive epoch 41/100 loss 4.5053
+contrastive epoch 42/100 loss 4.5017
+contrastive epoch 43/100 loss 4.5013
+contrastive epoch 44/100 loss 4.4977
+contrastive epoch 45/100 loss 4.4979
+contrastive epoch 46/100 loss 4.4975
+contrastive epoch 47/100 loss 4.4971
+contrastive epoch 48/100 loss 4.4930
+contrastive epoch 49/100 loss 4.4912
+contrastive epoch 50/100 loss 4.4873
+contrastive epoch 51/100 loss 4.4860
+contrastive epoch 52/100 loss 4.4856
+contrastive epoch 53/100 loss 4.4859
+contrastive epoch 54/100 loss 4.4805
+contrastive epoch 55/100 loss 4.4816
+contrastive epoch 56/100 loss 4.4817
+contrastive epoch 57/100 loss 4.4805
+contrastive epoch 58/100 loss 4.4794
+contrastive epoch 59/100 loss 4.4767
+contrastive epoch 60/100 loss 4.4761
+contrastive epoch 61/100 loss 4.4750
+contrastive epoch 62/100 loss 4.4718
+contrastive epoch 63/100 loss 4.4726
+contrastive epoch 64/100 loss 4.4708
+contrastive epoch 65/100 loss 4.4675
+contrastive epoch 66/100 loss 4.4678
+contrastive epoch 67/100 loss 4.4663
+contrastive epoch 68/100 loss 4.4682
+contrastive epoch 69/100 loss 4.4662
+contrastive epoch 70/100 loss 4.4617
+contrastive epoch 71/100 loss 4.4628
+contrastive epoch 72/100 loss 4.4601
+contrastive epoch 73/100 loss 4.4612
+contrastive epoch 74/100 loss 4.4617
+contrastive epoch 75/100 loss 4.4596
+contrastive epoch 76/100 loss 4.4562
+contrastive epoch 77/100 loss 4.4545
+contrastive epoch 78/100 loss 4.4533
+contrastive epoch 79/100 loss 4.4531
+contrastive epoch 80/100 loss 4.4528
+contrastive epoch 81/100 loss 4.4542
+contrastive epoch 82/100 loss 4.4477
+contrastive epoch 83/100 loss 4.4480
+contrastive epoch 84/100 loss 4.4466
+contrastive epoch 85/100 loss 4.4483
+contrastive epoch 86/100 loss 4.4473
+contrastive epoch 87/100 loss 4.4492
+contrastive epoch 88/100 loss 4.4455
+contrastive epoch 89/100 loss 4.4424
+contrastive epoch 90/100 loss 4.4435
+contrastive epoch 91/100 loss 4.4422
+contrastive epoch 92/100 loss 4.4421
+contrastive epoch 93/100 loss 4.4415
+contrastive epoch 94/100 loss 4.4408
+contrastive epoch 95/100 loss 4.4411
+contrastive epoch 96/100 loss 4.4372
+contrastive epoch 97/100 loss 4.4393
+contrastive epoch 98/100 loss 4.4360
+contrastive epoch 99/100 loss 4.4372
+contrastive epoch 100/100 loss 4.4349
+OK E01 mnist simclr_kmeans seed 0 ACC 0.3279 NMI 0.2688 ARI 0.1617
+===== E01__mnist__simclr_kmeans__seed1__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.8009
+contrastive epoch 2/100 loss 5.2153
+contrastive epoch 3/100 loss 5.0381
+contrastive epoch 4/100 loss 4.9353
+contrastive epoch 5/100 loss 4.8515
+contrastive epoch 6/100 loss 4.7720
+contrastive epoch 7/100 loss 4.7398
+contrastive epoch 8/100 loss 4.7167
+contrastive epoch 9/100 loss 4.7031
+contrastive epoch 10/100 loss 4.6889
+contrastive epoch 11/100 loss 4.6725
+contrastive epoch 12/100 loss 4.6563
+contrastive epoch 13/100 loss 4.6458
+contrastive epoch 14/100 loss 4.6371
+contrastive epoch 15/100 loss 4.6244
+contrastive epoch 16/100 loss 4.6170
+contrastive epoch 17/100 loss 4.6048
+contrastive epoch 18/100 loss 4.5966
+contrastive epoch 19/100 loss 4.5931
+contrastive epoch 20/100 loss 4.5847
+contrastive epoch 21/100 loss 4.5801
+contrastive epoch 22/100 loss 4.5725
+contrastive epoch 23/100 loss 4.5660
+contrastive epoch 24/100 loss 4.5638
+contrastive epoch 25/100 loss 4.5536
+contrastive epoch 26/100 loss 4.5511
+contrastive epoch 27/100 loss 4.5457
+contrastive epoch 28/100 loss 4.5415
+contrastive epoch 29/100 loss 4.5433
+contrastive epoch 30/100 loss 4.5365
+contrastive epoch 31/100 loss 4.5336
+contrastive epoch 32/100 loss 4.5285
+contrastive epoch 33/100 loss 4.5250
+contrastive epoch 34/100 loss 4.5239
+contrastive epoch 35/100 loss 4.5244
+contrastive epoch 36/100 loss 4.5176
+contrastive epoch 37/100 loss 4.5175
+contrastive epoch 38/100 loss 4.5177
+contrastive epoch 39/100 loss 4.5117
+contrastive epoch 40/100 loss 4.5062
+contrastive epoch 41/100 loss 4.5070
+contrastive epoch 42/100 loss 4.5047
+contrastive epoch 43/100 loss 4.5034
+contrastive epoch 44/100 loss 4.5001
+contrastive epoch 45/100 loss 4.4979
+contrastive epoch 46/100 loss 4.4945
+contrastive epoch 47/100 loss 4.4967
+contrastive epoch 48/100 loss 4.4914
+contrastive epoch 49/100 loss 4.4856
+contrastive epoch 50/100 loss 4.4863
+contrastive epoch 51/100 loss 4.4849
+contrastive epoch 52/100 loss 4.4802
+contrastive epoch 53/100 loss 4.4834
+contrastive epoch 54/100 loss 4.4846
+contrastive epoch 55/100 loss 4.4805
+contrastive epoch 56/100 loss 4.4789
+contrastive epoch 57/100 loss 4.4749
+contrastive epoch 58/100 loss 4.4740
+contrastive epoch 59/100 loss 4.4723
+contrastive epoch 60/100 loss 4.4704
+contrastive epoch 61/100 loss 4.4722
+contrastive epoch 62/100 loss 4.4714
+contrastive epoch 63/100 loss 4.4691
+contrastive epoch 64/100 loss 4.4666
+contrastive epoch 65/100 loss 4.4681
+contrastive epoch 66/100 loss 4.4636
+contrastive epoch 67/100 loss 4.4665
+contrastive epoch 68/100 loss 4.4615
+contrastive epoch 69/100 loss 4.4607
+contrastive epoch 70/100 loss 4.4601
+contrastive epoch 71/100 loss 4.4579
+contrastive epoch 72/100 loss 4.4570
+contrastive epoch 73/100 loss 4.4546
+contrastive epoch 74/100 loss 4.4514
+contrastive epoch 75/100 loss 4.4522
+contrastive epoch 76/100 loss 4.4526
+contrastive epoch 77/100 loss 4.4518
+contrastive epoch 78/100 loss 4.4517
+contrastive epoch 79/100 loss 4.4518
+contrastive epoch 80/100 loss 4.4516
+contrastive epoch 81/100 loss 4.4497
+contrastive epoch 82/100 loss 4.4457
+contrastive epoch 83/100 loss 4.4473
+contrastive epoch 84/100 loss 4.4447
+contrastive epoch 85/100 loss 4.4471
+contrastive epoch 86/100 loss 4.4447
+contrastive epoch 87/100 loss 4.4450
+contrastive epoch 88/100 loss 4.4417
+contrastive epoch 89/100 loss 4.4428
+contrastive epoch 90/100 loss 4.4390
+contrastive epoch 91/100 loss 4.4410
+contrastive epoch 92/100 loss 4.4406
+contrastive epoch 93/100 loss 4.4400
+contrastive epoch 94/100 loss 4.4398
+contrastive epoch 95/100 loss 4.4381
+contrastive epoch 96/100 loss 4.4337
+contrastive epoch 97/100 loss 4.4357
+contrastive epoch 98/100 loss 4.4361
+contrastive epoch 99/100 loss 4.4349
+contrastive epoch 100/100 loss 4.4329
+OK E01 mnist simclr_kmeans seed 1 ACC 0.3759 NMI 0.2910 ARI 0.1883
+===== E01__mnist__simclr_kmeans__seed2__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+contrastive epoch 1/100 loss 5.8133
+contrastive epoch 2/100 loss 5.3041
+contrastive epoch 3/100 loss 5.0687
+contrastive epoch 4/100 loss 4.9312
+contrastive epoch 5/100 loss 4.8425
+contrastive epoch 6/100 loss 4.7835
+contrastive epoch 7/100 loss 4.7512
+contrastive epoch 8/100 loss 4.7404
+contrastive epoch 9/100 loss 4.7124
+contrastive epoch 10/100 loss 4.7007
+contrastive epoch 11/100 loss 4.6687
+contrastive epoch 12/100 loss 4.6540
+contrastive epoch 13/100 loss 4.6332
+contrastive epoch 14/100 loss 4.6236
+contrastive epoch 15/100 loss 4.6144
+contrastive epoch 16/100 loss 4.5986
+contrastive epoch 17/100 loss 4.5942
+contrastive epoch 18/100 loss 4.5846
+contrastive epoch 19/100 loss 4.5831
+contrastive epoch 20/100 loss 4.5744
+contrastive epoch 21/100 loss 4.5659
+contrastive epoch 22/100 loss 4.5606
+contrastive epoch 23/100 loss 4.5580
+contrastive epoch 24/100 loss 4.5537
+contrastive epoch 25/100 loss 4.5512
+contrastive epoch 26/100 loss 4.5451
+contrastive epoch 27/100 loss 4.5417
+contrastive epoch 28/100 loss 4.5347
+contrastive epoch 29/100 loss 4.5300
+contrastive epoch 30/100 loss 4.5272
+contrastive epoch 31/100 loss 4.5303
+contrastive epoch 32/100 loss 4.5185
+contrastive epoch 33/100 loss 4.5181
+contrastive epoch 34/100 loss 4.5165
+contrastive epoch 35/100 loss 4.5152
+contrastive epoch 36/100 loss 4.5052
+contrastive epoch 37/100 loss 4.5058
+contrastive epoch 38/100 loss 4.5010
+contrastive epoch 39/100 loss 4.4981
+contrastive epoch 40/100 loss 4.4970
+contrastive epoch 41/100 loss 4.4982
+contrastive epoch 42/100 loss 4.4920
+contrastive epoch 43/100 loss 4.4914
+contrastive epoch 44/100 loss 4.4896
+contrastive epoch 45/100 loss 4.4876
+contrastive epoch 46/100 loss 4.4865
+contrastive epoch 47/100 loss 4.4885
+contrastive epoch 48/100 loss 4.4819
+contrastive epoch 49/100 loss 4.4790
+contrastive epoch 50/100 loss 4.4797
+contrastive epoch 51/100 loss 4.4799
+contrastive epoch 52/100 loss 4.4743
+contrastive epoch 53/100 loss 4.4739
+contrastive epoch 54/100 loss 4.4704
+contrastive epoch 55/100 loss 4.4717
+contrastive epoch 56/100 loss 4.4699
+contrastive epoch 57/100 loss 4.4645
+contrastive epoch 58/100 loss 4.4647
+contrastive epoch 59/100 loss 4.4673
+contrastive epoch 60/100 loss 4.4639
+contrastive epoch 61/100 loss 4.4630
+contrastive epoch 62/100 loss 4.4665
+contrastive epoch 63/100 loss 4.4589
+contrastive epoch 64/100 loss 4.4564
+contrastive epoch 65/100 loss 4.4570
+contrastive epoch 66/100 loss 4.4545
+contrastive epoch 67/100 loss 4.4563
+contrastive epoch 68/100 loss 4.4551
+contrastive epoch 69/100 loss 4.4529
+contrastive epoch 70/100 loss 4.4530
+contrastive epoch 71/100 loss 4.4550
+contrastive epoch 72/100 loss 4.4532
+contrastive epoch 73/100 loss 4.4514
+contrastive epoch 74/100 loss 4.4532
+contrastive epoch 75/100 loss 4.4485
+contrastive epoch 76/100 loss 4.4496
+contrastive epoch 77/100 loss 4.4476
+contrastive epoch 78/100 loss 4.4455
+contrastive epoch 79/100 loss 4.4439
+contrastive epoch 80/100 loss 4.4420
+contrastive epoch 81/100 loss 4.4434
+contrastive epoch 82/100 loss 4.4407
+contrastive epoch 83/100 loss 4.4423
+contrastive epoch 84/100 loss 4.4403
+contrastive epoch 85/100 loss 4.4397
+contrastive epoch 86/100 loss 4.4370
+contrastive epoch 87/100 loss 4.4345
+contrastive epoch 88/100 loss 4.4365
+contrastive epoch 89/100 loss 4.4375
+contrastive epoch 90/100 loss 4.4371
+contrastive epoch 91/100 loss 4.4362
+contrastive epoch 92/100 loss 4.4352
+contrastive epoch 93/100 loss 4.4325
+contrastive epoch 94/100 loss 4.4351
+contrastive epoch 95/100 loss 4.4345
+contrastive epoch 96/100 loss 4.4331
+contrastive epoch 97/100 loss 4.4304
+contrastive epoch 98/100 loss 4.4301
+contrastive epoch 99/100 loss 4.4310
+contrastive epoch 100/100 loss 4.4298
+OK E01 mnist simclr_kmeans seed 2 ACC 0.3574 NMI 0.2893 ARI 0.1794
+===== E04__cifar10__simclr_dec_head__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+dec-head epoch 1/20 loss 0.0000
+dec-head epoch 2/20 loss 0.0000
+dec-head epoch 3/20 loss 0.0001
+dec-head epoch 4/20 loss 0.0005
+dec-head epoch 5/20 loss 0.0024
+dec-head epoch 6/20 loss 0.0086
+dec-head epoch 7/20 loss 0.0268
+dec-head epoch 8/20 loss 0.0656
+dec-head epoch 9/20 loss 0.1120
+dec-head epoch 10/20 loss 0.1455
+dec-head epoch 11/20 loss 0.1668
+dec-head epoch 12/20 loss 0.1785
+dec-head epoch 13/20 loss 0.1864
+dec-head epoch 14/20 loss 0.1910
+dec-head epoch 15/20 loss 0.1945
+dec-head epoch 16/20 loss 0.1977
+dec-head epoch 17/20 loss 0.2002
+dec-head epoch 18/20 loss 0.2026
+dec-head epoch 19/20 loss 0.2037
+dec-head epoch 20/20 loss 0.2050
+OK E04 cifar10 simclr_dec_head seed 0 ACC 0.1905 NMI 0.0747 ARI 0.0369
+===== E04__cifar10__simclr_gmm__seed0__k10__lat10__lam1__pre1__initkmeans__fr0__sf1__imb1__out0.json =====
+OK E04 cifar10 simclr_gmm seed 0 ACC 0.1970 NMI 0.0888 ARI 0.0392

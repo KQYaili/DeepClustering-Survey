@@ -67,7 +67,7 @@ def train_dec_head(features: np.ndarray, protocol: dict, seed: int, k: int, dev:
     module = DecHead(features.shape[1], int(k)).to(dev)
     with torch.no_grad():
         initial = module(as_tensor(features).to(dev)).cpu().numpy()
-    centers = init_centers_from_embeddings(initial, int(k), int(seed), "kmeans")
+    centers = init_centers_from_embeddings(initial, int(k), int(seed), "kmeans", int(protocol["kmeans"]["n_init"]))
     module.centers.data.copy_(torch.tensor(centers, device=dev))
     optimizer = torch.optim.Adam(module.parameters(), lr=float(protocol["e04"]["dec_head_lr"]))
     planned = int(protocol["e04"]["dec_head_epochs"])

@@ -234,7 +234,7 @@ def clip_grads(parameters, max_norm: float) -> None:
     torch.nn.utils.clip_grad_norm_(parameters, max_norm)
 
 
-def init_centers_from_embeddings(z: np.ndarray, k: int, seed: int, mode: str) -> np.ndarray:
+def init_centers_from_embeddings(z: np.ndarray, k: int, seed: int, mode: str, n_init: int) -> np.ndarray:
     if len(z) < k:
         raise ValueError(f"cannot init {k} centers from {len(z)} embeddings")
     if mode == "random":
@@ -244,6 +244,6 @@ def init_centers_from_embeddings(z: np.ndarray, k: int, seed: int, mode: str) ->
         raise ValueError(mode)
     from sklearn.cluster import KMeans
 
-    model = KMeans(n_clusters=k, n_init=20, random_state=seed)
+    model = KMeans(n_clusters=k, n_init=n_init, random_state=seed)
     model.fit(z)
     return model.cluster_centers_.astype(np.float32)

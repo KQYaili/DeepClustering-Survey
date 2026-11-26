@@ -1,0 +1,23 @@
+{
+  "status": "failed",
+  "job": {
+    "experiment": "E01",
+    "dataset": "cifar10",
+    "method": "gmm",
+    "seed": 0,
+    "k": 10,
+    "latent_dim": 10,
+    "lambda_recon": 1.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 1.0,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 15
+  },
+  "error": "Traceback (most recent call last):\n  File \"/mnt/c/Users/lgd/Documents/DeepClustering-Survey/scripts/run_one.py\", line 120, in <module>\n    main()\n    ~~~~^^\n  File \"/mnt/c/Users/lgd/Documents/DeepClustering-Survey/scripts/run_one.py\", line 97, in main\n    execute(job)\n    ~~~~~~~^^^^^\n  File \"/mnt/c/Users/lgd/Documents/DeepClustering-Survey/scripts/run_one.py\", line 30, in execute\n    x_train, _y_train, x_test, y_test = materialize(\n                                        ~~~~~~~~~~~^\n        job[\"dataset\"],\n        ^^^^^^^^^^^^^^^\n    ...<4 lines>...\n        float(job[\"outlier_frac\"]),\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    )\n    ^\n  File \"/mnt/c/Users/lgd/Documents/DeepClustering-Survey/src/datasets/data.py\", line 132, in materialize\n    train_x, train_y, test_x, test_y = load_full(dataset)\n                                       ~~~~~~~~~^^^^^^^^^\n  File \"/mnt/c/Users/lgd/Documents/DeepClustering-Survey/src/datasets/data.py\", line 27, in load_full\n    train_x, train_y, test_x, test_y = _download(dataset)\n                                       ~~~~~~~~~^^^^^^^^^\n  File \"/mnt/c/Users/lgd/Documents/DeepClustering-Survey/src/datasets/data.py\", line 41, in _download\n    train = cls(root=root, train=True, download=True, transform=transform)\n  File \"/home/lgd/venvs/dc-extra/torchvision/datasets/cifar.py\", line 66, in __init__\n    self.download()\n    ~~~~~~~~~~~~~^^\n  File \"/home/lgd/venvs/dc-extra/torchvision/datasets/cifar.py\", line 139, in download\n    download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lgd/venvs/dc-extra/torchvision/datasets/utils.py\", line 393, in download_and_extract_archive\n    download_url(url, download_root, filename, md5)\n    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/lgd/venvs/dc-extra/torchvision/datasets/utils.py\", line 137, in download_url\n    raise RuntimeError(\"File not found or corrupted.\")\nRuntimeError: File not found or corrupted.\n",
+  "attempts": 1,
+  "recovered_from": "results/queue.log"
+}

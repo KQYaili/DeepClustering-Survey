@@ -1,0 +1,8 @@
+# Added after the original benchmark. This measures train-side stability of fitted
+# E01 candidates; it cannot provide an independent estimate of deployment quality.
+split: fitted_training_subset
+seed: 0
+sample_count: 2000
+noise_std: 0.1
+candidate_experiment: E01
+score: macro_cluster_jaccard

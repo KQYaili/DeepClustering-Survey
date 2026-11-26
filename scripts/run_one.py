@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from datasets.data import materialize  # noqa: E402
-from evaluation.metrics import evaluate_partition  # noqa: E402
+from evaluation.metrics import evaluate_partition, evaluation_labels  # noqa: E402
 from runtime.fit import fit_job  # noqa: E402
-from runtime.paths import checkpoint_path, read_json, result_path, write_json  # noqa: E402
+from runtime.paths import checkpoint_path, pending_result, read_json, record_failure, result_path, write_json  # noqa: E402
 
 
 def load_protocol() -> dict:
@@ -27,7 +27,7 @@ def load_protocol() -> dict:
 def execute(job: dict) -> dict:
     protocol = load_protocol()
     destination = result_path(job)
-    x_train, _y_train, x_test, y_test = materialize(
+    x_train, x_test, test_indices = materialize(
         job["dataset"],
         protocol,
         int(job["seed"]),
@@ -35,14 +35,12 @@ def execute(job: dict) -> dict:
         float(job["imbalance"]),
         float(job["outlier_frac"]),
     )
-    # y_train is intentionally unused. Imbalance already consumed labels inside materialize.
-    del _y_train
     started = time.perf_counter()
     model, payload = fit_job(job, protocol, x_train, x_test)
     prediction = payload.pop("prediction")
     embeddings = payload.pop("embeddings")
     metrics = evaluate_partition(
-        y_test,
+        evaluation_labels(job["dataset"], test_indices),
         prediction,
         embeddings,
         k=int(job["k"]),
@@ -93,25 +91,13 @@ def main() -> None:
     parser.add_argument("--job-file", required=True)
     args = parser.parse_args()
     job = json.loads(Path(args.job_file).read_text(encoding="utf-8"))
+    destination = result_path(job)
+    if not pending_result(destination):
+        return
     try:
         execute(job)
     except Exception:
-        destination = result_path(job)
-        attempts = 1
-        if destination.exists():
-            try:
-                attempts = int(read_json(destination).get("attempts", 0)) + 1
-            except Exception:
-                attempts = 1
-        write_json(
-            destination,
-            {
-                "status": "failed",
-                "job": job,
-                "error": traceback.format_exc(),
-                "attempts": attempts,
-            },
-        )
+        record_failure(destination, job, traceback.format_exc())
         print(f"FAILED {job['method']} {job['dataset']} seed {job['seed']}", flush=True)
         raise
 

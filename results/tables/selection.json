@@ -5,6 +5,8 @@
     "split": "fitted_training_subset",
     "score": "macro_cluster_jaccard",
     "max_predict_sec": null,
+    "speed_used_in_selection": false,
+    "purpose": "train_stability_and_collapse_diagnostic_only",
     "candidate_methods": [
       "ae_kmeans",
       "cc",
@@ -19,6 +21,8 @@
     "missing": [],
     "eligibility": "All k clusters must be present in both predictions.",
     "tie_break": "Alphabetical method name for exactly tied scores.",
+    "hardware_note": "predict_sec spans CPU (classical) and CUDA (neural) devices; reported as a diagnostic only unless a uniform device budget is configured.",
+    "warning": "Perturbation stability does not measure semantic correctness; high stability can coexist with low semantic ARI.",
     "evidence": {
       "ae_kmeans": {
         "macro_cluster_jaccard": 0.8790042781981848,
@@ -291,7 +295,7 @@
         "checkpoint_sha256": "eb50446c6f94af9376e5dce51eea2a8c3340f1b8a4f6903f9a1954dd57d673c6"
       }
     },
-    "scope": "Post-benchmark diagnostic on already-fitted training images; one split and noise level."
+    "scope": "Post-benchmark diagnostic on already-fitted E01 from-scratch training images (excludes external pretrained routes); one split and noise level."
   },
   "fashion_mnist": {
     "choice": "kmeans",
@@ -299,6 +303,8 @@
     "split": "fitted_training_subset",
     "score": "macro_cluster_jaccard",
     "max_predict_sec": null,
+    "speed_used_in_selection": false,
+    "purpose": "train_stability_and_collapse_diagnostic_only",
     "candidate_methods": [
       "ae_kmeans",
       "cc",
@@ -313,6 +319,8 @@
     "missing": [],
     "eligibility": "All k clusters must be present in both predictions.",
     "tie_break": "Alphabetical method name for exactly tied scores.",
+    "hardware_note": "predict_sec spans CPU (classical) and CUDA (neural) devices; reported as a diagnostic only unless a uniform device budget is configured.",
+    "warning": "Perturbation stability does not measure semantic correctness; high stability can coexist with low semantic ARI.",
     "evidence": {
       "ae_kmeans": {
         "macro_cluster_jaccard": 0.6749643876474822,
@@ -585,7 +593,7 @@
         "checkpoint_sha256": "733ad76f7eb68afe1ac244cf6427b865a017bdab8e1dd38ac86ab5a9c534f424"
       }
     },
-    "scope": "Post-benchmark diagnostic on already-fitted training images; one split and noise level."
+    "scope": "Post-benchmark diagnostic on already-fitted E01 from-scratch training images (excludes external pretrained routes); one split and noise level."
   },
   "cifar10": {
     "choice": "kmeans",
@@ -593,6 +601,8 @@
     "split": "fitted_training_subset",
     "score": "macro_cluster_jaccard",
     "max_predict_sec": null,
+    "speed_used_in_selection": false,
+    "purpose": "train_stability_and_collapse_diagnostic_only",
     "candidate_methods": [
       "ae_kmeans",
       "cc",
@@ -607,6 +617,8 @@
     "missing": [],
     "eligibility": "All k clusters must be present in both predictions.",
     "tie_break": "Alphabetical method name for exactly tied scores.",
+    "hardware_note": "predict_sec spans CPU (classical) and CUDA (neural) devices; reported as a diagnostic only unless a uniform device budget is configured.",
+    "warning": "Perturbation stability does not measure semantic correctness; high stability can coexist with low semantic ARI.",
     "evidence": {
       "ae_kmeans": {
         "macro_cluster_jaccard": 0.9273269644567085,
@@ -879,6 +891,6 @@
         "checkpoint_sha256": "96927ece7664fae824b1660e79c420fb72101c67087cefa682e296175c5d66f3"
       }
     },
-    "scope": "Post-benchmark diagnostic on already-fitted training images; one split and noise level."
+    "scope": "Post-benchmark diagnostic on already-fitted E01 from-scratch training images (excludes external pretrained routes); one split and noise level."
   }
 }

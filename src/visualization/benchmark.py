@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager
 from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.lines import Line2D
-from matplotlib.patches import FancyBboxPatch, Rectangle
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 from sklearn.manifold import TSNE
@@ -19,7 +19,6 @@ from threadpoolctl import threadpool_limits
 from visualization.style import (
     AMBER,
     BLUE_DEEP,
-    BLUE_MID,
     CRIMSON,
     INK,
     MUTED,
@@ -35,10 +34,10 @@ METHODS = {
     "gmm": "高斯混合 GMM",
     "ae_kmeans": "AE + K-means",
     "dec": "DEC",
-    "idec": "IDEC",
+    "idec": "IDEC (λ=1.0)",
     "vade": "VaDE",
-    "simclr_kmeans": "SimCLR + K-means",
-    "cc": "对比聚类 CC",
+    "simclr_kmeans": "SimCLR + K-means (小 CNN)",
+    "cc": "CC (小 CNN, 省熵项)",
 }
 SHORT_METHODS = {
     "kmeans": "K-means",
@@ -51,9 +50,13 @@ SHORT_METHODS = {
     "simclr_kmeans": "SimCLR+KM",
     "cc": "CC",
 }
-DATASETS = {"mnist": "MNIST\n(手写数字)", "fashion_mnist": "Fashion-MNIST\n(服装图像)", "cifar10": "CIFAR-10\n(自然图像)"}
+DATASETS = {
+    "mnist": "MNIST\n(手写数字)",
+    "fashion_mnist": "Fashion-MNIST\n(服装图像)",
+    "cifar10": "CIFAR-10\n(自然图像)",
+}
 
-# Distinct colorblind-friendly academic palette + markers
+# Distinct colorblind-friendly academic palette + unique markers per method
 METHOD_COLORS = {
     "kmeans": "#0B4F6C",
     "pca_kmeans": "#2E7D5B",
@@ -72,7 +75,7 @@ METHOD_MARKERS = {
     "ae_kmeans": "^",
     "dec": "o",
     "idec": "D",
-    "vade": "v",
+    "vade": "p",
     "simclr_kmeans": "<",
     "cc": "v",
 }
@@ -118,12 +121,12 @@ def _heat_e01(e01: pd.DataFrame) -> plt.Figure | None:
     vals = mean_grid.to_numpy(float)
     stds = std_grid.to_numpy(float)
 
-    fig, ax = plt.subplots(figsize=(8.6, 5.2))
+    fig, ax = plt.subplots(figsize=(9.2, 5.4))
     scale = Normalize(0.0, 0.72)
     im = ax.imshow(vals, cmap=HEAT_CMAP, norm=scale, aspect="auto")
 
     ax.set_xticks(range(len(DATASETS)), list(DATASETS.values()), fontsize=10.5, fontweight="bold")
-    ax.set_yticks(range(len(METHODS)), list(METHODS.values()), fontsize=10.5)
+    ax.set_yticks(range(len(METHODS)), list(METHODS.values()), fontsize=10.0)
     ax.xaxis.tick_top()
     ax.tick_params(length=0, pad=7)
     ax.grid(False)
@@ -138,7 +141,6 @@ def _heat_e01(e01: pd.DataFrame) -> plt.Figure | None:
     for sep in (2.5, 5.5, 6.5):
         ax.axhline(sep, color="#0B2545", linewidth=1.35, linestyle="-", alpha=0.65)
 
-    # Highlight best cell per column
     col_best = np.nanargmax(vals, axis=0)
     for i, j in np.ndindex(vals.shape):
         val = vals[i, j]
@@ -146,12 +148,16 @@ def _heat_e01(e01: pd.DataFrame) -> plt.Figure | None:
         if np.isfinite(val):
             r, g, b, _ = HEAT_CMAP(scale(val))
             txt_color = "#FFFFFF" if 0.21 * r + 0.72 * g + 0.07 * b < 0.54 else INK
-            is_best = i == col_best[j]
-            main_txt = f"{val:.3f}" + (" ★" if is_best else "")
+            best_i = int(col_best[j])
+            is_best = i == best_i
+            best_sd = stds[best_i, j]
+            near_tie = (not is_best) and np.isfinite(best_sd) and (vals[best_i, j] - val <= best_sd)
+            suffix = " ★" if is_best else (" ≈" if near_tie else "")
+            main_txt = f"{val:.3f}{suffix}"
             ax.text(
                 j, i - 0.11, main_txt,
                 ha="center", va="center",
-                fontsize=11.0 if is_best else 10.4,
+                fontsize=10.8 if is_best else 10.2,
                 fontweight="bold" if is_best else "semibold",
                 color=txt_color,
             )
@@ -159,9 +165,9 @@ def _heat_e01(e01: pd.DataFrame) -> plt.Figure | None:
                 ax.text(
                     j, i + 0.22, f"± {sd:.3f}",
                     ha="center", va="center",
-                    fontsize=8.3,
+                    fontsize=8.2,
                     color=txt_color,
-                    alpha=0.88,
+                    alpha=0.90,
                 )
             if is_best:
                 ax.add_patch(
@@ -176,16 +182,16 @@ def _heat_e01(e01: pd.DataFrame) -> plt.Figure | None:
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    cbar = fig.colorbar(im, ax=ax, fraction=0.036, pad=0.03, aspect=22)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.035, pad=0.03, aspect=22)
     cbar.set_label("平均 ARI（3 种子均值）", fontsize=9.8, color=INK)
     cbar.outline.set_visible(False)
     cbar.ax.tick_params(labelsize=9.0, length=2)
 
-    ax.set_title("E01 从零训练基准：9 种方法在 3 个数据集上的 ARI 对比", loc="left", pad=36, fontsize=12.5, color=BLUE_DEEP)
+    ax.set_title("E01 从零训练基准：9 种方法在 3 个数据集上的 ARI 对比（n=3 种子）", loc="left", pad=36, fontsize=12.2, color=BLUE_DEEP)
     fig.text(
-        0.02, -0.01,
-        "注：各格展示 3 个随机种子（0/1/2）的均值与样本标准差；★ 与金框标出该列均值最高者；SimCLR/CC 为小型 CNN 课程实现。",
-        fontsize=8.6, color=MUTED,
+        0.02, -0.02,
+        "注：各格为 3 种子均值 ± 样本标准差；★ 为列均值最高者，≈ 表示与最高者差值 ≤ 1 SD（近似并列）；IDEC λ=1.0，SimCLR/CC 为小型 CNN（CC 省略熵项）。",
+        fontsize=8.3, color=MUTED,
     )
     return fig
 
@@ -205,14 +211,22 @@ def _heat_e04(pairs: pd.DataFrame, protocol: dict) -> plt.Figure | None:
     grid = pairs.pivot(index="encoder", columns="clusterer", values="ari").reindex(
         index=cfg["encoders"], columns=cfg["clusterers"]
     )
+    src_grid = pairs.pivot(index="encoder", columns="clusterer", values="source_experiment").reindex(
+        index=cfg["encoders"], columns=cfg["clusterers"]
+    )
     vals = grid.to_numpy(float)
 
-    fig, ax = plt.subplots(figsize=(8.6, 4.4))
+    scratch_vals = vals[:3, :]
+    ext_vals = vals[3:, :]
+    scratch_range = f"{np.nanmin(scratch_vals):.2f}–{np.nanmax(scratch_vals):.2f}"
+    ext_range = f"{np.nanmin(ext_vals):.2f}–{np.nanmax(ext_vals):.2f}"
+
+    fig, ax = plt.subplots(figsize=(9.0, 4.55))
     scale = Normalize(0.0, 0.68)
     im = ax.imshow(vals, cmap=HEAT_CMAP, norm=scale, aspect="auto")
 
-    ax.set_xticks(range(len(clusterers)), [clusterers[c] for c in grid.columns], fontsize=10.8, fontweight="bold")
-    ax.set_yticks(range(len(encoders)), [encoders[e] for e in grid.index], fontsize=10.5)
+    ax.set_xticks(range(len(clusterers)), [clusterers[c] for c in grid.columns], fontsize=10.6, fontweight="bold")
+    ax.set_yticks(range(len(encoders)), [encoders[e] for e in grid.index], fontsize=10.3)
     ax.xaxis.tick_top()
     ax.tick_params(length=0, pad=7)
     ax.grid(False)
@@ -222,32 +236,41 @@ def _heat_e04(pairs: pd.DataFrame, protocol: dict) -> plt.Figure | None:
     ax.grid(which="minor", color="white", linestyle="-", linewidth=2.4)
     ax.tick_params(which="minor", bottom=False, left=False, top=False)
 
-    # Clear boundary separating from-scratch vs external pretrained encoders
     ax.axhline(2.5, color=CRIMSON, linewidth=2.2, linestyle="--", zorder=5)
     ax.text(
-        2.53, 1.0, "从零训练\n(课程数据)\n0.01–0.05",
-        va="center", ha="left", fontsize=9.0, fontweight="bold", color=MUTED,
+        2.54, 1.0, f"从零训练\n(课程数据)\n{scratch_range}",
+        va="center", ha="left", fontsize=8.9, fontweight="bold", color=MUTED,
         transform=ax.transData,
     )
     ax.text(
-        2.53, 3.5, "外部预训练\n(冻结主干)\n0.28–0.64",
-        va="center", ha="left", fontsize=9.0, fontweight="bold", color=BLUE_DEEP,
+        2.54, 3.5, f"外部预训练\n(冻结主干)\n{ext_range}",
+        va="center", ha="left", fontsize=8.9, fontweight="bold", color=BLUE_DEEP,
         transform=ax.transData,
     )
 
+    peak_val = float(np.nanmax(vals))
     for i, j in np.ndindex(vals.shape):
         val = vals[i, j]
         if np.isfinite(val):
             r, g, b, _ = HEAT_CMAP(scale(val))
             txt_color = "#FFFFFF" if 0.21 * r + 0.72 * g + 0.07 * b < 0.54 else INK
-            is_peak = val >= 0.62
+            src_exp = str(src_grid.iloc[i, j])
+            is_e01 = src_exp == "E01"
+            is_peak = val >= peak_val - 0.015
             ax.text(
-                j, i, f"{val:.3f}",
+                j, i - (0.08 if is_e01 else 0.0),
+                f"{val:.3f}" + (" †" if is_e01 else ""),
                 ha="center", va="center",
-                fontsize=12.0 if is_peak else 11.2,
+                fontsize=11.8 if is_peak else 11.0,
                 fontweight="bold" if is_peak else "semibold",
                 color=txt_color,
             )
+            if is_e01:
+                ax.text(
+                    j, i + 0.24, "同切分 E01",
+                    ha="center", va="center",
+                    fontsize=7.6, color=txt_color, alpha=0.88,
+                )
             if is_peak:
                 ax.add_patch(
                     Rectangle(
@@ -259,16 +282,19 @@ def _heat_e04(pairs: pd.DataFrame, protocol: dict) -> plt.Figure | None:
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    cbar = fig.colorbar(im, ax=ax, fraction=0.036, pad=0.18, aspect=18)
-    cbar.set_label("ARI（CIFAR-10，seed 0）", fontsize=9.6, color=INK)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.036, pad=0.20, aspect=18)
+    cbar.set_label(f"ARI（CIFAR-10，n=1，seed {cfg['seed']}）", fontsize=9.4, color=INK)
     cbar.outline.set_visible(False)
     cbar.ax.tick_params(labelsize=9.0, length=2)
 
-    ax.set_title("E04 表征与聚类器解耦：同一批 CIFAR-10 特征的 5×3 交叉矩阵", loc="left", pad=34, fontsize=12.2, color=BLUE_DEEP)
+    ax.set_title(
+        f"E04 表征与聚类器解耦：CIFAR-10 5×3 交叉矩阵（n=1 配对，seed {cfg['seed']}）",
+        loc="left", pad=34, fontsize=12.0, color=BLUE_DEEP,
+    )
     fig.text(
-        0.02, -0.02,
-        "注：红虚线下方 ★ 为冻结的外部预训练主干（含外部数据预算），不与上方从零训练模型作等预算排名；DEC 仅微调 10 维投影头。",
-        fontsize=8.6, color=MUTED,
+        0.02, -0.03,
+        "注：全表为 seed 0 单次配对（n=1）；标 † 两格（AE/SimCLR+K-means）取自同切分 E01，其余 13 格来自 E04；红虚线下 ★ 为冻结外部主干（DEC 仅微调 10 维头）。",
+        fontsize=8.2, color=MUTED,
     )
     return fig
 
@@ -278,55 +304,97 @@ def _ablation(frame: pd.DataFrame, factor: str) -> plt.Figure | None:
     if data.empty:
         return None
     xs = np.arange(len(data))
-    fig, axes = plt.subplots(1, 2, figsize=(8.6, 3.85), layout="constrained")
-    labels = [f"{float(v):g}" for v in data.value]
+    fig, axes = plt.subplots(1, 2, figsize=(9.2, 4.15), layout="constrained")
     is_lam = factor == "lambda_recon"
 
+    if is_lam:
+        labels = [
+            f"{float(r.value):g}\n({int(r.epochs_ran)}ep{'早停' if bool(r.stopped_early) else ''})"
+            for r in data.itertuples()
+        ]
+    else:
+        labels = [f"{float(r.value):g}" for r in data.itertuples()]
+
     configs = [
-        ("ari", BLUE_DEEP, "分组得分 ARI  ↑", (0.0, 0.56)),
+        ("ari", BLUE_DEEP, "分组得分 ARI  ↑", (0.0, 0.57)),
         ("recon_sse", AMBER, "每图重构平方误差 SSE  ↓", (0.0, float(data["recon_sse"].max()) * 1.18)),
     ]
     for idx, (ax, (metric, color, title, ylim)) in enumerate(zip(axes, configs)):
         ys = data[metric].to_numpy(float)
         if is_lam:
-            ax.axvspan(0.7, 2.3, color="#E6F4F1", alpha=0.85, zorder=0)
-            note_txt = "量纲匹配甜点区\n(ARI ≈ 0.47)" if idx == 0 else "甜点区\nSSE 降 74%–78%"
-            note_y = 0.27 if idx == 0 else ylim[1] * 0.86
-            ax.text(
-                1.5, note_y, note_txt,
-                ha="center", va="top", fontsize=8.6, fontweight="bold", color=TEAL,
-                bbox=dict(boxstyle="round,pad=0.28", fc="white", ec=TEAL, lw=0.85, alpha=0.95),
-                zorder=5,
-            )
+            early_mask = data["stopped_early"].astype(bool).to_numpy()
+            if early_mask.any() and (~early_mask).any():
+                split_x = float(np.where(early_mask)[0][-1]) + 0.5
+                ax.axvspan(-0.4, split_x, color="#EBF3FF", alpha=0.65, zorder=0)
+                ax.axvspan(split_x, len(xs) - 0.6, color="#FDF3E7", alpha=0.65, zorder=0)
+                ax.axvline(split_x, color=SLATE, linestyle="--", linewidth=1.1, alpha=0.7, zorder=2)
+                if idx == 0:
+                    ax.text(split_x / 2 - 0.15, 0.06, "早停区\n(20→35 ep)", ha="center", va="bottom", fontsize=8.3, fontweight="bold", color=BLUE_DEEP)
+                    ax.text((split_x + len(xs) - 0.6) / 2, 0.06, "跑满区\n(50 ep)", ha="center", va="bottom", fontsize=8.3, fontweight="bold", color=AMBER)
+                else:
+                    ax.text(2.5, ylim[1] * 0.62, "仅 λ>0 可比：\n重构项纳入总损失", ha="center", va="center", fontsize=8.3, fontweight="bold", color=AMBER,
+                            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec=AMBER, lw=0.8, alpha=0.92), zorder=5)
+
+            if idx == 1 and float(data.value.iloc[0]) == 0.0:
+                # λ=0 excludes reconstruction from the loss: plot as non-comparable hollow point
+                ax.plot(xs[1:], ys[1:], marker="o", markersize=6.5, color=color, linewidth=2.4,
+                        markeredgecolor="white", markeredgewidth=0.9, zorder=4)
+                ax.plot(xs[:2], ys[:2], linestyle=":", color=MUTED, linewidth=1.4, zorder=3)
+                ax.scatter([xs[0]], [ys[0]], s=68, facecolors="white", edgecolors=MUTED, linewidths=1.9, zorder=5)
+            else:
+                ax.plot(xs, ys, marker="o", markersize=6.5, color=color, linewidth=2.4,
+                        markeredgecolor="white", markeredgewidth=0.9, zorder=4)
         else:
-            # Highlight peak d = 10 at index 1
             peak_i = int(np.argmax(data["ari"].to_numpy(float)))
             ax.axvline(peak_i, color=TEAL, linestyle=":", linewidth=1.3, alpha=0.8)
             if idx == 0:
                 ax.scatter([peak_i], [ys[peak_i]], s=115, facecolors="none", edgecolors=CRIMSON, linewidths=2.0, zorder=5)
+            ax.plot(xs, ys, marker="o", markersize=6.5, color=color, linewidth=2.4,
+                    markeredgecolor="white", markeredgewidth=0.9, zorder=4)
 
-        ax.plot(xs, ys, marker="o", markersize=6.5, color=color, linewidth=2.4, markeredgecolor="white", markeredgewidth=0.9, zorder=4)
         for x_i, y_i in zip(xs, ys):
+            if is_lam and idx == 1 and x_i == 0 and float(data.value.iloc[0]) == 0.0:
+                ax.annotate(
+                    f"{y_i:.1f}*\n(重构未入损失\n不可比)", (x_i, y_i),
+                    textcoords="offset points", xytext=(16, -8),
+                    ha="left", va="center", fontsize=8.1, fontweight="bold", color=MUTED,
+                )
+                continue
             fmt_s = f"{y_i:.3f}" if idx == 0 else f"{y_i:.1f}"
             ox, oy = 0, 10
-            if is_lam and idx == 1 and x_i == 0:
-                ox, oy = 18, -2
-            elif is_lam and idx == 1 and x_i == 1:
-                ox, oy = 14, 10
+            if is_lam and idx == 1 and x_i == 1:
+                ox, oy = 8, 12
             ax.annotate(
                 fmt_s, (x_i, y_i),
                 textcoords="offset points", xytext=(ox, oy),
-                ha="center", fontsize=9.0, fontweight="bold", color=color,
+                ha="center", fontsize=8.8, fontweight="bold", color=color,
             )
 
-        ax.set_xticks(xs, labels, fontsize=10.0)
-        ax.set_xlabel("重构损失权重 λ" if is_lam else "隐空间维度 d", fontsize=10.2, labelpad=6)
+        ax.set_xticks(xs, labels, fontsize=8.8 if is_lam else 9.8)
+        ax.set_xlabel("重构损失权重 λ（括号为实际训练轮数）" if is_lam else "隐空间维度 d（各档均跑满 50 ep）", fontsize=9.8, labelpad=6)
         ax.set_ylim(*ylim)
-        ax.set_title(title, loc="left", fontsize=11.2, color=INK, pad=8)
+        ax.set_title(title, loc="left", fontsize=11.0, color=INK, pad=8)
         ax.grid(axis="x", visible=False)
 
-    subtitle = "重构权重 λ 消融" if is_lam else "隐空间维度 d 消融"
-    fig.suptitle(f"E02 单因素消融（Fashion-MNIST · IDEC · seed {data.seed.iloc[0]}）：{subtitle}", fontweight="bold", fontsize=12.0, color=BLUE_DEEP)
+    seed_val = int(data.seed.iloc[0])
+    if is_lam:
+        fig.suptitle(
+            f"E02 重构权重 λ 消融（Fashion-MNIST · IDEC · n=1, seed {seed_val}）：当前早停协议下 λ 与轮数共变",
+            fontweight="bold", fontsize=11.4, color=BLUE_DEEP,
+        )
+        fig.supxlabel(
+            "注：早停按训练集簇分配变化 < 0.001 触发，λ 越大越晚早停；ARI 变化由 λ 与训练时长共同作用，不能单独归因于权重/量纲；*λ=0 重构项不入损失。",
+            fontsize=8.2, color=MUTED,
+        )
+    else:
+        fig.suptitle(
+            f"E02 隐空间维度 d 消融（Fashion-MNIST · IDEC · n=1, seed {seed_val}，λ=1.0）",
+            fontweight="bold", fontsize=11.6, color=BLUE_DEEP,
+        )
+        fig.supxlabel(
+            "注：单种子受控消融（seed 0），全部 5 档维度均完整运行 50 epoch。",
+            fontsize=8.3, color=MUTED,
+        )
     return fig
 
 
@@ -345,41 +413,41 @@ def _ablation_components(frame: pd.DataFrame) -> plt.Figure | None:
     base_ari = float(base["ari"])
     specs = [
         ("完整 IDEC 基准\n(AE 预训练 + K-means 中心 + 联合更新)", base, BLUE_DEEP),
-        ("冻结编码器\n(仅更新聚类中心，不联合微调)", _pick("freeze_encoder", "True"), TEAL),
+        ("冻结编码器\n(仅更新簇中心；10ep 结构性早停)", _pick("freeze_encoder", "True"), TEAL),
         ("随机初始化聚类中心\n(去掉 K-means 中心初始化)", _pick("center_init", "random"), AMBER),
-        ("取消 AE 预训练\n(随机初始化网络直接联合训练)", _pick("pretrain", "False"), CRIMSON),
+        ("取消 AE 预训练\n(随机网络直接联合训练)", _pick("pretrain", "False"), CRIMSON),
     ]
     for label, row, color in specs:
         if row is not None:
-            items.append((label, float(row["ari"]), float(row["nmi"]), color))
+            items.append((label, float(row["ari"]), float(row["nmi"]), int(row["epochs_ran"]), color))
     if len(items) < 2:
         return None
 
-    fig, ax = plt.subplots(figsize=(8.2, 3.8))
+    fig, ax = plt.subplots(figsize=(8.6, 3.85))
     ys = np.arange(len(items))[::-1]
     aris = [it[1] for it in items]
-    colors = [it[3] for it in items]
+    colors = [it[4] for it in items]
     labels = [it[0] for it in items]
 
-    bars = ax.barh(ys, aris, height=0.56, color=colors, edgecolor="none", alpha=0.92, zorder=3)
+    ax.barh(ys, aris, height=0.56, color=colors, edgecolor="none", alpha=0.92, zorder=3)
     ax.axvline(base_ari, color=BLUE_DEEP, linestyle="--", linewidth=1.1, alpha=0.55, zorder=2)
 
-    for y_pos, (lbl, ari, nmi, col) in zip(ys, items):
+    for y_pos, (_, ari, nmi, ep, _) in zip(ys, items):
         delta = ari - base_ari
         delta_s = "基准" if abs(delta) < 1e-6 else f"Δ = {delta:+.3f}"
         ax.text(
             ari + 0.008, y_pos,
-            f"ARI {ari:.3f}  ({delta_s})  |  NMI {nmi:.3f}",
-            va="center", ha="left", fontsize=9.4,
+            f"ARI {ari:.3f} ({delta_s}) | NMI {nmi:.3f} | {ep}ep",
+            va="center", ha="left", fontsize=9.1,
             fontweight="bold" if abs(delta) < 1e-6 or delta < -0.1 else "normal",
             color=INK if abs(delta) < 0.1 else CRIMSON,
         )
 
-    ax.set_yticks(ys, labels, fontsize=9.8)
-    ax.set_xlim(0, 0.66)
-    ax.set_xlabel("分组得分 ARI（Fashion-MNIST，seed 0，λ=1.0，d=10）", fontsize=10.0)
+    ax.set_yticks(ys, labels, fontsize=9.5)
+    ax.set_xlim(0, 0.72)
+    ax.set_xlabel("分组得分 ARI（Fashion-MNIST，n=1, seed 0，λ=1.0，d=10）", fontsize=9.8)
     ax.grid(axis="y", visible=False)
-    ax.set_title("E02 组件消融：初始化质量对最终 ARI 的贡献远超单纯联合微调", loc="left", fontsize=11.6, color=BLUE_DEEP, pad=10)
+    ax.set_title("E02 组件消融：初始化质量对最终 ARI 的贡献远超单纯联合微调", loc="left", fontsize=11.4, color=BLUE_DEEP, pad=10)
     return fig
 
 
@@ -388,16 +456,17 @@ def _curves(frame: pd.DataFrame, factor: str, protocol: dict) -> plt.Figure | No
     robust = protocol["e03"]
     plot_methods = list(robust["methods"])
     if noise:
-        # Include GMM as dashed reference because its collapse under sigma=0.1 is a core finding
-        if "gmm" in set(frame["method"].unique()) and "gmm" not in plot_methods:
-            plot_methods = [*plot_methods, "gmm"]
+        # Plot VaDE alongside GMM so probabilistic-family behavior is not overgeneralized from GMM alone.
+        for extra in ("vade", "gmm"):
+            if extra in set(frame["method"].unique()) and extra not in plot_methods:
+                plot_methods = [*plot_methods, extra]
         frame = frame[frame.dataset.eq(robust["dataset"]) & frame.method.isin(plot_methods)]
     else:
         frame = frame[frame.factor.eq(factor)]
     if frame.empty:
         return None
 
-    fig, ax = plt.subplots(figsize=(8.2, 4.4))
+    fig, ax = plt.subplots(figsize=(8.8 if noise else 8.4, 4.6 if noise else 4.35))
     levels = sorted(frame[factor].unique())
     index = {v: i for i, v in enumerate(levels)}
 
@@ -409,82 +478,110 @@ def _curves(frame: pd.DataFrame, factor: str, protocol: dict) -> plt.Figure | No
         xs = [index[v] for v in series[factor]]
         ys = series["ari_mean" if noise else "ari"].to_numpy(float)
         is_gmm = m == "gmm"
+        legend_lbl = METHODS[m]
+        if is_gmm:
+            legend_lbl = "GMM (标准化+对角协方差)"
+        elif m == "vade":
+            legend_lbl = "VaDE (隐空间生成对照)"
         ax.plot(
             xs, ys,
             color=METHOD_COLORS[m],
             marker=METHOD_MARKERS[m],
-            markersize=5.6 if not is_gmm else 6.0,
-            lw=2.2 if not is_gmm else 1.8,
+            markersize=5.8 if m != "vade" else 6.6,
+            lw=2.2 if not is_gmm else 1.9,
             ls="--" if is_gmm else "-",
             markeredgecolor="white" if not is_gmm else METHOD_COLORS[m],
-            markeredgewidth=0.7,
-            label=METHODS[m] + (" (对照)" if is_gmm else ""),
-            zorder=4 if m in {"kmeans", "dec", "idec"} else 3,
+            markeredgewidth=0.75,
+            label=legend_lbl,
+            zorder=5 if m in {"kmeans", "vade", "dec"} else 3,
         )
         if noise:
             deviations = series.ari_std.to_numpy(float)
-            ax.fill_between(xs, ys - deviations, ys + deviations, color=METHOD_COLORS[m], alpha=0.10, zorder=1)
+            ax.fill_between(xs, ys - deviations, ys + deviations, color=METHOD_COLORS[m], alpha=0.09, zorder=1)
             ret = (ys[-1] / ys[0] * 100.0) if ys[0] > 0 else 0.0
-            end_annotations.append((float(ys[-1]), f"{SHORT_METHODS[m]} {ys[-1]:.2f} ({ret:.0f}%)", METHOD_COLORS[m]))
+            end_annotations.append((float(ys[-1]), f"{SHORT_METHODS[m]} {ys[-1]:.3f} ({ret:.0f}%)", METHOD_COLORS[m]))
 
     if noise and end_annotations:
-        # Spread overlapping right-side endpoint labels cleanly
         end_annotations.sort(key=lambda t: t[0])
         placed_y: list[float] = []
-        min_gap = 0.036
+        min_gap = 0.044
         for raw_y, txt, col in end_annotations:
             y_pos = raw_y
             if placed_y and y_pos - placed_y[-1] < min_gap:
                 y_pos = placed_y[-1] + min_gap
             placed_y.append(y_pos)
-            ax.text(len(levels) - 1 + 0.08, y_pos, txt, va="center", ha="left", fontsize=8.8, fontweight="bold", color=col)
-        ax.set_xlim(-0.15, len(levels) - 1 + 1.05)
+            x_end = len(levels) - 1
+            ax.plot([x_end + 0.03, x_end + 0.14], [raw_y, y_pos], color=col, lw=0.85, ls=":", alpha=0.75)
+            ax.text(x_end + 0.16, y_pos, txt, va="center", ha="left", fontsize=8.4, fontweight="bold", color=col)
+        ax.set_xlim(-0.15, len(levels) - 1 + 1.28)
 
-    # Helpful domain reference cues on sensitivity plots
     if factor == "k" and 10 in index:
         k10 = index[10]
         ax.axvline(k10, color=CRIMSON, linestyle=":", linewidth=1.3, alpha=0.75, zorder=2)
         ax.text(k10 + 0.08, 0.505, "真实类数 K=10", fontsize=8.8, fontweight="bold", color=CRIMSON, va="top")
     if factor == "sample_frac" and 0.01 in index:
-        ax.annotate(
-            "极小样本 (200张)\nK-means 0.353 显著领先",
-            xy=(0, 0.353), xytext=(0.45, 0.455),
-            fontsize=8.6, fontweight="bold", color="#0B4F6C",
-            arrowprops=dict(arrowstyle="->", color="#0B4F6C", lw=1.1),
-            bbox=dict(boxstyle="round,pad=0.25", fc="#EAF2F8", ec="#0B4F6C", lw=0.8),
-        )
+        km_small = frame[frame.method.eq("kmeans") & frame[factor].eq(0.01)]
+        if len(km_small):
+            km_v = float(km_small["ari"].iloc[0])
+            n_small = int(km_small["n_train"].iloc[0])
+            ax.annotate(
+                f"极小样本 ({n_small}张)\nK-means {km_v:.3f} 显著领先",
+                xy=(0, km_v), xytext=(0.45, 0.455),
+                fontsize=8.6, fontweight="bold", color="#0B4F6C",
+                arrowprops=dict(arrowstyle="->", color="#0B4F6C", lw=1.1),
+                bbox=dict(boxstyle="round,pad=0.25", fc="#EAF2F8", ec="#0B4F6C", lw=0.8),
+            )
 
     labels = {
         "noise_std": "测试图像高斯噪声标准差 σ（像素范围 [0, 1]）",
         "k": "预设聚类数 K（Fashion-MNIST 真实类数 = 10）",
         "sample_frac": "无标签训练样本比例（100% = 20,000 张）",
-        "imbalance": "训练集多数类与少数类目标比例",
+        "imbalance": "训练集多数类与少数类比例（括号为实际训练样本总量 n_train）",
         "outlier_frac": "训练集中替换为均匀噪声异常图的比例",
     }
     titles = {
-        "noise_std": "E03 测试期高斯噪声鲁棒性（3 种子均值 ± 标准差）",
-        "k": "E03 预设聚类数 K 错配敏感性（seed 0）",
-        "sample_frac": "E03 训练样本规模效率曲线（seed 0）",
-        "imbalance": "E03 类别长尾不平衡鲁棒性（seed 0）",
-        "outlier_frac": "E03 异常噪声样本污染鲁棒性（seed 0）",
+        "noise_std": "E03 测试期高斯噪声鲁棒性（含 VaDE 与当前 GMM 对照，n=3 种子）",
+        "k": "E03 预设聚类数 K 错配敏感性（n=1, seed 0）",
+        "sample_frac": "E03 训练样本规模效率曲线（n=1, seed 0）",
+        "imbalance": "E03 类别长尾不平衡鲁棒性（n=1, seed 0）",
+        "outlier_frac": "E03 异常噪声样本污染鲁棒性（n=1, seed 0）",
     }
     ticks = [f"{v:g}" for v in levels]
     if factor in {"sample_frac", "outlier_frac"}:
         ticks = [f"{100 * v:g}%" for v in levels]
     if factor == "imbalance":
-        ticks = [f"{v:g}:1" for v in levels]
+        tick_list = []
+        for v in levels:
+            n_sub = frame[frame[factor].eq(v)]["n_train"].dropna()
+            n_str = f"\n(n={int(n_sub.iloc[0]):,})" if len(n_sub) else ""
+            tick_list.append(f"{v:g}:1{n_str}")
+        ticks = tick_list
 
-    ax.set_xticks(range(len(levels)), ticks, fontsize=10.0)
-    ax.set_xlabel(labels[factor], fontsize=10.2, labelpad=6)
+    ax.set_xticks(range(len(levels)), ticks, fontsize=9.6 if factor == "imbalance" else 10.0)
+    ax.set_xlabel(labels[factor], fontsize=9.9, labelpad=6)
     ax.set_ylabel("分组得分 ARI", fontsize=10.2)
     y_col = "ari_mean" if noise else "ari"
-    ax.set_ylim(min(-0.02, float(frame[y_col].min()) - 0.02), max(0.54, float(frame[y_col].max()) + 0.06))
-    ax.set_title(titles[factor], loc="left", fontsize=11.8, color=BLUE_DEEP, pad=10)
+    y_top = max(0.54, float(frame[y_col].max()) + 0.06)
+    if noise and end_annotations:
+        y_top = max(y_top, max(placed_y) + 0.04)
+    ax.set_ylim(min(-0.02, float(frame[y_col].min()) - 0.02), y_top)
+    ax.set_title(titles[factor], loc="left", fontsize=11.4, color=BLUE_DEEP, pad=10)
     ax.grid(axis="x", visible=False)
     if noise:
-        ax.legend(loc="upper center", bbox_to_anchor=(0.45, -0.15), ncol=3, fontsize=9.0, columnspacing=1.2)
+        ax.legend(loc="upper center", bbox_to_anchor=(0.48, -0.15), ncol=4, fontsize=8.1, columnspacing=0.9, handlelength=1.8)
+        fig.text(
+            0.02, -0.18,
+            "注：GMM 坍缩仅限于当前 StandardScaler+对角协方差像素实现（σ=0.1 退化为 1 簇）；隐空间生成模型 VaDE 保持率与 DEC/IDEC 接近。",
+            fontsize=8.0, color=MUTED,
+        )
     else:
-        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.01), fontsize=9.2)
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.01), fontsize=8.8)
+        if factor == "imbalance":
+            fig.text(
+                0.02, -0.11,
+                "注：按指数衰减比例从训练集抽样构造长尾分布，不平衡加剧的同时总训练样本量也由 20,000 降至 2,412（单种子 n=1）。",
+                fontsize=8.1, color=MUTED,
+            )
     return fig
 
 
@@ -494,7 +591,6 @@ def _embeddings(raw, dataset: str, seed: int, all_runs: pd.DataFrame) -> plt.Fig
     if not all(p.is_file() for p in paths):
         return None
 
-    # Fetch actual seed-0 test ARI from measured runs for each panel caption
     ari_map = {}
     if not all_runs.empty:
         sub = all_runs[all_runs.experiment.eq("E01") & all_runs.dataset.eq(dataset) & all_runs.seed.eq(seed)]
@@ -520,7 +616,7 @@ def _embeddings(raw, dataset: str, seed: int, all_runs: pd.DataFrame) -> plt.Fig
             ).fit_transform(x)
         ax.scatter(*positions.T, c=y, cmap=cmap, vmin=-0.5, vmax=9.5, s=8, alpha=0.82, linewidths=0)
         ari_s = f" (ARI={ari_map[method]:.3f})" if method in ari_map and pd.notna(ari_map[method]) else ""
-        ax.set_title(f"{METHODS[method]}{ari_s}", fontsize=10.6, fontweight="bold", color=BLUE_DEEP, pad=6)
+        ax.set_title(f"{SHORT_METHODS[method]}{ari_s}", fontsize=10.8, fontweight="bold", color=BLUE_DEEP, pad=6)
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_facecolor("#FAFCFF")
@@ -531,21 +627,24 @@ def _embeddings(raw, dataset: str, seed: int, all_runs: pd.DataFrame) -> plt.Fig
         ax.grid(False)
 
     fig.suptitle(f"E01 潜在空间二维 t-SNE 投影（同一批 {len(subset)} 张 Fashion-MNIST 测试图，seed {seed}）", fontweight="bold", fontsize=12.0, color=INK)
-    fig.supxlabel("每点对应一张测试图，颜色为各方法预测簇编号；各面板独立运行 t-SNE，仅用于辅助观察簇分离形态，定量结论以 ARI/NMI 为准。", fontsize=8.8, color=MUTED)
+    fig.supxlabel(
+        "注：颜色为各方法预测簇编号（依实验隔离约束，可视化脚本不读取 y_test）；各面板独立 t-SNE，仅作形态辅助，定量结论以 ARI/NMI 为准。",
+        fontsize=8.6, color=MUTED,
+    )
     return fig
 
 
 def _frontier(costs: pd.DataFrame, dataset: str) -> plt.Figure | None:
-    group = costs[costs.dataset.eq(dataset)].dropna(subset=["front_ari_time"])
+    """Retrospective labeled ARI vs. end-to-end training cost Pareto frontier (not label-free E05)."""
+    group = costs[costs.dataset.eq(dataset)].dropna(subset=["front_ari_time_e2e", "time_train_e2e_mean_sec"])
     if group.empty:
         return None
-    fig, ax = plt.subplots(figsize=(8.4, 4.6))
-    frontier = group[group.front_ari_time].sort_values("time_train_mean_sec")
+    fig, ax = plt.subplots(figsize=(9.2, 4.9))
+    frontier = group[group.front_ari_time_e2e].sort_values("time_train_e2e_mean_sec")
 
-    # Subtle shaded region under the Pareto frontier
-    ax.plot(frontier.time_train_mean_sec, frontier.ari_mean, lw=2.0, ls="--", color=BLUE_DEEP, zorder=2)
+    ax.plot(frontier.time_train_e2e_mean_sec, frontier.ari_mean, lw=2.1, ls="--", color=BLUE_DEEP, zorder=2)
     ax.fill_between(
-        frontier.time_train_mean_sec,
+        frontier.time_train_e2e_mean_sec,
         0.15,
         frontier.ari_mean,
         color="#EAF0FC",
@@ -553,65 +652,117 @@ def _frontier(costs: pd.DataFrame, dataset: str) -> plt.Figure | None:
         zorder=1,
     )
 
-    # Carefully tuned direct non-overlapping label offsets (in points) for Fashion-MNIST
     label_offsets = {
         "pca_kmeans": (10, -14),
         "kmeans": (-10, 14),
         "gmm": (10, -4),
-        "dec": (10, 4),
-        "idec": (10, 8),
-        "ae_kmeans": (10, -14),
-        "vade": (10, -4),
-        "simclr_kmeans": (-14, 10),
-        "cc": (-14, -14),
+        "ae_kmeans": (0, -18),
+        "dec": (10, 6),
+        "idec": (10, 5),
+        "vade": (10, -5),
+        "simclr_kmeans": (-12, 12),
+        "cc": (-12, -14),
     }
+
+    ae_row = group[group.method.eq("ae_kmeans")]
+    ae_t = float(ae_row["time_train_e2e_mean_sec"].iloc[0]) if len(ae_row) else np.nan
 
     for row in group.itertuples():
         color = METHOD_COLORS[row.method]
-        is_front = bool(row.front_ari_time)
+        is_front = bool(row.front_ari_time_e2e)
         marker = "D" if is_front else "o"
-        size = 92 if is_front else 64
+        size = 95 if is_front else 64
+        t_e2e = float(row.time_train_e2e_mean_sec)
+        t_cached = float(row.time_train_mean_sec)
+
+        # Show cached incremental fine-tuning ghost marker when E2E differs from cached time
+        if np.isfinite(t_cached) and abs(t_e2e - t_cached) > 1.0:
+            ax.scatter(
+                t_cached, row.ari_mean,
+                s=58, marker=marker, facecolors="white", edgecolors=color,
+                linewidths=1.5, alpha=0.82, zorder=3,
+            )
+            ax.annotate(
+                "", xy=(t_e2e * 0.94, row.ari_mean), xytext=(t_cached * 1.06, row.ari_mean),
+                arrowprops=dict(arrowstyle="->", color=color, lw=1.2, ls=":", alpha=0.85),
+                zorder=2,
+            )
+            if row.method == "dec":
+                g_off, g_ha = (0, 11), "center"
+            else:
+                g_off, g_ha = (-10, 0), "right"
+            ax.annotate(
+                f"仅微调 {t_cached:.1f}s",
+                (t_cached, row.ari_mean),
+                textcoords="offset points",
+                xytext=g_off,
+                ha=g_ha, va="center", fontsize=7.6, color=SLATE,
+            )
+
         ax.scatter(
-            row.time_train_mean_sec, row.ari_mean,
+            t_e2e, row.ari_mean,
             s=size, marker=marker, color=color,
             edgecolors="white", linewidths=1.2, zorder=4 if is_front else 3,
         )
         dx, dy = label_offsets.get(row.method, (8, 4))
-        ha = "left" if dx >= 0 else "right"
-        lbl = f"{SHORT_METHODS[row.method]} ({row.time_train_mean_sec:.1f}s, {row.ari_mean:.3f})"
+        ha = "center" if dx == 0 else ("left" if dx > 0 else "right")
+        lbl = f"{SHORT_METHODS[row.method]} ({t_e2e:.1f}s, {row.ari_mean:.3f})"
         ax.annotate(
             lbl,
-            (row.time_train_mean_sec, row.ari_mean),
+            (t_e2e, row.ari_mean),
             textcoords="offset points", xytext=(dx, dy),
             ha=ha, va="center",
-            fontsize=8.9 if is_front else 8.4,
+            fontsize=8.7 if is_front else 8.2,
             fontweight="bold" if is_front else "normal",
             color=BLUE_DEEP if is_front else INK,
         )
 
+    front_names = " → ".join(SHORT_METHODS[m] for m in frontier.method)
     ax.set_xscale("log")
-    ax.set_xlim(1.0, 380)
-    ax.set_ylim(0.16, 0.475)
-    ax.set_xlabel("实测平均训练耗时（秒，对数刻度，含当次缓存条件）", fontsize=10.2, labelpad=6)
-    ax.set_ylabel("平均分组得分 ARI（3 种子均值）", fontsize=10.2)
-    ax.set_title("E05 性能—计算成本帕累托前沿（Fashion-MNIST 从零训练方法）", loc="left", fontsize=11.8, color=BLUE_DEEP, pad=10)
+    ax.set_xlim(1.0, 420)
+    ax.set_ylim(0.16, 0.48)
+    ax.set_xlabel("端到端平均训练耗时（秒，对数刻度；DEC/IDEC 已补回前置 AE 预训练）", fontsize=9.8, labelpad=6)
+    ax.set_ylabel("回顾性测试集平均 ARI（E01，3 种子均值）", fontsize=9.8)
+    ax.set_title(
+        "回顾性历史基准：性能—端到端训练成本帕累托前沿（Fashion-MNIST · 非无标签 E05）",
+        loc="left", fontsize=11.4, color=BLUE_DEEP, pad=10,
+    )
 
     legend_handles = [
-        Line2D([], [], color=BLUE_DEEP, marker="D", markersize=7.5, ls="--", lw=1.8, label="两目标帕累托前沿（PCA+KM → K-means → DEC）"),
-        Line2D([], [], color=SLATE, marker="o", markersize=6.8, ls="", label="被前沿支配方案（更慢且 ARI 未更高）"),
+        Line2D([], [], color=BLUE_DEEP, marker="D", markersize=7.2, ls="--", lw=1.8, label=f"端到端两目标帕累托前沿（{front_names}）"),
+        Line2D([], [], color=SLATE, marker="o", markersize=6.6, ls="", label="被前沿支配方案（更慢且 ARI 未更高）"),
+        Line2D([], [], color=BLUE_DEEP, marker="D", mfc="white", markersize=6.6, ls=":", lw=1.2, label="缓存命中增量微调耗时（未含前置 AE，仅作参考）"),
     ]
-    ax.legend(handles=legend_handles, loc="lower left", fontsize=9.0, frameon=True, facecolor="white", edgecolor="#CBD8EB")
+    ax.legend(handles=legend_handles, loc="lower left", fontsize=8.3, frameon=True, facecolor="white", edgecolor="#CBD8EB")
+    ae_note = f"（{ae_t:.1f}s）" if np.isfinite(ae_t) else ""
+    fig.text(
+        0.02, -0.02,
+        f"注：纵轴 ARI 使用测试集标签，仅作历史基准回顾，不参与无标签 E05；DEC/IDEC 独立端到端耗时 = 同配置 AE 预训练{ae_note} + 微调耗时。",
+        fontsize=8.1, color=MUTED,
+    )
     return fig
 
 
-def _stability_comparison(selection: dict | None, e01: pd.DataFrame) -> plt.Figure | None:
+def _stability_comparison(selection: dict | None, e01: pd.DataFrame, e04_pre: pd.DataFrame | None = None) -> plt.Figure | None:
+    """Three-dataset negative diagnostic: E05 train stability (label-free) vs. retrospective test ARI."""
     if not selection or e01.empty:
         return None
-    datasets = [("mnist", "MNIST（手写数字）"), ("fashion_mnist", "Fashion-MNIST（服装图像）")]
+    datasets = [
+        ("mnist", "MNIST（手写数字）"),
+        ("fashion_mnist", "Fashion-MNIST（服装图像）"),
+        ("cifar10", "CIFAR-10（自然图像）"),
+    ]
     methods = list(METHODS.keys())
-    fig, axes = plt.subplots(1, 2, figsize=(10.2, 4.3), layout="constrained")
+    fig, axes = plt.subplots(1, 3, figsize=(13.4, 5.15), sharey=True)
+    fig.subplots_adjust(left=0.08, right=0.985, top=0.77, bottom=0.17, wspace=0.08)
 
-    for ax, (ds, ds_title) in zip(axes, datasets):
+    dino_ari = None
+    if e04_pre is not None and not e04_pre.empty:
+        d_sub = e04_pre[e04_pre.encoder.eq("dinov2")]
+        if len(d_sub):
+            dino_ari = float(d_sub["ari_mean"].iloc[0])
+
+    for col_idx, (ax, (ds, ds_title)) in enumerate(zip(axes, datasets)):
         ev = selection.get(ds, {}).get("evidence", {})
         choice = selection.get(ds, {}).get("choice")
         ds_e01 = e01[e01.dataset.eq(ds)].set_index("method")
@@ -620,25 +771,47 @@ def _stability_comparison(selection: dict | None, e01: pd.DataFrame) -> plt.Figu
         ys = np.arange(len(methods))[::-1]
         jacc = [float(ev[m]["macro_cluster_jaccard"]) if m in ev else np.nan for m in methods]
         aris = [float(ds_e01.loc[m, "ari_mean"]) if m in ds_e01.index else np.nan for m in methods]
-        h = 0.36
-        ax.barh(ys + h / 2, jacc, height=h, color=BLUE_DEEP, alpha=0.90, label="无标签训练稳定性 (Macro Jaccard)")
-        ax.barh(ys - h / 2, aris, height=h, color=AMBER, alpha=0.88, label="带标签测试集回顾性 ARI")
+        h = 0.37
+        ax.barh(ys + h / 2, jacc, height=h, color=BLUE_DEEP, alpha=0.90, label="E05 训练侧稳定性 (Macro Jaccard，无标签)")
+        ax.barh(ys - h / 2, aris, height=h, color=AMBER, alpha=0.88, label="历史 E01 测试集 ARI（事后对照，不入 E05）")
 
+        best_ari_m = ds_e01["ari_mean"].idxmax()
         for y_p, m, jv, av in zip(ys, methods, jacc, aris):
             if np.isfinite(jv):
                 star = " ★" if m == choice else ""
-                ax.text(jv + 0.012, y_p + h / 2, f"{jv:.2f}{star}", va="center", fontsize=8.0, fontweight="bold" if m == choice else "normal", color=BLUE_DEEP)
+                ax.text(jv + 0.015, y_p + h / 2, f"{jv:.2f}{star}", va="center", fontsize=7.8,
+                        fontweight="bold" if m == choice else "normal", color=BLUE_DEEP)
             if np.isfinite(av):
-                ax.text(av + 0.012, y_p - h / 2, f"{av:.2f}", va="center", fontsize=8.0, color=AMBER)
+                mark = " ▲" if m == best_ari_m else ""
+                ax.text(av + 0.015, y_p - h / 2, f"{av:.2f}{mark}", va="center", fontsize=7.8,
+                        fontweight="bold" if m == best_ari_m else "normal", color=AMBER)
+
+        if ds == "cifar10" and dino_ari is not None:
+            ax.axvline(dino_ari, color=TEAL, linestyle="--", linewidth=1.35, zorder=4)
+            ax.text(
+                dino_ari + 0.03, 1.05,
+                f"DINOv2+KM\nARI={dino_ari:.3f}\n(不在从零池)",
+                ha="left", va="center", fontsize=7.6, fontweight="bold", color=TEAL,
+                bbox=dict(boxstyle="round,pad=0.22", fc="#E6F4F1", ec=TEAL, lw=0.85, alpha=0.96),
+                zorder=5,
+            )
 
         ax.set_yticks(ys, [SHORT_METHODS[m] for m in methods], fontsize=9.2)
-        ax.set_xlim(0, 1.12)
-        ax.set_xlabel("指标值（0–1，越高越强）", fontsize=9.6)
-        ax.set_title(ds_title, loc="left", fontsize=11.0, color=BLUE_DEEP)
+        ax.set_xlim(0, 1.15)
+        ax.set_xlabel("指标值（0–1）", fontsize=9.2)
+        ax.set_title(ds_title, loc="left", fontsize=10.8, fontweight="bold", color=BLUE_DEEP, pad=8)
         ax.grid(axis="y", visible=False)
+        if col_idx > 0:
+            ax.tick_params(axis="y", length=0)
 
-    axes[0].legend(loc="lower right", fontsize=8.4, frameon=True, facecolor="white", edgecolor="#CBD8EB")
-    fig.suptitle("E05 无标签训练稳定性诊断（★选中） vs. 回顾性测试集 ARI", fontweight="bold", fontsize=11.8, color=INK)
+    handles, lbls = axes[0].get_legend_handles_labels()
+    fig.legend(handles, lbls, loc="upper center", bbox_to_anchor=(0.52, 0.905), ncol=2, fontsize=9.0, frameon=True, facecolor="white", edgecolor="#CBD8EB")
+    fig.suptitle("E05 负面诊断：训练扰动稳定性（★最高）≠ 语义正确（▲从零最高 ARI）", fontweight="bold", fontsize=12.2, color=CRIMSON, y=0.975)
+    fig.text(
+        0.52, 0.03,
+        "注：E05 仅用训练集干净/加噪（σ=0.1）预测且未纳入预测耗时；像素 K-means/PCA+KM 稳定性均 ≈0.95，但在三数据集上 ARI 均落后于最优路线（稳定地分错）。",
+        ha="center", va="center", fontsize=8.3, color=MUTED,
+    )
     return fig
 
 
@@ -650,8 +823,10 @@ def render_figures(root, protocol, tables, selection: dict | None = None):
     def save(name: str, fig: plt.Figure | None) -> None:
         path = figures / f"fig_{name}.png"
         if fig is not None:
-            fig.savefig(path, facecolor="white", dpi=300, bbox_inches="tight", pad_inches=0.14)
+            tmp = figures / f".tmp_fig_{name}.png"
+            fig.savefig(tmp, facecolor="white", dpi=300, bbox_inches="tight", pad_inches=0.14)
             plt.close(fig)
+            tmp.replace(path)
         else:
             path.unlink(missing_ok=True)
 
@@ -663,6 +838,6 @@ def render_figures(root, protocol, tables, selection: dict | None = None):
     for factor in ("noise_std", "k", "imbalance", "sample_frac", "outlier_frac"):
         tab = "e03_noise" if factor == "noise_std" else "e03_sensitivity"
         save("e03_" + ("noise" if factor == "noise_std" else factor), _curves(tables[tab], factor, protocol))
-    save("e05_pareto", _frontier(tables["e05_cost_frontiers"], protocol["e03"]["dataset"]))
-    save("e05_stability", _stability_comparison(selection, tables["e01_summary"]))
+    save("benchmark_pareto", _frontier(tables["benchmark_cost_frontiers"], protocol["e03"]["dataset"]))
+    save("e05_stability", _stability_comparison(selection, tables["e01_summary"], tables.get("e04_pretrained")))
     save("e01_embeddings", _embeddings(root / "results/raw", protocol["e02"]["dataset"], protocol["e02"]["seed"], tables["all_runs"]))

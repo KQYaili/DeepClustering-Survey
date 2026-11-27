@@ -31,11 +31,15 @@ def choose_train_candidate(observations: dict, candidates, *, max_predict_sec=No
                 for name in candidates if name in observations}
     result = {"choice": None, "reason": "insufficient_evidence", "split": "fitted_training_subset",
               "score": "macro_cluster_jaccard", "max_predict_sec": max_predict_sec,
+              "speed_used_in_selection": max_predict_sec is not None,
+              "purpose": "train_stability_and_collapse_diagnostic_only",
               "candidate_methods": candidates, "missing": sorted(set(candidates) - evidence.keys()),
               "eligibility": "All k clusters must be present in both predictions.",
               "tie_break": "Alphabetical method name for exactly tied scores.",
+              "hardware_note": "predict_sec spans CPU (classical) and CUDA (neural) devices; reported as a diagnostic only unless a uniform device budget is configured.",
+              "warning": "Perturbation stability does not measure semantic correctness; high stability can coexist with low semantic ARI.",
               "evidence": evidence,
-              "scope": "Post-benchmark diagnostic on already-fitted training images; one split and noise level."}
+              "scope": "Post-benchmark diagnostic on already-fitted E01 from-scratch training images (excludes external pretrained routes); one split and noise level."}
     if not evidence or result["missing"]:
         return result
     conditions = {(r["sample_sha256"], r["settings_sha256"], r["n_samples"], r["noise_std"], r["k"],

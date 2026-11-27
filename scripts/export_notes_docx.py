@@ -41,7 +41,7 @@ def _para(text: str, *, size_half_pt: int = 22, bold: bool = False, color: str =
 
 def main() -> None:
     raw = MD.read_text(encoding="utf-8")
-    sections = list(re.finditer(r"^## (第 \d+ 页[^\n]*)\n\n(.*?)(?=^## |\Z)", raw, re.MULTILINE | re.DOTALL))
+    sections = list(re.finditer(r"^## (?:\[[^\]]+\]\s+)?(第 \d+ 页[^\n]*)\n\n(.*?)(?=^## |\Z)", raw, re.MULTILINE | re.DOTALL))
     main_chars = 0
     blocks = [
         _para("《深度聚类：范式演进与方法选型综述》逐页汇报讲稿", size_half_pt=34, bold=True, color="073DA5", space_before=0, space_after=140),

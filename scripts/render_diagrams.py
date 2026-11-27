@@ -137,9 +137,9 @@ def fig1_paradigm_evolution() -> None:
     stages = [
         ("固定特征基线", "经典统计聚类", "K-means / GMM\nPCA + K-means", "坐标固定不变\n欧氏距离/高斯云", SLATE, SLATE_LIGHT),
         ("多阶段式", "Multi-stage", "AE + K-means\nSimCLR + K-means", "先学表征后固定\n再接传统聚类器", BLUE_DEEP, BLUE_LIGHT),
-        ("联合优化式", "Simultaneously", "DEC (2016)\nIDEC (2017)", "聚类目标反向更新\n编码器与簇中心", AMBER, AMBER_LIGHT),
+        ("联合优化式", "Simultaneously", "DEC / IDEC (2016–17)\n对比聚类 CC (2021)", "聚类/对比目标同步\n反向更新编码器", AMBER, AMBER_LIGHT),
         ("生成式潜变量", "Generative", "VaDE (2017)\n深度混合先验", "VAE + 高斯混合先验\n联合推断与生成", TEAL, TEAL_LIGHT),
-        ("迭代与对比", "Iterative / Contrast", "DeepCluster / SwAV\nIIC / CC (2021)", "伪标签交替修正\n双视图实例+簇对比", PURPLE, PURPLE_LIGHT),
+        ("迭代式", "Iterative", "DeepCluster (2018)\nSwAV (2020)", "伪标签 → 更新表示\n→ 再聚类交替循环", PURPLE, PURPLE_LIGHT),
         ("外部预训练引导", "2024–2026 前沿", "DINOv2 / CLIP\nTAC / VLM4Cluster*", "冻结视觉基础模型\n外部语义与评测基准", CRIMSON, "#FBECEC"),
     ]
     w = 1.78
@@ -415,23 +415,29 @@ def fig17_decision_tree() -> None:
     e04 = _csv(TABLES / "e04_pretrained.csv")
     e02 = _csv(TABLES / "e02_ablation.csv")
     e03n = _csv(TABLES / "e03_noise.csv")
+    sel_path = TABLES / "selection.json"
+    sel = json.loads(sel_path.read_text(encoding="utf-8")) if sel_path.exists() else {}
 
     def _e01_val(ds, m, k="ari_mean"):
         for r in e01:
             if r["dataset"] == ds and r["method"] == m:
-                return float(r[k])
+                return float(r[k]) if r.get(k) not in (None, "") else None
         return None
 
     dino_ari = next((float(r["ari_mean"]) for r in e04 if r["encoder"] == "dinov2"), None)
     clip_ari = next((float(r["ari_mean"]) for r in e04 if r["encoder"] == "clip"), None)
-    pca_t = _e01_val("fashion_mnist", "pca_kmeans", "time_train_mean_sec")
+    pca_t = _e01_val("fashion_mnist", "pca_kmeans", "time_train_e2e_mean_sec") or _e01_val("fashion_mnist", "pca_kmeans", "time_train_mean_sec")
+    dec_e2e_t = _e01_val("fashion_mnist", "dec", "time_train_e2e_mean_sec")
     dec_m = _e01_val("mnist", "dec")
     dec_f = _e01_val("fashion_mnist", "dec")
     vade_m = _e01_val("mnist", "vade")
     km_clean = next((float(r["ari_mean"]) for r in e03n if r["dataset"] == "fashion_mnist" and r["method"] == "kmeans" and float(r["noise_std"]) == 0.0), None)
     km_noisy = next((float(r["ari_mean"]) for r in e03n if r["dataset"] == "fashion_mnist" and r["method"] == "kmeans" and float(r["noise_std"]) == 0.3), None)
     km_ret = (km_noisy / km_clean * 100) if (km_clean and km_noisy) else None
-    lam01 = next((float(r["ari"]) for r in e02 if r["factor"] == "lambda_recon" and float(r["value"]) == 0.1), None)
+    lam01_row = next((r for r in e02 if r["factor"] == "lambda_recon" and float(r["value"]) == 0.1), None)
+    lam01 = float(lam01_row["ari"]) if lam01_row else None
+    lam01_ep = int(float(lam01_row["epochs_ran"])) if lam01_row else None
+    fm_km_jacc = sel.get("fashion_mnist", {}).get("evidence", {}).get("kmeans", {}).get("macro_cluster_jaccard")
 
     fig, ax = plt.subplots(figsize=(12.4, 5.25))
     ax.set_xlim(0, 12.4)
@@ -439,55 +445,58 @@ def fig17_decision_tree() -> None:
     ax.axis("off")
 
     _box(ax, 3.85, 4.35, 4.70, 0.74, title="Q1：是否有领域匹配的强预训练视觉模型？",
-         body="（如自然图像可用 DINOv2 / CLIP 冻结编码器）",
-         fc=BLUE_DEEP, ec=BLUE_DEEP, title_color=WHITE, body_color="#DCE9FF", title_size=10.3, body_size=8.4, rad=0.14)
+         body="（回顾性基准经验：自然图像优先评估 DINOv2 / CLIP 冻结编码器）",
+         fc=BLUE_DEEP, ec=BLUE_DEEP, title_color=WHITE, body_color="#DCE9FF", title_size=10.3, body_size=8.2, rad=0.14)
 
     dino_s = f"{dino_ari:.2f}" if dino_ari else "—"
     clip_s = f"{clip_ari:.2f}" if clip_ari else "—"
-    _box(ax, 8.80, 2.75, 3.40, 1.38, title="推荐：冻结预训练特征 + K-means",
-         body=f"• E04 实测：DINOv2 {dino_s} / CLIP {clip_s}\n• 换 GMM 或加 DEC 头未再带来正收益\n• 若需外部语义引导，再评估 TAC/VLM",
-         fc=TEAL_LIGHT, ec=TEAL, lw=1.8, title_color=TEAL, title_size=9.5, body_size=8.1, rad=0.12, title_y=0.80, body_y=0.35)
+    _box(ax, 8.80, 2.75, 3.40, 1.38, title="基准首选：冻结预训练特征 + K-means",
+         body=f"• E04 实测(n=3)：DINOv2 {dino_s} / CLIP {clip_s}\n• 同特征换 GMM/10维 DEC 头(seed 0)未获正收益\n• 需细粒度语义时再考察外部文本引导(TAC)",
+         fc=TEAL_LIGHT, ec=TEAL, lw=1.8, title_color=TEAL, title_size=9.2, body_size=7.9, rad=0.12, title_y=0.80, body_y=0.35)
     _arrow(ax, (8.58, 4.70), (10.50, 4.16), color=TEAL, lw=2.0, label="是", label_pos=0.45, label_dy=0.16)
 
     _box(ax, 0.95, 2.98, 4.85, 0.76, title="Q2：样本极少（<5%）、强噪声或预算极紧？",
-         body="（无外部预训练，需从当前数据直接建模）",
+         body="（无外部预训练，需从当前数据直接从零建模）",
          fc=BLUE_LIGHT, ec=BLUE_DEEP, lw=1.6, title_color=BLUE_DEEP, title_size=9.9, body_size=8.3, rad=0.12)
     _arrow(ax, (3.83, 4.70), (3.35, 3.77), color=BLUE_DEEP, lw=2.0, label="否（从零建模）", label_pos=0.52, label_dx=-0.55, label_dy=0.06)
 
     ret_s = f"{km_ret:.0f}%" if km_ret else "—"
     pca_ts = f"{pca_t:.1f}s" if pca_t else "—"
-    _box(ax, 0.16, 1.18, 3.30, 1.36, title="推荐：PCA+K-means / 像素 K-means",
-         body=f"• E01 耗时仅 {pca_ts}，帕累托最快端点\n• E03 噪声保持率 {ret_s}，1% 小样本最优\n• E05 无标签训练稳定性最高（≈0.95）",
-         fc=SLATE_LIGHT, ec=SLATE, lw=1.6, title_color=INK, title_size=9.0, body_size=8.0, rad=0.12, title_y=0.80, body_y=0.35)
+    jacc_s = f"{fm_km_jacc:.2f}" if fm_km_jacc else "—"
+    _box(ax, 0.16, 1.18, 3.30, 1.36, title="快基线：PCA+K-means / 像素 K-means",
+         body=f"• E01 端到端仅 {pca_ts}，帕累托最快端点\n• E03 噪声保持率 {ret_s}，1% 小样本领先\n• E05 抗扰 Jaccard={jacc_s}（仅作抗扰特征）",
+         fc=SLATE_LIGHT, ec=SLATE, lw=1.6, title_color=INK, title_size=8.9, body_size=7.9, rad=0.12, title_y=0.80, body_y=0.35)
     _arrow(ax, (2.25, 2.96), (1.80, 2.57), color=SLATE, lw=1.8, label="是", label_pos=0.45, label_dx=-0.22, label_dy=0.04)
 
     _box(ax, 4.30, 1.72, 4.10, 0.76, title="Q3：核心需求是概率生成还是高干净 ARI？",
-         body="（样本充足、结构较清晰，允许 GPU 训练编码器）",
+         body="（样本充足、结构较清晰，允许 GPU 从零训练编码器）",
          fc=BLUE_LIGHT, ec=BLUE_DEEP, lw=1.5, title_color=BLUE_DEEP, title_size=9.6, body_size=8.2, rad=0.12)
     _arrow(ax, (4.85, 2.96), (6.30, 2.51), color=BLUE_DEEP, lw=1.8, label="否", label_pos=0.48, label_dx=0.18, label_dy=0.10)
 
     vade_s = f"{vade_m:.2f}" if vade_m else "—"
     dec_ms = f"{dec_m:.2f}" if dec_m else "—"
     dec_fs = f"{dec_f:.2f}" if dec_f else "—"
+    dec_ts = f"{dec_e2e_t:.1f}s" if dec_e2e_t else "—"
     lam_s = f"{lam01:.2f}" if lam01 else "—"
+    ep_s = f"{lam01_ep}ep" if lam01_ep else "—"
 
     _box(ax, 3.68, 0.14, 2.74, 1.18, title="概率云与生成：VaDE",
-         body=f"• MNIST ARI {vade_s}，显式混合先验\n• 避开高维裸 GMM（轻噪塌缩至 0）",
-         fc=PURPLE_LIGHT, ec=PURPLE, lw=1.5, title_color=PURPLE, title_size=9.1, body_size=7.9, rad=0.10, title_y=0.75, body_y=0.32)
-    _box(ax, 6.62, 0.14, 2.74, 1.18, title="最高干净 ARI：DEC",
-         body=f"• MNIST {dec_ms} / Fashion {dec_fs}\n• 需先 AE 预训练 + K-means 初始化",
-         fc=BLUE_LIGHT, ec=BLUE_DEEP, lw=1.6, title_color=BLUE_DEEP, title_size=9.1, body_size=7.9, rad=0.10, title_y=0.75, body_y=0.32)
-    _box(ax, 9.56, 0.14, 2.68, 1.18, title="兼顾流形保真：小权重 IDEC",
-         body=f"• λ∈[0.01,0.1]（ARI≈{lam_s}, SSE -78%）\n• 警惕 λ≥1 淹没聚类梯度",
-         fc=AMBER_LIGHT, ec=AMBER, lw=1.6, title_color=AMBER, title_size=9.0, body_size=7.8, rad=0.10, title_y=0.75, body_y=0.32)
+         body=f"• MNIST ARI {vade_s}（与 DEC 差 <1 SD）\n• 隐空间降维，避开像素对角 GMM 坍缩",
+         fc=PURPLE_LIGHT, ec=PURPLE, lw=1.5, title_color=PURPLE, title_size=9.0, body_size=7.7, rad=0.10, title_y=0.75, body_y=0.32)
+    _box(ax, 6.62, 0.14, 2.74, 1.18, title="干净高分端到端：DEC",
+         body=f"• MNIST {dec_ms} / Fashion {dec_fs}\n• 端到端 {dec_ts}（含前置 AE 预训练）",
+         fc=BLUE_LIGHT, ec=BLUE_DEEP, lw=1.6, title_color=BLUE_DEEP, title_size=9.0, body_size=7.7, rad=0.10, title_y=0.75, body_y=0.32)
+    _box(ax, 9.56, 0.14, 2.68, 1.18, title="需保留重构解码：IDEC",
+         body=f"• 早停协议下 λ=0.1 ({ep_s}) ARI {lam_s}\n• 注意 λ 与早停轮数共变，非纯量纲归因",
+         fc=AMBER_LIGHT, ec=AMBER, lw=1.6, title_color=AMBER, title_size=8.9, body_size=7.6, rad=0.10, title_y=0.75, body_y=0.32)
 
     _arrow(ax, (5.30, 1.70), (5.05, 1.35), color=PURPLE, lw=1.6)
     _arrow(ax, (6.50, 1.70), (7.85, 1.35), color=BLUE_DEEP, lw=1.6)
     _arrow(ax, (7.80, 1.70), (10.75, 1.35), color=AMBER, lw=1.6)
 
-    _box(ax, 0.16, 0.14, 3.30, 0.84, title="无标签落地红线（E05）",
-         body="新数据无标签时禁止偷看测试指标；\n用训练稳定性 Jaccard + 耗时筛查候选。",
-         fc="#FEF2F2", ec=CRIMSON, lw=1.2, title_color=CRIMSON, title_size=8.9, body_size=7.8, rad=0.10, title_y=0.74, body_y=0.30)
+    _box(ax, 0.16, 0.14, 3.30, 0.84, title="无标签落地警示（E05 负面诊断）",
+         body="稳定性仅筛查坍缩风险（未纳耗时），不等同语义\n正确；新域语义确认需少量标注（半监督验证）。",
+         fc="#FEF2F2", ec=CRIMSON, lw=1.2, title_color=CRIMSON, title_size=8.6, body_size=7.5, rad=0.10, title_y=0.74, body_y=0.30)
 
     _save(fig, "diag_decision_tree.png")
 

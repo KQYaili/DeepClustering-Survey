@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 from pathlib import Path
 
@@ -30,6 +31,17 @@ FIELDS = ("source", "experiment", "dataset", "method", "seed", *FACTORS, "noise_
           "external_pretrain", "epochs_ran", "extended", "stopped_early", "ae_cache_hit", "backbone_cache_hit")
 
 
+def sanitize_error(text: str | None) -> str | None:
+    """Strip local machine/personal home paths from logged tracebacks."""
+    if text is None:
+        return None
+    out = re.sub(r"/mnt/[a-zA-Z]/Users/[^/\s\"']+/Documents/DeepClustering-Survey", "<REPO>", text)
+    out = re.sub(r"[A-Za-z]:\\Users\\[^\\\s\"']+\\Documents\\DeepClustering-Survey", "<REPO>", out)
+    out = re.sub(r"/home/[^/\s\"']+/venvs/[^/\s\"']+", "<VENV>", out)
+    out = re.sub(r"/home/[^/\s\"']+", "<HOME>", out)
+    return out
+
+
 def expected_paths(jobs, protocol):
     for job in jobs:
         stem = job_id(job)
@@ -52,7 +64,8 @@ def load_records(jobs, protocol):
                              planned=path in expected, status=status))
         if status == "failed":
             errors.append(dict(source=source, experiment=path.parent.name,
-                               attempts=record.get("attempts", 1), error=record.get("error")))
+                               attempts=record.get("attempts", 1),
+                               error=sanitize_error(record.get("error"))))
         if status != "ok":
             continue
         if path not in expected:
@@ -67,7 +80,7 @@ def load_records(jobs, protocol):
         attempt = read_json(path)
         if attempt.get("status") == "failed":
             errors.append(dict(source=path.relative_to(ROOT).as_posix(), experiment=attempt["job"]["experiment"],
-                               attempts=attempt["attempts"], error=attempt.get("error")))
+                               attempts=attempt["attempts"], error=sanitize_error(attempt.get("error"))))
     return (pd.DataFrame(rows, columns=FIELDS), pd.DataFrame(coverage),
             pd.DataFrame(errors, columns=["source", "experiment", "attempts", "error"]))
 
@@ -90,13 +103,67 @@ def aggregate(frame, keys, metrics):
     return pd.DataFrame(output, columns=[*columns, *(f"{m}_{s}" for m in metrics for s in ("mean", "std"))])
 
 
+def attach_end_to_end_train_time(e01: pd.DataFrame) -> pd.DataFrame:
+    """Recover end-to-end training cost when DEC/IDEC reused a cached AE pretrain.
+
+    For DEC/IDEC with ae_cache_hit == True, adds the matched (dataset, seed, k, latent_dim)
+    non-cached ae_kmeans training time (which covers AE 50-ep pretraining plus fast 10-d
+    K-means center init). Also reports amortized time when AE pretraining is shared across
+    the 3 AE-based models (ae_kmeans, dec, idec). Leaves NaN if no matched AE run exists.
+    """
+    out = e01.copy()
+    ae_ref = {}
+    for row in out[out.method.eq("ae_kmeans") & out.ae_cache_hit.eq(False)].itertuples():
+        key = (row.dataset, int(row.seed), int(row.k), int(row.latent_dim))
+        ae_ref[key] = float(row.time_train_sec)
+
+    e2e_vals, amort_vals, notes = [], [], []
+    for row in out.itertuples():
+        t_raw = float(row.time_train_sec)
+        key = (row.dataset, int(row.seed), int(row.k), int(row.latent_dim))
+        if row.method in {"dec", "idec"} and row.ae_cache_hit is True:
+            pre_t = ae_ref.get(key)
+            if pre_t is None:
+                e2e_vals.append(np.nan)
+                amort_vals.append(np.nan)
+                notes.append("missing_matched_ae_pretrain_cost")
+            else:
+                e2e_vals.append(t_raw + pre_t)
+                amort_vals.append(t_raw + pre_t / 3.0)
+                notes.append("includes_matched_ae_pretrain_from_ae_kmeans")
+        elif row.method == "ae_kmeans" and row.ae_cache_hit is False:
+            e2e_vals.append(t_raw)
+            amort_vals.append(t_raw / 3.0)
+            notes.append("standalone_includes_ae_pretrain")
+        else:
+            e2e_vals.append(t_raw)
+            amort_vals.append(t_raw)
+            notes.append("standalone_end_to_end")
+
+    out["time_train_e2e_sec"] = e2e_vals
+    out["time_train_amortized_sec"] = amort_vals
+    out["cost_accounting"] = notes
+    return out
+
+
 def e01_summary(frame):
-    metrics = ["acc", "nmi", "ari", "time_train_sec", "time_infer_sec", "peak_gpu_mb",
-               "n_parameters", "silhouette"]
-    result = aggregate(frame, ["dataset", "method"], metrics)
-    # Preserve the original public CSV column names.
-    return result.rename(columns={f"time_{step}_sec_{stat}": f"time_{step}_{stat}_sec"
-                                  for step in ("train", "infer") for stat in ("mean", "std")})
+    enriched = attach_end_to_end_train_time(frame)
+    metrics = [
+        "acc", "nmi", "ari", "time_train_sec", "time_train_e2e_sec", "time_train_amortized_sec",
+        "time_infer_sec", "peak_gpu_mb", "n_parameters", "silhouette", "max_fraction", "entropy_norm",
+    ]
+    result = aggregate(enriched, ["dataset", "method"], metrics)
+    # Preserve the original public CSV column names alongside new end-to-end columns.
+    return result.rename(columns={
+        "time_train_sec_mean": "time_train_mean_sec",
+        "time_train_sec_std": "time_train_std_sec",
+        "time_train_e2e_sec_mean": "time_train_e2e_mean_sec",
+        "time_train_e2e_sec_std": "time_train_e2e_std_sec",
+        "time_train_amortized_sec_mean": "time_train_amortized_mean_sec",
+        "time_train_amortized_sec_std": "time_train_amortized_std_sec",
+        "time_infer_sec_mean": "time_infer_mean_sec",
+        "time_infer_sec_std": "time_infer_std_sec",
+    })
 
 
 def single_factor(frame, defaults, factors):
@@ -150,20 +217,31 @@ def experiment_tables(runs, protocol):
 
 
 def cost_frontiers(summary, noise, protocol):
+    """Retrospective labeled benchmark ARI vs. cost frontiers (end-to-end and cached)."""
     sigma = max(protocol["e03"]["noise_std"])
     cols = ["dataset", "method", "seeds", "ari_mean"]
     noisy = noise.loc[noise.noise_std.eq(sigma), cols].rename(columns={"ari_mean": "noisy_ari_mean"})
     costs = summary.merge(noisy, on=["dataset", "method", "seeds"], how="left")
     costs["noise_std"] = sigma
-    objectives = {"ari_mean": 1, "time_train_mean_sec": -1, "noisy_ari_mean": 1, "peak_gpu_mb_mean": -1}
-    for label, count in [("front_ari_time", 2), ("front_four_measures", 4)]:
+    costs["uses_test_labels"] = True
+    costs["analysis_role"] = "retrospective_labeled_benchmark_only"
+
+    frontier_specs = [
+        ("front_ari_time_e2e", {"ari_mean": 1, "time_train_e2e_mean_sec": -1}),
+        ("front_ari_time_cached", {"ari_mean": 1, "time_train_mean_sec": -1}),
+        ("front_four_measures_e2e", {"ari_mean": 1, "time_train_e2e_mean_sec": -1, "noisy_ari_mean": 1, "peak_gpu_mb_mean": -1}),
+    ]
+    for label, objectives in frontier_specs:
         costs[label] = pd.Series(pd.NA, index=costs.index, dtype="boolean")
+        columns = list(objectives)
+        signs = [objectives[k] for k in columns]
         for _, group in costs.groupby(["dataset", "seeds"]):
             if set(map(int, group.seeds.iloc[0].split(","))) != set(protocol["seeds"]):
                 continue
-            columns = list(objectives)[:count]
             valid = group.dropna(subset=columns)
-            points = valid[columns].to_numpy(float) * [objectives[k] for k in columns]
+            if valid.empty:
+                continue
+            points = valid[columns].to_numpy(float) * signs
             costs.loc[valid.index, label] = [
                 not np.any(np.all(points >= point, axis=1) & np.any(points > point, axis=1)) for point in points
             ]
@@ -210,7 +288,7 @@ def benchmark_interpretation(summary, noise, paired, pretrained, protocol):
         inputs = {}
         for r in rows.itertuples():
             inputs[f"{r.method}_ari"] = r.ari_mean
-            inputs[f"{r.method}_time_sec"] = r.time_train_mean_sec
+            inputs[f"{r.method}_time_sec"] = r.time_train_e2e_mean_sec
         idec_noise = noise[noise.dataset.eq(dataset) & noise.method.eq("idec")]
         clean = idec_noise[idec_noise.noise_std.eq(0)]
         noisy = idec_noise[idec_noise.noise_std.eq(max(protocol["e03"]["noise_std"]))]
@@ -240,9 +318,15 @@ def main():
     summary, ablation, sensitivity, noise, paired, pretrained = experiment_tables(runs, protocol)
     costs = cost_frontiers(summary, noise, protocol)
     TABLES.mkdir(parents=True, exist_ok=True)
-    outputs = dict(all_runs=runs, coverage=coverage, failures=failures, e01_summary=summary,
-                   e02_ablation=ablation, e03_sensitivity=sensitivity, e03_noise=noise,
-                   e04_paired=paired, e04_pretrained=pretrained, e05_cost_frontiers=costs)
+    # Remove stale legacy E05-labeled Pareto table/figure to avoid confusion with label-free E05.
+    (TABLES / "e05_cost_frontiers.csv").unlink(missing_ok=True)
+    (ROOT / "results/figures/fig_e05_pareto.png").unlink(missing_ok=True)
+
+    outputs = dict(
+        all_runs=runs, coverage=coverage, failures=failures, e01_summary=summary,
+        e02_ablation=ablation, e03_sensitivity=sensitivity, e03_noise=noise,
+        e04_paired=paired, e04_pretrained=pretrained, benchmark_cost_frontiers=costs,
+    )
     for name, table in outputs.items():
         table.to_csv(TABLES / f"{name}.csv", index=False, lineterminator="\n")
     train_sel = training_selections(jobs, protocol)

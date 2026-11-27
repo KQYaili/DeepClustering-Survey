@@ -1,6 +1,7 @@
 """Build the 30-slide (24 main + 6 appendix) blue-white academic infographic deck.
 
 All experimental values are dynamically read from results/tables/*.csv and *.json.
+Every slide is bound to presentation/speaker_notes.md via a stable slide ID checked at build time.
 All images are placed with exact natural aspect ratios via PIL (zero stretching).
 """
 
@@ -24,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "presentation" / "assets"
 FIGS = ROOT / "results" / "figures"
 TABLES = ROOT / "results" / "tables"
+NOTES_MD = ROOT / "presentation" / "speaker_notes.md"
 OUT = ROOT / "presentation" / "DeepClustering-Survey.pptx"
 
 # Blue-White Academic Infographic Palette
@@ -51,8 +53,6 @@ HAIRLINE = RGBColor(0xCB, 0xD8, 0xEB)
 GOLD = RGBColor(0xD9, 0x77, 0x06)
 
 W, H = 13.333, 7.5
-MAIN_PAGES = 24
-APP_PAGES = 6
 
 METHOD_LABELS = {
     "kmeans": "像素 K-means",
@@ -60,26 +60,38 @@ METHOD_LABELS = {
     "gmm": "高斯混合 GMM",
     "ae_kmeans": "AE + K-means",
     "dec": "DEC",
+    "idec": "IDEC (λ=1.0)",
+    "vade": "VaDE",
+    "simclr_kmeans": "SimCLR+KM (小CNN)",
+    "cc": "CC (小CNN,省熵项)",
+}
+SHORT_LABELS = {
+    "kmeans": "K-means",
+    "pca_kmeans": "PCA+KM",
+    "gmm": "GMM",
+    "ae_kmeans": "AE+KM",
+    "dec": "DEC",
     "idec": "IDEC",
     "vade": "VaDE",
-    "simclr_kmeans": "SimCLR + K-means",
-    "cc": "对比聚类 CC",
+    "simclr_kmeans": "SimCLR+KM",
+    "cc": "CC",
 }
 
 
 # ---------------------------------------------------------------------------
-# Data loaders (strictly from results/tables/)
+# Data loaders (strictly from tables_dir)
 # ---------------------------------------------------------------------------
-def load_csv(name: str) -> list[dict]:
-    path = TABLES / name
+def load_csv(name: str, tables_dir: Path = TABLES) -> list[dict]:
+    path = tables_dir / name
     if not path.exists() or path.stat().st_size == 0:
         return []
     with path.open(encoding="utf-8") as fh:
         return list(csv.DictReader(fh))
 
 
-def load_json(name: str) -> dict:
-    path = TABLES / name
+def load_selection(tables_dir: Path = TABLES) -> dict:
+    """Load E05 train-only stability selection JSON (empty dict if missing)."""
+    path = tables_dir / "selection.json"
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
@@ -105,25 +117,56 @@ def find_row(rows: list[dict], **conds) -> dict | None:
     return None
 
 
-def fval(row: dict | None, key: str | None = None, digits: int = 3) -> str:
+def fnum(row: dict | None, key: str | None = None) -> float | None:
     if not row:
-        return "—"
+        return None
     if key is None:
         key = "ari_mean" if "ari_mean" in row else "ari"
-    if row.get(key) in (None, ""):
-        return "—"
-    return f"{float(row[key]):.{digits}f}"
+    val = row.get(key)
+    if val in (None, ""):
+        return None
+    try:
+        return float(val)
+    except ValueError:
+        return None
+
+
+def fval(row: dict | None, key: str | None = None, digits: int = 3) -> str:
+    val = fnum(row, key)
+    return "—" if val is None else f"{val:.{digits}f}"
 
 
 def fpm(row: dict | None, mean_key: str, digits: int = 3) -> str:
-    if not row or row.get(mean_key) in (None, ""):
+    m = fnum(row, mean_key)
+    if m is None:
         return "—"
-    m = float(row[mean_key])
-    std_key = mean_key.replace("_mean", "_std")
-    s = row.get(std_key)
-    if s in (None, ""):
+    s = fnum(row, mean_key.replace("_mean", "_std"))
+    if s is None:
         return f"{m:.{digits}f}"
-    return f"{m:.{digits}f}±{float(s):.{digits}f}"
+    return f"{m:.{digits}f}±{s:.{digits}f}"
+
+
+def fep(row: dict | None) -> str:
+    ep = fnum(row, "epochs_ran")
+    if ep is None:
+        return "—"
+    early = str(row.get("stopped_early", "")).lower() == "true"
+    return f"{int(round(ep))}ep{'早停' if early else ''}"
+
+
+def fret(clean_row: dict | None, noisy_row: dict | None) -> str:
+    c = fnum(clean_row, "ari_mean")
+    n = fnum(noisy_row, "ari_mean")
+    if c is None or n is None or c <= 0:
+        return "—"
+    return f"{n / c * 100:.0f}%"
+
+
+def fdiff(a: float | None, b: float | None, digits: int = 3, signed: bool = True) -> str:
+    if a is None or b is None:
+        return "—"
+    d = a - b
+    return f"{d:+.{digits}f}" if signed else f"{d:.{digits}f}"
 
 
 # ---------------------------------------------------------------------------
@@ -293,8 +336,8 @@ def data_table(slide, l, t, w, headers: list[str], rows: list[list[str]],
         cell.fill.solid()
         cell.fill.fore_color.rgb = BLUE_DEEP
         cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        cell.margin_left = Inches(0.08)
-        cell.margin_right = Inches(0.08)
+        cell.margin_left = Inches(0.06)
+        cell.margin_right = Inches(0.06)
         cell.margin_top = Inches(0.03)
         cell.margin_bottom = Inches(0.03)
         p = cell.text_frame.paragraphs[0]
@@ -310,8 +353,8 @@ def data_table(slide, l, t, w, headers: list[str], rows: list[list[str]],
             else:
                 cell.fill.fore_color.rgb = WHITE if i % 2 else SLATE_SOFT
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-            cell.margin_left = Inches(0.08)
-            cell.margin_right = Inches(0.08)
+            cell.margin_left = Inches(0.06)
+            cell.margin_right = Inches(0.06)
             cell.margin_top = Inches(0.02)
             cell.margin_bottom = Inches(0.02)
             p = cell.text_frame.paragraphs[0]
@@ -326,37 +369,31 @@ def data_table(slide, l, t, w, headers: list[str], rows: list[list[str]],
 # ---------------------------------------------------------------------------
 # Uniform Blue-White Slide Chrome (no left vertical stripes, clean white deck)
 # ---------------------------------------------------------------------------
-def new_slide(prs, page_label: str, section: str, title: str, lead: str = "", summary: str = ""):
+def new_slide(prs, slide_ids: list[str], slide_id: str, page_label: str,
+              section: str, title: str, lead: str = "", summary: str = ""):
+    slide_ids.append(slide_id)
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    # Pure white canvas
     box(slide, 0, 0, W, H, WHITE)
-    # Crisp thin top academic blue hairline
     box(slide, 0, 0, W, 0.06, BLUE_DEEP)
-    # Section pill badge on top right
     badge_w = min(2.45, max(1.55, len(section) * 0.17 + 0.45))
     box(slide, W - 0.42 - badge_w, 0.18, badge_w, 0.34, BLUE_SOFT, BLUE_LINE, 0.8, 0.25)
     textbox(slide, W - 0.42 - badge_w, 0.18, badge_w, 0.34, section,
             size=11.5, bold=True, color=BLUE_DEEP, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-    # Main slide title
     textbox(slide, 0.42, 0.14, W - 0.95 - badge_w, 0.48, title,
-            size=24.0, bold=True, color=BLUE_DEEP, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-    # Subtle divider line under header
+            size=23.5, bold=True, color=BLUE_DEEP, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
     box(slide, 0.42, 0.68, W - 0.84, 0.015, HAIRLINE)
-    # Lead judgment strip
     if lead:
         box(slide, 0.42, 0.77, W - 0.84, 0.40, BLUE_PALE, None, 0.0, 0.08)
         textbox(slide, 0.56, 0.78, W - 1.12, 0.38, lead,
-                size=13.5, color=INK, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-    # Bottom summary & page footer
+                size=13.2, color=INK, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
     if summary:
         box(slide, 0.42, 6.80, 11.45, 0.42, BLUE_SOFT, BLUE_LINE, 0.7, 0.08)
         textbox(slide, 0.56, 6.81, 11.18, 0.40, summary,
-                size=12.0, color=INK, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+                size=11.8, color=INK, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
     else:
         box(slide, 0.42, 7.05, W - 0.84, 0.012, HAIRLINE)
         textbox(slide, 0.42, 7.10, 9.5, 0.28, "深度聚类：范式演进与方法选型综述  |  第九组课程汇报",
                 size=10.5, color=MUTED, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-    # Page number pill
     box(slide, 12.02, 6.80, 0.89, 0.42, BLUE_DEEP, None, 0.0, 0.12)
     textbox(slide, 12.02, 6.80, 0.89, 0.42, page_label,
             size=11.5, bold=True, color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
@@ -366,26 +403,34 @@ def new_slide(prs, page_label: str, section: str, title: str, lead: str = "", su
 # ---------------------------------------------------------------------------
 # Slide Builders (1–24 Main Deck + A1–A6 Appendix)
 # ---------------------------------------------------------------------------
-def build_slides(prs, ctx: dict) -> None:
+def build_slides(prs, ctx: dict) -> list[str]:
+    slide_ids: list[str] = []
+    figs_dir: Path = ctx["figs_dir"]
     e01 = ctx["e01"]
     e02 = ctx["e02"]
     e03n = ctx["e03_noise"]
     e03s = ctx["e03_sens"]
     e04p = ctx["e04_paired"]
     e04ext = ctx["e04_pretrained"]
+    costs = ctx["costs"]
+    runs = ctx["all_runs"]
     sel = ctx["selection"]
     cov = ctx["coverage"]
     fails = ctx["failures"]
 
     n_ok = sum(1 for r in cov if r.get("status") == "ok")
     n_fail_hist = len(fails)
+    exp_counts = {}
+    for r in cov:
+        if r.get("status") == "ok":
+            exp_counts[r["experiment"]] = exp_counts.get(r["experiment"], 0) + 1
 
-    # ---- Slide 1: Cover (Editorial Blue-White Split) ----
+    # ---- Slide 1: Cover ----
+    slide_ids.append("S01_cover")
     s = prs.slides.add_slide(prs.slide_layouts[6])
     box(s, 0, 0, W, H, WHITE)
     box(s, 0, 0, 5.15, H, BLUE_DEEP)
     box(s, 5.15, 0, 0.07, H, GOLD)
-    # Left editorial panel
     box(s, 0.55, 0.72, 2.35, 0.38, BLUE_MID, None, 0.0, 0.22)
     textbox(s, 0.55, 0.72, 2.35, 0.38, "第九组  ·  课程综述汇报",
             size=12.5, bold=True, color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
@@ -399,7 +444,6 @@ def build_slides(prs, ctx: dict) -> None:
             f"统一预注册协议  ·  {n_ok} 条实测记录\n2026 年课程研究型综述与开源复现仓库",
             size=11.5, color=RGBColor(0xB8, 0xD0, 0xF8), line_spacing=1.35)
 
-    # Right clean academic overview panel
     textbox(s, 5.68, 0.75, 7.1, 0.45, "本次汇报围绕的核心研究问题",
             size=18.0, bold=True, color=BLUE_DEEP, space_after=0)
     box(s, 5.68, 1.30, 7.18, 1.18, BLUE_SOFT, BLUE_LINE, 1.0, 0.06)
@@ -411,7 +455,7 @@ def build_slides(prs, ctx: dict) -> None:
         ("01  统计学根基", "衔接王学民教材第 2/3/6/7/8 章，剖析高维像素欧氏距离失效机制", BLUE_DEEP, BLUE_PALE),
         ("02  多维范式演进", "整合 Zhou (2025) 四类并存交互，延伸至 2024–2026 预训练与语言引导", TEAL, TEAL_SOFT),
         ("03  五组对照实验", f"MNIST / Fashion-MNIST / CIFAR-10 上覆盖 12 种方法与 {n_ok} 条严控实验", AMBER, AMBER_SOFT),
-        ("04  证据驱动选型", "区分无标签训练稳定性与回顾性评测，输出可落地的方法选型决策树", PURPLE, PURPLE_SOFT),
+        ("04  证据驱动选型", "严格区分回顾性端到端成本基准与无标签 E05 负面稳定性诊断", PURPLE, PURPLE_SOFT),
     ]
     for i, (head, desc, col, tint) in enumerate(pillars):
         row_y = 2.75 + i * 0.98
@@ -423,9 +467,9 @@ def build_slides(prs, ctx: dict) -> None:
             "正文 24 页（25 分钟讲解）  +  技术附录 6 页（A1–A6 答疑备查）",
             size=11.5, bold=True, color=MUTED, align=PP_ALIGN.RIGHT)
 
-    # ---- Slide 2: Core Questions & 25-Min Roadmap ----
+    # ---- Slide 2: Core Questions & Roadmap ----
     s = new_slide(
-        prs, "02 / 24", "一、研究背景",
+        prs, slide_ids, "S02_core_questions", "02 / 24", "一、研究背景",
         "研究核心：不做算法排行榜，聚焦三个可证伪命题",
         lead="✓ 核心定位：以##方法选型##为主线，用统一协议下的实证数据检验三项关键假设（结果允许支持或证伪）。",
         summary="##汇报节奏：##正文 24 页控制在 23–25 分钟，预留 5 分钟答疑；详细消融、敏感性与全指标总表置于附录 A1–A6。",
@@ -435,10 +479,10 @@ def build_slides(prs, ctx: dict) -> None:
          "• 检验路径：E01 + E04 解耦矩阵\n• 关键对照：固定表示换聚类器，对比固定聚类器换表示\n• 现实意义：明确算力应投向特征还是聚类头",
          BLUE_DEEP, BLUE_SOFT),
         ("命题 2：联合优化的收益与代价", "联合优化是否始终优于两阶段方案？",
-         "• 检验路径：E01 + E02 + E03 鲁棒性\n• 关键对照：共享 AE 初始化下比较 AE+KM、DEC、IDEC\n• 现实意义：量化重构权重 λ、样本量与噪声下的翻转条件",
+         "• 检验路径：E01 + E02 + E03 鲁棒性\n• 关键对照：共享 AE 初始化下比较 AE+KM、DEC、IDEC\n• 现实意义：量化早停协议下 λ、样本量与噪声翻转条件",
          TEAL, TEAL_SOFT),
         ("命题 3：预训练时代的复杂度权衡", "强预训练特征下，复杂聚类器还值得吗？",
-         "• 检验路径：E04 冻结 DINOv2 / CLIP + E05 成本分析\n• 关键对照：冻结特征 + K-means vs. GMM / DEC 投影头\n• 现实意义：澄清外部预训练预算与本地聚类成本边界",
+         "• 检验路径：E04 冻结 DINOv2 / CLIP + 端到端成本分析\n• 关键对照：冻结特征 + K-means vs. GMM / DEC 投影头\n• 现实意义：澄清外部预训练预算与本地聚类成本边界",
          AMBER, AMBER_SOFT),
     ]
     for i, (head, q, body, col, tint) in enumerate(props):
@@ -446,28 +490,26 @@ def build_slides(prs, ctx: dict) -> None:
         header_card(s, x, 1.32, 4.04, 3.55, head, f"**{q}**\n\n{body}",
                     header_fill=col, body_fill=tint, border=col, title_size=14.0, body_size=12.5, space_after=4)
 
-    # 25-min timetable strip
     textbox(s, 0.42, 5.06, 12.5, 0.30, "25 分钟六模块汇报路线图", size=13.5, bold=True, color=BLUE_DEEP, space_after=0)
     mods = [
         ("0–4 min", "背景与统计基础", "P1–P5", BLUE_DEEP),
         ("4–11 min", "范式演进与原理", "P6–P12", BLUE_MID),
         ("11–13 min", "假设与统一协议", "P13–P14", TEAL),
-        ("13–20 min", "E01–E05 实证结果", "P15–P20", AMBER),
-        ("20–23 min", "选型树与命题核验", "P21–P22", PURPLE),
+        ("13–20 min", "E01–E04 与成本基准", "P15–P20", AMBER),
+        ("20–23 min", "选型树与 E05 诊断", "P21–P22", PURPLE),
         ("23–25 min", "边界局限与总结", "P23–P24", SLATE),
     ]
-    mw = 2.00
-    mgap = 0.10
+    mw, mgap = 2.00, 0.10
     for idx, (tm, name, pgs, col) in enumerate(mods):
         mx = 0.42 + idx * (mw + mgap)
         box(s, mx, 5.42, mw, 1.18, WHITE, col, 1.2, 0.08)
         box(s, mx, 5.42, mw, 0.34, col, None, 0.0, None)
         textbox(s, mx, 5.42, mw, 0.34, f"{tm}  ({pgs})", size=11.0, bold=True, color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-        textbox(s, mx + 0.08, 5.84, mw - 0.16, 0.66, name, size=12.5, bold=True, color=INK, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+        textbox(s, mx + 0.08, 5.84, mw - 0.16, 0.66, name, size=12.2, bold=True, color=INK, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
 
     # ---- Slide 3: Textbook Statistical Foundations ----
     s = new_slide(
-        prs, "03 / 24", "二、统计基础",
+        prs, slide_ids, "S03_textbook_foundations", "03 / 24", "二、统计基础",
         "统计学起点：从多元统计教材到深度表征聚类",
         lead="✓ 理论脉络：深度聚类以王学民《应用多元统计分析》五章为根基，将**固定线性坐标**推广为**可学习非线性隐空间**。",
         summary="##承接关系：##第 6 章 K-means 是实证起点，第 3、7、8 章分别对应高斯混合、线性降维与潜变量生成三大分支。",
@@ -495,12 +537,11 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 4: K-means Objective & Pixel Distance Failure ----
     s = new_slide(
-        prs, "04 / 24", "二、统计基础",
+        prs, slide_ids, "S04_kmeans_failure", "04 / 24", "二、统计基础",
         "K-means 数学目标与原始像素欧氏距离失效机制",
         lead="✓ 问题诊断：K-means 仅在给定坐标中寻找球状质心；当坐标不含语义时，**更换划界公式无法修补错误空间**。",
         summary="##关键结论：##高维图像聚类的第一瓶颈在表示空间而非质心更新公式，由此引出表征学习。",
     )
-    # Top equation showcase
     box(s, 0.42, 1.30, 12.49, 1.18, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
     textbox(s, 0.62, 1.38, 2.35, 0.34, "K-means 目标函数", size=13.0, bold=True, color=BLUE_DEEP, space_after=0)
     textbox(s, 0.62, 1.76, 2.65, 0.60, "在“分配最近中心”与\n“更新组内均值”间交替迭代", size=11.5, color=MUTED)
@@ -518,14 +559,14 @@ def build_slides(prs, ctx: dict) -> None:
         s, 6.83, 2.68, 6.08, 3.92,
         "三层递增的统计应对思路",
         "■ ##第 1 层 · 线性投影（PCA + K-means）##：提取主方差正交轴，压缩维度并加速计算，但仍限于线性子空间。\n\n"
-        "■ ##第 2 层 · 概率混合（GMM）##：引入协方差描述椭球形状，但在高维像素空间满协方差不可识别，对尺度漂移敏感。\n\n"
+        "■ ##第 2 层 · 概率混合（GMM）##：引入协方差描述椭球形状，但在高维像素空间满协方差不可识别，对角近似易受标准化尺度影响。\n\n"
         "■ ##第 3 层 · 深度表征聚类##：引入可学习的非线性编码器 f_θ，先把图像映射到低维语义隐空间 z，再完成分组。",
         header_fill=BLUE_DEEP, body_fill=BLUE_SOFT, border=BLUE_DEEP, title_size=14.5, body_size=13.2, line_spacing=1.28,
     )
 
     # ---- Slide 5: Core Paradigm Shift x -> z -> c ----
     s = new_slide(
-        prs, "05 / 24", "二、统计基础",
+        prs, slide_ids, "S05_paradigm_shift", "05 / 24", "二、统计基础",
         "深度聚类的核心跃迁：不仅学分组，更学“用什么表示来分组”",
         lead="✓ 核心抽象：深度聚类通过可学习映射 f_θ 将原始观测转为低维语义坐标 z，再于隐空间执行划分。",
         summary="##范式分化根源：##后续全部算法的差异，归根结底在于“z 靠什么无标签信号学出”以及“编码器与聚类器如何交互”。",
@@ -539,8 +580,7 @@ def build_slides(prs, ctx: dict) -> None:
         ("STEP 3", "低维隐表示 z", "同类图像在隐空间聚拢\n不同类流形边界清晰拉开\n（如 AE 10 维 / ViT 384 维）", TEAL, TEAL_SOFT),
         ("STEP 4", "簇分配 ĉ", "距离质心 / Student-t 软归属\n/ 混合高斯后验 / 对比簇头\n输出最终无监督分组", AMBER, AMBER_SOFT),
     ]
-    sw = 2.94
-    sgap = 0.24
+    sw, sgap = 2.94, 0.24
     for i, (tag, head, desc, col, tint) in enumerate(steps):
         sx = 0.42 + i * (sw + sgap)
         box(s, sx, 2.60, sw, 2.75, tint, col, 1.3, 0.06)
@@ -557,21 +597,21 @@ def build_slides(prs, ctx: dict) -> None:
         fill=WHITE, border=BLUE_LINE, title_color=BLUE_DEEP, title_size=13.0, body_size=12.5,
     )
 
-    # ---- Slide 6: Fig.1 Paradigm Evolution ----
+    # ---- Slide 6: Fig.1 Paradigm Evolution (Issue #5 P1.3 fixed) ----
     s = new_slide(
-        prs, "06 / 24", "三、范式演进",
+        prs, slide_ids, "S06_paradigm_evolution", "06 / 24", "三、范式演进",
         "范式演进全景：Zhou (2025) 四类并存交互与 2024–2026 前沿",
-        lead="✓ 演进视角：依据 ##Zhou 等（ACM Computing Surveys, 2025）##图 1，深度聚类按表示与聚类的**四种交互模式**并存演进。",
-        summary="##图 1 要点：##新范式并未取消旧范式；2023 年后的 DINOv2/CLIP + K-means 在工作流上反而回归了简洁的“多阶段”解耦。",
+        lead="✓ 演进视角：依据 ##Zhou 等（ACM Computing Surveys, 2025）##图 1，四类交互长期并存：CC 属**联合优化**，DeepCluster/SwAV 属**迭代式**。",
+        summary="##图 1 要点：##新范式并未取消旧范式；DeepCluster 靠“伪标签→更新表示→再聚类”迭代循环，DINOv2/CLIP+KM 回归多阶段解耦。",
     )
     fit_picture(s, ASSETS / "diag_paradigm_evolution.png", 0.36, 1.26, 12.60, 5.38)
 
     # ---- Slide 7: Fig.2 Four-Dimensional Taxonomy ----
     s = new_slide(
-        prs, "07 / 24", "三、范式演进",
+        prs, slide_ids, "S07_taxonomy_4d", "07 / 24", "三、范式演进",
         "四维方法分类框架：跨算法解构机制联系",
         lead="✓ 理论骨架：用**表征空间 × 优化交互 × 聚类机制 × 监督信号**四个正交坐标拆解任意算法，避免强行互斥归类。",
-        summary="##对比示例：##SimCLR + K-means 与 CC 共享“双视图数据增强”信号，但优化交互与聚类机制完全不同（多阶段 vs. 联合直出）。",
+        summary="##对比示例：##SimCLR + K-means（多阶段）、CC（联合优化直出）与 DeepCluster（伪标签迭代）可在四维坐标中清晰区分。",
     )
     fit_picture(s, ASSETS / "diag_taxonomy_4d.png", 0.38, 1.28, 12.56, 4.92)
     textbox(s, 0.48, 6.26, 12.36, 0.42,
@@ -580,7 +620,7 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 8: Mathematical Foundations 1 — DEC ----
     s = new_slide(
-        prs, "08 / 24", "四、原理推导",
+        prs, slide_ids, "S08_dec_math", "08 / 24", "四、原理推导",
         "联合优化代表（一）：DEC Student-t 软分配与 KL 自训练",
         lead="✓ 核心机制（Xie et al., ICML 2016）：以预训练自编码器为起点，通过**锐化高置信软分配**反推编码器与簇中心同步移动。",
         summary="##无标签自训练闭环：##DEC 全程不读取真实类别标签；但纯 KL 目标缺少输入保真约束，可能放大初始误分或扭曲局部流形。",
@@ -604,7 +644,7 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 9: Mathematical Foundations 2 — IDEC & Fig.3 ----
     s = new_slide(
-        prs, "09 / 24", "四、原理推导",
+        prs, slide_ids, "S09_idec_math", "09 / 24", "四、原理推导",
         "联合优化代表（二）：IDEC 重构约束与局部结构保护（Fig.3）",
         lead="✓ 核心改进（Guo et al., IJCAI 2017）：保留解码器 g_φ 并施加重构惩罚，在**拉紧聚类边界**与**保持输入信息**之间显式权衡。",
         summary="##量纲提示：##本协议重构项为每图平方误差和 SSE，写作 L_cluster + λ L_recon；与原论文写 L_recon + γ L_cluster 的换算约为 λ = 1/(γD)。",
@@ -615,7 +655,7 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 10: Generative Deep Clustering — VaDE & Fig.4 ----
     s = new_slide(
-        prs, "10 / 24", "四、原理推导",
+        prs, slide_ids, "S10_vade_arch", "10 / 24", "四、原理推导",
         "生成式深度聚类：VaDE 变分自编码与高斯混合先验（Fig.4）",
         lead="✓ 概率生成视角（Jiang et al., IJCAI 2017）：将教材第 3 章 GMM 嵌入 VAE 隐空间，每个簇建模为带中心与方差的**高斯概率云**。",
         summary="##实验实现边界：##本仓库 VaDE 重构项采用每图平方误差 SSE（非原论文 Bernoulli 交叉熵），结果严格在统一协议内部横向比较。",
@@ -626,29 +666,28 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 11: Self-Supervised & Contrastive Clustering — Fig.5 ----
     s = new_slide(
-        prs, "11 / 24", "四、原理推导",
+        prs, slide_ids, "S11_contrastive_arch", "11 / 24", "四、原理推导",
         "自监督与对比聚类：SimCLR + K-means 与 CC 双视图机制（Fig.5）",
-        lead="✓ 视图一致性假设：同一图像的两种语义保持增强视图应在隐空间靠近；依据是否直出簇概率分化出**两阶段**与**端到端**两条路线。",
-        summary="##课程预算实现限制：##二者均采用 128 维小型 CNN（非原论文 ResNet），课程版 CC 省去官方边际簇熵正则，结果仅代表本预算下整条路线。",
+        lead="✓ 视图一致性假设：同一图像的两种语义保持增强视图应在隐空间靠近；依据是否直出簇概率分化出**多阶段**与**联合优化**两条路线。",
+        summary="##课程预算实现限制：##二者均采用 128 维小型 CNN（非原论文 ResNet），课程版 CC 省去官方边际簇熵正则，易诱发簇规模偏斜。",
     )
     fit_picture(s, ASSETS / "diag_contrastive_arch.png", 0.42, 1.26, 12.49, 4.35)
-    # Compact comparison strip at bottom
     soft_panel(
         s, 0.42, 5.68, 6.10, 0.98,
-        "SimCLR + K-means（Chen et al., ICML 2020）",
+        "SimCLR + K-means（Chen et al., ICML 2020 · 多阶段）",
         "训练阶段仅优化实例级 NT-Xent 对比损失，学完 128 维特征后再接离线 K-means；语义依赖数据增强不破坏类别线索。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.5, body_size=11.5,
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.2, body_size=11.4,
     )
     soft_panel(
         s, 6.81, 5.68, 6.10, 0.98,
-        "Contrastive Clustering（Li et al., AAAI 2021）",
-        "将特征矩阵行做实例对比、列做簇级对比，同时学习表征与软簇分配；相关前沿还包括 DeepCluster (2018)、IIC (2019)、SwAV (2020)。",
-        fill=PURPLE_SOFT, border=PURPLE, title_color=PURPLE, title_size=12.5, body_size=11.5,
+        "Contrastive Clustering（Li et al., AAAI 2021 · 联合优化）",
+        "特征矩阵行做实例对比、列做簇级对比，同时学习表征与软簇分配；区别于靠伪标签循环的迭代式 DeepCluster (2018) / SwAV (2020)。",
+        fill=PURPLE_SOFT, border=PURPLE, title_color=PURPLE, title_size=12.2, body_size=11.4,
     )
 
     # ---- Slide 12: Pretrained & Language-Guided Frontier — Fig.6 ----
     s = new_slide(
-        prs, "12 / 24", "三、前沿演进",
+        prs, slide_ids, "S12_pretrained_frontier", "12 / 24", "三、前沿演进",
         "2024–2026 前沿：预训练视觉模型与外部语义引导（Fig.6）",
         lead="✓ 范式转向：大规模视觉与跨模态预训练重塑了表征起点，使“##强冻结特征 + 简单聚类器##”成为自然图像强基准。",
         summary="##公平性纪律：##外部预训练模型见过海量外部数据，在 E04 中与从零训练模型分栏独立汇报，不混排为等预算榜单。",
@@ -661,25 +700,24 @@ def build_slides(prs, ctx: dict) -> None:
         ("TAC (ICML 2024)", "Image Clustering with External Guidance；借 WordNet 引导", AMBER, AMBER_SOFT),
         ("VLM4Cluster (2026 预印本)", "arXiv:2609.36648，非同行评审；20 数据集评 17 方法效能/鲁棒/成本", PURPLE, PURPLE_SOFT),
     ]
-    fw = 2.98
-    fgap = 0.19
+    fw, fgap = 2.98, 0.19
     for i, (hd, bd, col, tint) in enumerate(f_cards):
         fx = 0.42 + i * (fw + fgap)
         soft_panel(s, fx, 5.52, fw, 1.14, hd, bd, fill=tint, border=col, title_color=col, title_size=12.0, body_size=11.0, line_spacing=1.20)
 
     # ---- Slide 13: Pre-Experiment Method Selection Hypotheses ----
     s = new_slide(
-        prs, "13 / 24", "四、选型假设",
+        prs, slide_ids, "S13_selection_hypotheses", "13 / 24", "四、选型假设",
         "实验前方法选型假设矩阵（待验证命题，非预设结论）",
         lead="✓ 研究规范：在读取任何测试集指标之前，依据理论特性写下 **7 类场景的先验选型假设**，交由 E01–E05 逐条证伪或确认。",
-        summary="##验证目标：##后文实验将重点检验哪些直觉成立、哪些出现反转（如强噪声与小样本下深度方法反而落后于 K-means）。",
+        summary="##验证目标：##后文实验将重点检验哪些直觉成立、哪些出现反转（如强噪声/极小样本下深度方法落后，以及 E05 稳定≠正确）。",
     )
     hyp_rows = [
-        ["低维 / 数据量小 / 算力极紧", "K-means 或 PCA + K-means", "结构清晰、耗时极低、可解释性强", "E01 / E03 / E05"],
+        ["低维 / 数据量小 / 算力极紧", "K-means 或 PCA + K-means", "结构清晰、耗时极低、可解释性强", "E01 / E03 / 成本"],
         ["高维复杂数据 / 无外部预训练", "AE + K-means", "先建立非线性隐表示，再验证联合微调是否增效", "E01 / E02"],
         ["需表示与聚类协同优化", "DEC 或 IDEC", "聚类目标直接塑形隐空间；IDEC 保护局部流形", "E01 / E02"],
         ["需显式概率解释或生成能力", "VaDE（或低维 GMM）", "混合高斯先验刻画簇形状，须检验其 ARI 与抗噪代价", "E01 / E03"],
-        ["具备可靠语义保持数据增强", "SimCLR + K-means / CC", "利用双视图对比信号，须考察小网络预算下性价比", "E01 / E05"],
+        ["具备可靠语义保持数据增强", "SimCLR + K-means / CC", "利用双视图对比信号，须考察小网络预算下性价比", "E01 / 成本"],
         ["已有领域匹配预训练基础模型", "冻结特征 + K-means", "优先验证强表征是否已足够，复杂聚类头须净增 >0.02", "E04"],
         ["有外部文本或领域词典先验", "TAC 及语言辅助聚类", "引入外部语义邻域引导（本综述作文献前沿边界）", "文献分析"],
     ]
@@ -693,307 +731,378 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 14: Unified Protocol & Label Discipline ----
     s = new_slide(
-        prs, "14 / 24", "五、实验设计",
+        prs, slide_ids, "S14_protocol_isolation", "14 / 24", "五、实验设计",
         "统一实验协议、五组实验矩阵与标签隔离红线",
         lead=f"✓ 可复现保障：所有超参数先冻结于 configs/protocol.yaml 再运行，累计产出 **{n_ok} 条成功实测 JSON**（无手工填数）。",
-        summary="##严格标签纪律：##fit() 接口严禁传入标签；测试标签仅在 fit 返回后算 ACC/NMI/ARI；早停与追加 epoch 仅看训练侧信号。",
+        summary="##严格标签纪律：##fit() 接口严禁传入标签；测试标签仅在 fit 返回后算 ACC/NMI/ARI；E05 诊断与早停仅看训练侧信号。",
     )
     exp_rows = [
-        ["E01  基准对比", "MNIST / Fashion / CIFAR-10", "9 种从零训练方法 × 3 种子（81 条）", "比较经典、AE、联合、生成、对比性能与耗时"],
-        ["E02  目标消融", "Fashion-MNIST (seed 0)", "IDEC 单因素：λ / d / 预训练 / 初始化 / 冻结", "拆解重构量纲甜点区与初始化贡献占比"],
-        ["E03  鲁棒边界", "Fashion-MNIST (5 核心方法)", "测试噪声 (624 条) + 不平衡/样本量/K/异常点", "量化分布偏移、小样本与类数错配下的退化"],
-        ["E04  预训练解耦", "CIFAR-10 (同一测试切分)", "5 编码器 × 3 聚类器 + 预训练 3 种子稳定性", "解耦“表征质量”与“聚类器复杂度”各自贡献"],
-        ["E05  成本与诊断", "3 数据集 (无标签训练子集)", "速度-ARI 帕累托前沿 + Macro Jaccard 稳定性", "区分无标签部署选型与带标签历史回顾评价"],
+        ["E01  基准对比", "MNIST / Fashion / CIFAR-10", f"9 种从零训练方法 × 3 种子（{exp_counts.get('E01', 0)} 条）", "比较经典、AE、联合、生成、对比性能与端到端耗时"],
+        ["E02  目标消融", "Fashion-MNIST (n=1, seed 0)", f"IDEC 单因素：λ / d / 预训练 / 初始化 / 冻结（{exp_counts.get('E02', 0)} 条）", "拆解早停下 λ–轮数共变、隐维度 d 与初始化贡献"],
+        ["E03  鲁棒边界", "Fashion-MNIST", f"测试噪声（{exp_counts.get('E03_noise', 0)} 条）+ 不平衡/样本量/K/异常（{exp_counts.get('E03', 0)} 条）", "量化分布偏移、小样本与类数错配下的退化分化"],
+        ["E04  预训练解耦", "CIFAR-10 (同一测试切分)", f"5 编码器 × 3 聚类器(n=1) + 预训练 K-means(n=3)（{exp_counts.get('E04', 0)} 条）", "解耦“表征质量”与“聚类器复杂度”各自贡献"],
+        ["E05  无标签诊断", "3 数据集 (从零 9 候选训练子集)", "仅用训练集干净/加噪 Macro Jaccard（未纳耗时）", "检验无标签稳定性是否等价语义正确（负面结果）"],
     ]
     data_table(
         s, 0.42, 1.30, 12.49,
         ["实验编号", "数据集与划分", "受控变量与覆盖规模", "回答的核心问题"],
-        exp_rows, [1.85, 2.65, 3.85, 4.14],
-        font_size=11.8, header_size=12.5, max_h=3.15, left_align_cols={0, 1, 2, 3},
+        exp_rows, [1.80, 2.55, 4.05, 4.09],
+        font_size=11.5, header_size=12.2, max_h=3.15, left_align_cols={0, 1, 2, 3},
     )
-    # 3 crisp protocol cards below table
     p_cards = [
         ("数据集切分（固定子集）",
          "• MNIST / Fashion：20,000 训练 + 10,000 测试\n• CIFAR-10：10,000 训练 + 2,000 测试\n• 默认 K=10（E03 显式测 K=5..20）",
          BLUE_DEEP, BLUE_SOFT),
-        ("统一网络与训练预算",
-         "• 28×28 AE：784→500→500→2000→10\n• AE/DEC/IDEC 共享同次预训练（50+50 ep）\n• K-means n_init=20；SimCLR/CC 100 ep 小 CNN",
+        ("统一网络与端到端成本口径",
+         "• 28×28 AE：784→500→500→2000→10\n• AE/DEC/IDEC 共享预训练；成本区分端到端与增量微调\n• K-means n_init=20；SimCLR/CC 100 ep 小 CNN",
          TEAL, TEAL_SOFT),
         ("评价指标与失败留痕",
-         "• 报告 ACC（匈牙利匹配）、NMI、ARI、耗时与显存\n• 不因分数低换种子；基础设施错误至多原 seed 重试 1 次\n• 全部图与表由 scripts/analyze.py 自动生成",
+         "• 报告 ACC、NMI、ARI（均含 3 种子 ±SD）及簇偏斜\n• 不因分数低换种子；基础设施错误至多原 seed 重试 1 次\n• 全部图表与 PPT 数字由脚本从 results/tables 自动生成",
          AMBER, AMBER_SOFT),
     ]
     for i, (hd, bd, col, tint) in enumerate(p_cards):
         px = 0.42 + i * 4.22
-        soft_panel(s, px, 4.62, 4.04, 2.02, hd, bd, fill=tint, border=col, title_color=col, title_size=13.0, body_size=11.8, line_spacing=1.28)
+        soft_panel(s, px, 4.62, 4.04, 2.02, hd, bd, fill=tint, border=col, title_color=col, title_size=12.8, body_size=11.5, line_spacing=1.26)
 
     # ---- Slide 15: E01 Main Benchmark Heatmap (Fig.7) ----
     m_dec = find_row(e01, dataset="mnist", method="dec")
     m_vade = find_row(e01, dataset="mnist", method="vade")
+    m_ae = find_row(e01, dataset="mnist", method="ae_kmeans")
     m_km = find_row(e01, dataset="mnist", method="kmeans")
+    m_cc = find_row(e01, dataset="mnist", method="cc")
     f_dec = find_row(e01, dataset="fashion_mnist", method="dec")
+    f_idec = find_row(e01, dataset="fashion_mnist", method="idec")
+    f_ae = find_row(e01, dataset="fashion_mnist", method="ae_kmeans")
     f_pca = find_row(e01, dataset="fashion_mnist", method="pca_kmeans")
-    c_idec = find_row(e01, dataset="cifar10", method="idec")
+    c_rows = [r for r in e01 if r.get("dataset") == "cifar10" and fnum(r, "ari_mean") is not None]
+    c_min_v = min((fnum(r, "ari_mean") for r in c_rows), default=None)
+    c_max_v = max((fnum(r, "ari_mean") for r in c_rows), default=None)
+    c_range_s = f"{c_min_v:.3f}–{c_max_v:.3f}" if (c_min_v is not None and c_max_v is not None) else "—"
     c_cc = find_row(e01, dataset="cifar10", method="cc")
+    m_dec_km_gap = fdiff(fnum(m_dec, "ari_mean"), fnum(m_km, "ari_mean"), digits=2)
+    m_ae_km_gap = fdiff(fnum(m_ae, "ari_mean"), fnum(m_km, "ari_mean"), digits=2)
+    tie_note = "在 1 SD 内近似并列" if (
+        fnum(m_dec, "ari_mean") is not None and fnum(m_vade, "ari_mean") is not None
+        and fnum(m_dec, "ari_std") is not None
+        and abs(fnum(m_dec, "ari_mean") - fnum(m_vade, "ari_mean")) <= fnum(m_dec, "ari_std")
+    ) else "共同领先"
 
     s = new_slide(
-        prs, "15 / 24", "五、实验证据",
+        prs, slide_ids, "S15_e01_benchmark", "15 / 24", "五、实验证据",
         "E01 基准对比：9 种从零训练方法在三类图像上的 ARI（Fig.7）",
-        lead=f"✓ 核心发现：非线性深度方法在手写数字上领先 **+0.30 ARI**，但在自然图像 CIFAR-10 上全部从零方法均塌缩至 **{fval(c_cc)}–{fval(c_idec)}**。",
-        summary="##选型启示：##是否采用深度聚类强依赖数据视觉复杂度；自然图像仅靠从零小网络无法跨越像素—语义鸿沟（完整指标见附录 A1）。",
+        lead=f"✓ 核心发现：MNIST 上深度方法领先 K-means **{m_dec_km_gap} ARI**，但 CIFAR-10 全部 9 种从零方法均停留在 **{c_range_s}**。",
+        summary="##选型与实现说明：##★ 为均值最高、≈ 表示差值 ≤ 1 SD 近似并列；IDEC 主表 λ=1.0；CC 低分伴随明显簇偏斜（见右栏与附录 A1）。",
     )
-    fit_picture(s, FIGS / "fig_e01_ari.png", 0.36, 1.28, 8.20, 5.36)
-    # Right structured 3-part analytical panel
+    fit_picture(s, figs_dir / "fig_e01_ari.png", 0.34, 1.28, 8.24, 5.36)
     soft_panel(
         s, 8.70, 1.32, 4.20, 1.62,
-        "1. MNIST：清晰结构下深度显著胜出",
-        f"• ##DEC ({fval(m_dec)})## 与 ##VaDE ({fval(m_vade)})## 领先像素 K-means ({fval(m_km)}) 近 0.30。\n• AE+KM ({fval(find_row(e01, dataset='mnist', method='ae_kmeans'))}) 已贡献 +0.22 增益。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.8, body_size=11.8,
+        "1. MNIST：DEC 与 VaDE 近似并列领先",
+        f"• ##DEC ({fpm(m_dec, 'ari_mean')})## 与 ##VaDE ({fpm(m_vade, 'ari_mean')})## {tie_note}，显著领先 K-means ({fpm(m_km, 'ari_mean')})。\n• AE+KM ({fpm(m_ae, 'ari_mean')}) 已贡献 {m_ae_km_gap} 增益。",
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.5, body_size=11.3,
     )
     soft_panel(
         s, 8.70, 3.08, 4.20, 1.62,
-        "2. Fashion-MNIST：差距收窄，性价比分化",
-        f"• ##DEC ({fval(f_dec)})## 保持第一；但 AE+KM 与 K-means 接近。\n• **PCA+KM 仅用 {fval(f_pca, 'time_train_mean_sec', 1)}s** 即达 {fval(f_pca)}，速度优势突出。",
-        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.8, body_size=11.8,
+        "2. Fashion-MNIST：差距收窄，耗时分化",
+        f"• ##DEC ({fpm(f_dec, 'ari_mean')})## 与 IDEC λ=1 ({fpm(f_idec, 'ari_mean')}) 居前，AE+KM ({fval(f_ae)}) 接近 K-means。\n• **PCA+KM 端到端仅 {fval(f_pca, 'time_train_e2e_mean_sec', 1)}s** 达 {fpm(f_pca, 'ari_mean')}。",
+        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.5, body_size=11.3,
     )
+    m_cc_mf = f"{fnum(m_cc, 'max_fraction_mean') * 100:.0f}%" if fnum(m_cc, "max_fraction_mean") is not None else "—"
+    c_cc_mf = f"{fnum(c_cc, 'max_fraction_mean') * 100:.0f}%" if fnum(c_cc, "max_fraction_mean") is not None else "—"
+    m_cc_ent = fval(m_cc, "entropy_norm_mean", 2)
     soft_panel(
         s, 8.70, 4.84, 4.20, 1.80,
-        "3. CIFAR-10：从零训练集体遇瓶颈",
-        f"• 9 种方法 ARI 均仅 **{fval(c_cc)}–{fval(c_idec)}**，接近随机。\n• 课程小 CNN 对比学习耗时 >149s 仍未破局，验证小预算自监督局限。",
-        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.8, body_size=11.8,
+        "3. CIFAR-10 瓶颈与 CC 簇偏斜证据",
+        f"• 9 种从零方法 ARI 仅 **{c_range_s}**，难越像素—语义鸿沟。\n• 课程版 CC 因小型 CNN 且**省去官方熵项**，MNIST/CIFAR 最大单簇占比达 **{m_cc_mf}/{c_cc_mf}**（熵 {m_cc_ent}），出现簇偏斜。",
+        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.5, body_size=11.2,
     )
 
-    # ---- Slide 16: E01 Latent Space t-SNE & Shared AE Initialization (Fig.8) ----
+    # ---- Slide 16: E01 Latent Space t-SNE (Fig.8) ----
+    r0_pca = find_row(runs, experiment="E01", dataset="fashion_mnist", method="pca_kmeans", seed=0)
+    r0_ae = find_row(runs, experiment="E01", dataset="fashion_mnist", method="ae_kmeans", seed=0)
+    r0_dec = find_row(runs, experiment="E01", dataset="fashion_mnist", method="dec", seed=0)
+    r0_idec = find_row(runs, experiment="E01", dataset="fashion_mnist", method="idec", seed=0)
+
     s = new_slide(
-        prs, "16 / 24", "五、实验证据",
+        prs, slide_ids, "S16_e01_embeddings", "16 / 24", "五、实验证据",
         "E01 潜在空间几何演化与共享初始化对照（Fig.8）",
-        lead="✓ 控制变量设计：AE + K-means、DEC、IDEC **共享完全相同的 AE 预训练权重**，因此隐空间形态差异纯由聚类阶段目标函数引起。",
-        summary="##读图纪律：##t-SNE 仅辅助观察簇分离与流形连续性，跨面板颜色无固定对应，定量优劣须以 ARI 与 NMI 实测为准。",
+        lead="✓ 控制变量设计：AE + K-means、DEC、IDEC (λ=1.0) **共享完全相同的 AE 预训练权重**，隐空间差异纯由聚类阶段目标引起。",
+        summary="##标签隔离与读图纪律：##可视化脚本严格不读取 y_test，颜色为各方法预测簇编号；t-SNE 仅辅助观察形态，定量结论以 ARI/NMI 为准。",
     )
-    fit_picture(s, FIGS / "fig_e01_embeddings.png", 0.36, 1.26, 12.60, 3.68)
+    fit_picture(s, figs_dir / "fig_e01_embeddings.png", 0.36, 1.26, 12.60, 3.68)
 
     lat_cards = [
-        ("PCA + K-means（线性投影）", "10 维线性主成分受限于平面切分，服装相似类别边界明显交错粘连（seed 0 ARI = 0.346）。", SLATE, SLATE_SOFT),
-        ("AE + K-means（非线性起点）", "自编码器拉开部分大类流形，但重构目标不显式鼓励类间间隔（seed 0 ARI = 0.420）。", BLUE_DEEP, BLUE_SOFT),
-        ("DEC（纯 KL 自训练拉紧）", "KL 锐化把预测簇压缩成高度紧致的孤岛，轮廓系数飙升至 0.89，但重构误差扩大（ARI = 0.473）。", TEAL, TEAL_SOFT),
-        ("IDEC（重构保护流形连续性）", "保留解码器后簇形更舒展、局部几何未发生剧烈塌缩，在分离与保真间折中（ARI = 0.442）。", AMBER, AMBER_SOFT),
+        ("PCA + K-means（线性投影）",
+         f"10 维线性主成分受限于平面切分，服装相似类别边界交错（seed 0 ARI = {fval(r0_pca, 'ari')}，轮廓 {fval(r0_pca, 'silhouette', 2)}）。", SLATE, SLATE_SOFT),
+        ("AE + K-means（非线性起点）",
+         f"自编码器拉开部分大类流形，但重构目标不显式鼓励类间间隔（seed 0 ARI = {fval(r0_ae, 'ari')}，轮廓 {fval(r0_ae, 'silhouette', 2)}）。", BLUE_DEEP, BLUE_SOFT),
+        ("DEC（纯 KL 自训练拉紧）",
+         f"KL 锐化把预测簇压缩成紧致孤岛，轮廓系数升至 {fval(r0_dec, 'silhouette', 2)}，但重构偏离扩大（ARI = {fval(r0_dec, 'ari')}）。", TEAL, TEAL_SOFT),
+        ("IDEC λ=1.0（保留重构解码）",
+         f"保留解码器后簇形更舒展、局部几何未剧烈塌缩，在分离与重构保真间折中（ARI = {fval(r0_idec, 'ari')}，轮廓 {fval(r0_idec, 'silhouette', 2)}）。", AMBER, AMBER_SOFT),
     ]
-    lw = 2.98
-    lgap = 0.19
+    lw, lgap = 2.98, 0.19
     for i, (hd, bd, col, tint) in enumerate(lat_cards):
         lx = 0.42 + i * (lw + lgap)
-        soft_panel(s, lx, 5.06, lw, 1.58, hd, bd, fill=tint, border=col, title_color=col, title_size=12.0, body_size=11.2, line_spacing=1.22)
+        soft_panel(s, lx, 5.06, lw, 1.58, hd, bd, fill=tint, border=col, title_color=col, title_size=11.8, body_size=11.0, line_spacing=1.22)
 
-    # ---- Slide 17: E02 Loss Ablation lambda (Fig.9) ----
+    # ---- Slide 17: E02 Loss Ablation lambda — Issue #4 Fix ----
     l0 = find_row(e02, factor="lambda_recon", value=0.0)
     l001 = find_row(e02, factor="lambda_recon", value=0.01)
     l01 = find_row(e02, factor="lambda_recon", value=0.1)
     l1 = find_row(e02, factor="lambda_recon", value=1.0)
     l10 = find_row(e02, factor="lambda_recon", value=10.0)
+    ep_chain = "→".join(
+        str(int(round(fnum(r, "epochs_ran")))) if fnum(r, "epochs_ran") is not None else "—"
+        for r in (l0, l001, l01, l1, l10)
+    )
 
     s = new_slide(
-        prs, "17 / 24", "五、实验证据",
-        "E02 目标消融：重构权重 λ 存在量纲匹配的甜点区（Fig.9）",
-        lead=f"✓ 核心发现：λ 取 **0.01–0.1** 时重构 SSE 从 **{fval(l0, 'recon_sse', 1)} 骤降至 {fval(l01, 'recon_sse', 1)}（-78%）**，而 ARI 稳定维持在 **{fval(l001)}–{fval(l01)}** 高位。",
-        summary="##工程启示：##多目标联合优化应先对齐梯度量纲再调权重；隐空间维度 d=10 峰值与初始化组件消融（+0.12 ARI）见附录 A2。",
+        prs, slide_ids, "S17_e02_lambda_ablation", "17 / 24", "五、实验证据",
+        "E02 重构权重 λ 消融：当前早停协议下 λ 与训练轮数共变（Fig.9）",
+        lead=f"✓ 方法学披露（n=1, seed 0）：λ 从 0 增至 10 时，实际训练轮数同步单调拉长（**{ep_chain} ep**），ARI 回落不能单独归因于量纲。",
+        summary="##解读边界：##*λ=0 重构项未进入总损失，其 SSE 属定义不可比点；固定 50 ep 的隐维度 d 消融与初始化组件消融见附录 A2。",
     )
-    fit_picture(s, FIGS / "fig_e02_lambda.png", 0.36, 1.32, 8.25, 5.26)
+    fit_picture(s, figs_dir / "fig_e02_lambda.png", 0.34, 1.30, 8.30, 5.30)
 
     soft_panel(
-        s, 8.76, 1.32, 4.14, 1.44,
-        "怎么读这张双面板图",
-        "• 横轴为 5 档预注册重构权重 λ（0 到 10）。\n• 左蓝线为 ##ARI ↑##；右橙线为每图 ##SSE ↓##。\n• 绿色阴影标注量纲匹配甜点区。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.6, body_size=11.5,
+        s, 8.76, 1.32, 4.14, 1.48,
+        "1. 早停区 vs. 跑满区（双变量共变）",
+        f"• λ=0 / 0.01 / 0.1 分别在 **{fep(l0)} / {fep(l001)} / {fep(l01)}** 停下。\n• 仅 λ=1 与 λ=10 跑满 **{fep(l1)}**，λ 并非唯一变化量。",
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.4, body_size=11.3,
     )
     soft_panel(
-        s, 8.76, 2.88, 4.14, 1.96,
-        "核心现象：非单调“先稳后降”",
-        f"• λ=0（纯 DEC）：ARI {fval(l0)}，SSE 飙升至 **{fval(l0, 'recon_sse', 1)}**。\n• **λ∈[0.01, 0.1]**：SSE 降至 {fval(l001, 'recon_sse', 1)}–{fval(l01, 'recon_sse', 1)}，NMI 达峰值 {fval(l01, 'nmi')}。\n• λ≥1：ARI 回落至 {fval(l1)}–{fval(l10)}。",
-        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.6, body_size=11.5,
+        s, 8.76, 2.92, 4.14, 1.92,
+        "2. 实测走势与 λ=0 不可比标注",
+        f"• λ=0 ({fep(l0)})：ARI {fval(l0)}，SSE **{fval(l0, 'recon_sse', 1)}***（重构未入损失，**不可比**）。\n"
+        f"• λ=0.01–0.1：ARI {fval(l001)}–{fval(l01)}，SSE {fval(l001, 'recon_sse', 1)}–{fval(l01, 'recon_sse', 1)}。\n"
+        f"• λ=1–10 ({fep(l1)})：ARI 降至 {fval(l1)}–{fval(l10)}，SSE {fval(l1, 'recon_sse', 1)}。",
+        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.4, body_size=11.2,
     )
     soft_panel(
         s, 8.76, 4.96, 4.14, 1.68,
-        "统计机制解释",
-        "每图像素 SSE 数量级约 10–46，而样本平均 KL 仅约 0.1，二者相差两个量级。当 λ≥1 时重构梯度淹没聚类梯度，退化回普通自编码器。",
-        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.6, body_size=11.5,
+        "3. 早停 × λ 相互作用机制",
+        "统一协议规定训练集簇分配变化 < 0.001 即早停；增大 λ 让重构梯度持续微调隐坐标、推迟早停，故 ARI 变化是 λ 与训练时长的复合效应。",
+        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.4, body_size=11.2,
     )
 
-    # ---- Slide 18: E03 Noise Robustness (Fig.11) ----
+    # ---- Slide 18: E03 Noise Robustness — Issue #5 P1.4 Fix ----
     km0 = find_row(e03n, dataset="fashion_mnist", method="kmeans", noise_std=0.0)
     km3 = find_row(e03n, dataset="fashion_mnist", method="kmeans", noise_std=0.3)
+    pca0 = find_row(e03n, dataset="fashion_mnist", method="pca_kmeans", noise_std=0.0)
+    pca3 = find_row(e03n, dataset="fashion_mnist", method="pca_kmeans", noise_std=0.3)
     dec0 = find_row(e03n, dataset="fashion_mnist", method="dec", noise_std=0.0)
     dec3 = find_row(e03n, dataset="fashion_mnist", method="dec", noise_std=0.3)
     idec0 = find_row(e03n, dataset="fashion_mnist", method="idec", noise_std=0.0)
     idec3 = find_row(e03n, dataset="fashion_mnist", method="idec", noise_std=0.3)
+    vade0 = find_row(e03n, dataset="fashion_mnist", method="vade", noise_std=0.0)
+    vade3 = find_row(e03n, dataset="fashion_mnist", method="vade", noise_std=0.3)
     gmm0 = find_row(e03n, dataset="fashion_mnist", method="gmm", noise_std=0.0)
     gmm1 = find_row(e03n, dataset="fashion_mnist", method="gmm", noise_std=0.1)
 
     s = new_slide(
-        prs, "18 / 24", "五、实验证据",
-        "E03 鲁棒性测试：测试期高斯噪声引发排名反转（Fig.11）",
-        lead=f"✓ 反直觉反转：干净数据落后于深度模型的**像素 K-means 保持率高达 93%**（{fval(km0, 'ari_mean')}→{fval(km3, 'ari_mean')}），在 σ≥0.2 反超全部神经方法。",
-        summary="##边界警示：##普通重构约束不会自动带来分布外抗噪性；其余 4 项敏感性（不平衡、小样本、K 错配、异常点）见附录 A3–A4。",
+        prs, slide_ids, "S18_e03_noise_robustness", "18 / 24", "五、实验证据",
+        "E03 鲁棒性测试：测试噪声反转与 GMM / VaDE 分化（Fig.11）",
+        lead=f"✓ 核心反转（n=3）：像素 K-means 保持率高达 **{fret(km0, km3)}**（{fval(km0, 'ari_mean')}→{fval(km3, 'ari_mean')}），σ≥0.2 反超全部神经方法。",
+        summary="##结论边界：##轻噪归零仅限于当前标准化像素对角 GMM，同属概率生成的 VaDE 仍保持半数以上 ARI；其余 4 项敏感性见附录 A3–A4。",
     )
-    fit_picture(s, FIGS / "fig_e03_noise.png", 0.34, 1.28, 8.28, 5.36)
+    fit_picture(s, figs_dir / "fig_e03_noise.png", 0.34, 1.28, 8.28, 5.36)
 
     soft_panel(
-        s, 8.76, 1.32, 4.14, 1.65,
+        s, 8.76, 1.32, 4.14, 1.60,
         "1. 传统质心法抗噪显著更稳",
-        f"• 像素 K-means：σ=0 时 {fval(km0, 'ari_mean')} → σ=0.3 仍保持 **{fval(km3, 'ari_mean')}（93%）**。\n• PCA+KM 同步保持 92%，线性距离对零均值高斯噪声天然平滑。",
-        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.8, body_size=11.8,
+        f"• 像素 K-means：{fval(km0, 'ari_mean')} → **{fval(km3, 'ari_mean')}（{fret(km0, km3)}）**。\n• PCA+KM 同步保持 {fret(pca0, pca3)}，线性欧氏距离对零均值高斯噪声天然平滑。",
+        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.6, body_size=11.4,
     )
     soft_panel(
-        s, 8.76, 3.12, 4.14, 1.72,
-        "2. 神经编码器与 IDEC 同样明显退化",
-        f"• DEC：{fval(dec0, 'ari_mean')} → {fval(dec3, 'ari_mean')}（47%）；IDEC：{fval(idec0, 'ari_mean')} → {fval(idec3, 'ari_mean')}（51%）。\n• 仅加干净重构约束**无法抵御未见分布噪声**。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.8, body_size=11.8,
+        s, 8.76, 3.04, 4.14, 1.66,
+        "2. 神经编码器与 IDEC 同步退化",
+        f"• DEC：{fval(dec0, 'ari_mean')} → {fval(dec3, 'ari_mean')}（{fret(dec0, dec3)}）；IDEC：{fval(idec0, 'ari_mean')} → {fval(idec3, 'ari_mean')}（{fret(idec0, idec3)}）。\n• 仅加干净像素重构**无法抵御未见分布噪声**。",
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.6, body_size=11.4,
     )
     soft_panel(
-        s, 8.76, 4.98, 4.14, 1.66,
-        "3. 高维对角 GMM 遇微噪即塌缩",
-        f"• 棕色虚线 GMM 从 {fval(gmm0, 'ari_mean')} 在 σ=0.1 直接跌至 **{fval(gmm1, 'ari_mean')}**（全部塌缩入单簇），暴露高维标准化协方差脆弱性。",
-        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.8, body_size=11.8,
+        s, 8.76, 4.82, 4.14, 1.82,
+        "3. 不泛化概率家族：GMM vs. VaDE",
+        f"• 当前 **StandardScaler+对角协方差像素 GMM** 在 σ=0.1 即从 {fval(gmm0, 'ari_mean')} 坍缩至 **{fval(gmm1, 'ari_mean')}**（单簇）。\n• 但隐空间生成模型 ##VaDE## 从 {fval(vade0, 'ari_mean')} → **{fval(vade3, 'ari_mean')}（{fret(vade0, vade3)}）**，脆弱性系像素预处理实现所致。",
+        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.4, body_size=11.1,
     )
 
-    # ---- Slide 19: E04 Pretrained Decoupling (Fig.15) ----
+    # ---- Slide 19: E04 Pretrained Decoupling — Issue #1 & #5 P2.7 Fix ----
     dino3 = find_row(e04ext, encoder="dinov2", clusterer="kmeans")
     clip3 = find_row(e04ext, encoder="clip", clusterer="kmeans")
     dino_km0 = find_row(e04p, encoder="dinov2", clusterer="kmeans")
+    dino_gmm0 = find_row(e04p, encoder="dinov2", clusterer="gmm")
     dino_dec0 = find_row(e04p, encoder="dinov2", clusterer="dec_head")
     clip_km0 = find_row(e04p, encoder="clip", clusterer="kmeans")
     ae_km0 = find_row(e04p, encoder="ae", clusterer="kmeans")
+    scratch_e04 = [fnum(r, "ari") for r in e04p if r.get("encoder") in {"random_cnn", "ae", "simclr"} and fnum(r, "ari") is not None]
+    scratch_range = f"{min(scratch_e04):.3f}–{max(scratch_e04):.3f}" if scratch_e04 else "—"
+    lift_x = f"{fnum(dino_km0, 'ari') / fnum(ae_km0, 'ari'):.1f}×" if (fnum(dino_km0, "ari") and fnum(ae_km0, "ari")) else "—"
 
     s = new_slide(
-        prs, "19 / 24", "五、实验证据",
-        "E04 预训练解耦：表征跃升 >11×，复杂聚类头未再添益（Fig.15）",
-        lead=f"✓ 核心突破：冻结 DINOv2 / CLIP 将 CIFAR-10 ARI 从 **{fval(ae_km0, 'ari')} 拉升至 {fval(dino_km0, 'ari')} / {fval(clip_km0, 'ari')}**；在其上换 GMM 或加 DEC 头反降。",
-        summary="##公平性声明：##DINOv2 与 CLIP 受益于外部大规模预训练数据，实测提取耗时与历史预训练成本分开解读，不与从零方法混排。",
+        prs, slide_ids, "S19_e04_pretrained_decouple", "19 / 24", "五、实验证据",
+        f"E04 预训练解耦：表征跃升 {lift_x}，冻结特征上投影头未添益（Fig.15）",
+        lead=f"✓ 核心对比：左图 5×3 为 **n=1 (seed 0) 配对**（†两格取自同切分 E01）；右表独立给 DINOv2/CLIP K-means **n=3 均值±SD**。",
+        summary="##范围限定：##“复杂聚类器无正收益”仅限当前冻结特征 + 对角 GMM / 10 维投影 DEC 头 + seed 0 设置；外部预训练不作等预算排名。",
     )
-    fit_picture(s, FIGS / "fig_e04_paired.png", 0.36, 1.28, 8.20, 5.34)
+    fit_picture(s, figs_dir / "fig_e04_paired.png", 0.34, 1.28, 8.24, 5.34)
 
-    # Right side: 3-seed stability mini-table + analytical insights
     e04_mini = [
-        ["DINOv2 + KM", fpm(dino3, "ari_mean"), fval(dino3, "acc_mean"), f"{fval(dino3, 'time_feature_sec_mean', 1)}s"],
-        ["CLIP + KM", fpm(clip3, "ari_mean"), fval(clip3, "acc_mean"), f"{fval(clip3, 'time_feature_sec_mean', 1)}s"],
+        ["DINOv2+KM (n=3)", fpm(dino3, "ari_mean"), fval(dino3, "acc_mean"), f"{fval(dino3, 'time_feature_sec_mean', 1)}s"],
+        ["CLIP+KM (n=3)", fpm(clip3, "ari_mean"), fval(clip3, "acc_mean"), f"{fval(clip3, 'time_feature_sec_mean', 1)}s"],
     ]
-    textbox(s, 8.72, 1.32, 4.18, 0.32, "预训练 K-means 三种子稳定性（n=3）", size=12.8, bold=True, color=BLUE_DEEP, space_after=0)
+    textbox(s, 8.72, 1.30, 4.18, 0.30, "独立 3 种子稳定性（n=3，仅 K-means）", size=12.4, bold=True, color=BLUE_DEEP, space_after=0)
     data_table(
-        s, 8.72, 1.68, 4.18,
-        ["方案", "ARI (3-seed)", "ACC", "提特征"],
-        e04_mini, [1.28, 1.28, 0.78, 0.84],
-        font_size=10.8, header_size=11.0, max_h=1.42,
+        s, 8.72, 1.64, 4.18,
+        ["方案", "ARI (n=3)", "ACC", "提特征"],
+        e04_mini, [1.42, 1.22, 0.72, 0.82],
+        font_size=10.4, header_size=10.8, max_h=1.42,
         highlight_cells={(0, 1), (1, 2)}, left_align_cols={0},
     )
     soft_panel(
-        s, 8.72, 3.22, 4.18, 1.62,
+        s, 8.72, 3.18, 4.18, 1.62,
         "纵看行差：表征决定数量级上限",
-        f"• 红虚线上方 3 种从零主干全在 0.013–0.055。\n• 红虚线下方冻结预训练主干跃升 **11 倍以上**，CLIP ACC 达 **{fval(clip3, 'acc_mean')}**。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.6, body_size=11.6,
+        f"• 红虚线上方 3 种从零主干全在 {scratch_range}。\n• 下方冻结预训练主干拉升 **{lift_x}**（seed 0 达 {fval(dino_km0, 'ari')} / {fval(clip_km0, 'ari')}），CLIP ACC 达 **{fval(clip3, 'acc_mean')}**。",
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.4, body_size=11.3,
     )
     soft_panel(
-        s, 8.72, 4.98, 4.18, 1.66,
-        "横看列差：强表示上简单 K-means 即最优",
-        f"• DINOv2 上 K-means ({fval(dino_km0, 'ari')}) 显著高于 GMM (0.574) 与投影 DEC 头 (**{fval(dino_dec0, 'ari')}**)。\n• 强语义空间已近线性可分，额外微调反易破坏几何。",
-        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.6, body_size=11.6,
+        s, 8.72, 4.94, 4.18, 1.70,
+        "横看列差：当前投影头设置下 K-means 最优",
+        f"• seed 0 同特征上，DINOv2+KM ({fval(dino_km0, 'ari')}) 高于 GMM ({fval(dino_gmm0, 'ari')}) 与 10 维 DEC 头 (**{fval(dino_dec0, 'ari')}**)。\n• 结论限定于冻结主干+投影头设置，不外推至端到端微调。",
+        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.4, body_size=11.2,
     )
 
-    # ---- Slide 20: E05 Pareto Frontier (Fig.16) ----
-    f_km = find_row(e01, dataset="fashion_mnist", method="kmeans")
-    f_sim = find_row(e01, dataset="fashion_mnist", method="simclr_kmeans")
-    f_cc = find_row(e01, dataset="fashion_mnist", method="cc")
+    # ---- Slide 20: Retrospective Benchmark Pareto Frontier — Issue #3 & #5 P1.5 Fix ----
+    cf_fm = [r for r in costs if r.get("dataset") == "fashion_mnist"]
+    cf_pca = find_row(cf_fm, method="pca_kmeans")
+    cf_km = find_row(cf_fm, method="kmeans")
+    cf_ae = find_row(cf_fm, method="ae_kmeans")
+    cf_dec = find_row(cf_fm, method="dec")
+    cf_idec = find_row(cf_fm, method="idec")
+    cf_vade = find_row(cf_fm, method="vade")
+    cf_sim = find_row(cf_fm, method="simclr_kmeans")
+    cf_cc = find_row(cf_fm, method="cc")
+    front_e2e_rows = sorted(
+        [r for r in cf_fm if str(r.get("front_ari_time_e2e", "")).lower() == "true"],
+        key=lambda r: fnum(r, "time_train_e2e_mean_sec") or 0.0,
+    )
+    front_chain = " → ".join(
+        f"{SHORT_LABELS.get(r['method'], r['method'])} ({fval(r, 'time_train_e2e_mean_sec', 1)}s)"
+        for r in front_e2e_rows
+    )
 
     s = new_slide(
-        prs, "20 / 24", "五、实验证据",
-        "E05 性能—计算成本帕累托前沿：兼顾速度与精度（Fig.16）",
-        lead=f"✓ 前沿结构：Fashion-MNIST 上仅 **PCA+KM ({fval(f_pca, 'time_train_mean_sec', 1)}s)**、**K-means ({fval(f_km, 'time_train_mean_sec', 1)}s)** 与 **DEC ({fval(f_dec, 'time_train_mean_sec', 1)}s)** 位于两目标帕累托前沿。",
-        summary="##多目标权衡：##其余 6 种方案在“速度—干净 ARI”两维均被支配；纳入噪声保持率与显存后，VaDE 与抗噪经典方法各有不可替代位次。",
+        prs, slide_ids, "S20_benchmark_pareto_e2e", "20 / 24", "五、历史成本基准",
+        "回顾性历史基准：性能—端到端训练成本帕累托前沿（Fig.16）",
+        lead=f"✓ 端到端基准（含测试 ARI，**非 E05**）：补回 AE 预训练后 4 点前沿为 **{front_chain}**。",
+        summary="##口径声明：##本图读取 benchmark_cost_frontiers.csv（使用 E01 测试标签，仅作历史基准回顾），缓存命中微调耗时不可当作免费预训练。",
     )
-    fit_picture(s, FIGS / "fig_e05_pareto.png", 0.34, 1.28, 8.26, 5.36)
+    fit_picture(s, figs_dir / "fig_benchmark_pareto.png", 0.34, 1.28, 8.26, 5.36)
 
-    # Right: Pareto formula + 3-point analysis
     box(s, 8.74, 1.32, 4.16, 0.78, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
     fit_picture(s, ASSETS / "eq_pareto.png", 8.82, 1.36, 4.00, 0.70)
 
     soft_panel(
         s, 8.74, 2.22, 4.16, 2.24,
-        "三条两目标帕累托前沿锚点",
-        f"• ##极速基线 · PCA+KM##：{fval(f_pca, 'time_train_mean_sec', 1)}s / ARI {fval(f_pca)}，适合快速探索与大批量初筛。\n"
-        f"• ##稳健均衡 · K-means##：{fval(f_km, 'time_train_mean_sec', 1)}s / ARI {fval(f_km)}，无需 GPU 且抗噪保持率 93%。\n"
-        f"• ##最高精度 · DEC##：{fval(f_dec, 'time_train_mean_sec', 1)}s / ARI **{fval(f_dec)}**，干净最优。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.5, body_size=11.4,
+        "四点端到端帕累托前沿（Fashion-MNIST）",
+        f"• ##PCA+KM##：{fval(cf_pca, 'time_train_e2e_mean_sec', 1)}s / ARI {fval(cf_pca)}，极速初筛。\n"
+        f"• ##K-means##：{fval(cf_km, 'time_train_e2e_mean_sec', 1)}s / ARI {fval(cf_km)}，无需 GPU 且抗噪 {fret(km0, km3)}。\n"
+        f"• ##AE+KM##：{fval(cf_ae, 'time_train_e2e_mean_sec', 1)}s / ARI {fval(cf_ae)}，端到端回到前沿。\n"
+        f"• ##DEC##：端到端 **{fval(cf_dec, 'time_train_e2e_mean_sec', 1)}s** / ARI **{fval(cf_dec)}**（仅微调 {fval(cf_dec, 'time_train_mean_sec', 1)}s）。",
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.2, body_size=11.0,
     )
     soft_panel(
         s, 8.74, 4.58, 4.16, 2.06,
-        "被支配区域的工程警示",
-        f"• IDEC (40.5s) 与 VaDE (61.4s) 耗时为 DEC 的 1.8–2.8 倍，须结合流形保真或生成需求证明附加价值。\n"
-        f"• 课程版小网络 SimCLR ({fval(f_sim, 'time_train_mean_sec', 0)}s) 与 CC ({fval(f_cc, 'time_train_mean_sec', 0)}s) 耗时超 10 倍，有限算力下性价比低。",
-        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.5, body_size=11.4,
+        "独立端到端 vs. 共享预训练摊销",
+        f"• 独立端到端：DEC {fval(cf_dec, 'time_train_e2e_mean_sec', 1)}s、IDEC {fval(cf_idec, 'time_train_e2e_mean_sec', 1)}s（含 {fval(cf_ae, 'time_train_e2e_mean_sec', 1)}s AE）；三模型共享预训练摊销为 {fval(cf_dec, 'time_train_amortized_mean_sec', 1)}s / {fval(cf_idec, 'time_train_amortized_mean_sec', 1)}s。\n"
+        f"• VaDE ({fval(cf_vade, 'time_train_e2e_mean_sec', 1)}s) 及小 CNN SimCLR ({fval(cf_sim, 'time_train_e2e_mean_sec', 0)}s) / CC ({fval(cf_cc, 'time_train_e2e_mean_sec', 0)}s) 在两维被支配。",
+        fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.2, body_size=10.9,
     )
 
-    # ---- Slide 21: Fig.17 Method Selection Decision Tree ----
+    # ---- Slide 21: Fig.17 Method Selection Decision Tree — Issue #3 & #5 P0.1 ----
     s = new_slide(
-        prs, "21 / 24", "六、方法选型",
-        "实证驱动的方法选型决策树（Fig.17）",
-        lead="✓ 核心产出：综合 E01–E05 全部量化证据，按**外部预训练可用性 → 样本与噪声约束 → 建模目标**三步输出可执行方案。",
-        summary="##无标签部署规范：##新任务无真实类别标签时，必须沿左下角 E05 红线，依据训练侧稳定性（Macro Jaccard）与预测耗时筛选候选。",
+        prs, slide_ids, "S21_selection_decision_tree", "21 / 24", "六、方法选型",
+        "基于历史基准的分场景选型决策树与无标签警示（Fig.17）",
+        lead="✓ 证据分层：Q1–Q3 总结自 **E01–E04 带标签历史基准**；面对全新无标签数据时，须按左下角红框警惕 **E05 稳定≠正确**。",
+        summary="##选型红线：##当前 E05 仅测训练侧扰动稳定性（未纳入预测耗时，CPU/CUDA 耗时不可混排），只用于排雷坍缩，新域语义须少量标注验证。",
     )
     fit_picture(s, ASSETS / "diag_decision_tree.png", 0.34, 1.24, 12.65, 5.44)
 
-    # ---- Slide 22: Verdict on the 3 Core Propositions ----
-    sel_m = sel.get("mnist", {}).get("choice", "pca_kmeans")
-    sel_f = sel.get("fashion_mnist", {}).get("choice", "kmeans")
-    sel_c = sel.get("cifar10", {}).get("choice", "kmeans")
+    # ---- Slide 22: Verdict on 3 Propositions & E05 Negative Result — Issue #1, #2, #3, #5 ----
+    def _sel_counterexample(ds_key: str, ds_lbl: str, best_label: str, best_ari_str: str) -> str:
+        entry = sel.get(ds_key)
+        if not entry or not entry.get("choice"):
+            return f"• {ds_lbl}：**证据不足**（insufficient_evidence）"
+        ch = entry["choice"]
+        jacc = entry.get("evidence", {}).get(ch, {}).get("macro_cluster_jaccard")
+        jacc_s = f"{jacc:.3f}" if isinstance(jacc, (int, float)) else "—"
+        ch_ari = fval(find_row(e01, dataset=ds_key, method=ch), "ari_mean")
+        return f"• {ds_lbl}：最稳 {SHORT_LABELS.get(ch, ch)} (Jaccard {jacc_s}, ARI {ch_ari}) ≪ {best_label} ({best_ari_str})"
+
+    if not sel or all(not sel.get(d, {}).get("choice") for d in ("mnist", "fashion_mnist", "cifar10")):
+        e05_card_body = (
+            "■ ##当前诊断状态：证据不足##\n"
+            "未检测到完整匹配的 selection.json 有效候选（choice 为 null 或文件缺失），按协议返回 **证据不足（insufficient_evidence）**，绝不回退至测试集 ARI。\n\n"
+            "■ ##设计原则##\n"
+            "E05 仅允许读取训练侧无标签扰动诊断，用于排查空簇/坍缩风险；新域语义确认需借助少量人工标注的半监督验证。"
+        )
+    else:
+        speed_used = any(bool(sel.get(d, {}).get("speed_used_in_selection")) for d in ("mnist", "fashion_mnist", "cifar10"))
+        speed_txt = "已启用预测耗时阈值" if speed_used else "仅用训练扰动 Jaccard（未纳入预测耗时，CPU/CUDA 不可混排）"
+        e05_card_body = (
+            f"■ ##负面诊断结论：稳定 ≠ 正确##\n"
+            f"E05 {speed_txt}，高稳定往往偏向对噪声迟钝的像素距离划分——**稳定地分错**：\n"
+            + _sel_counterexample("mnist", "MNIST", "DEC", fval(m_dec)) + "\n"
+            + _sel_counterexample("fashion_mnist", "Fashion", "DEC", fval(f_dec)) + "\n"
+            + _sel_counterexample("cifar10", "CIFAR-10", "DINOv2+KM*", fval(dino3, "ari_mean")) + "\n"
+            + "（*外部预训练不在 E05 从零 9 候选池）\n\n"
+            + "■ ##正确定位##\n"
+            + "E05 仅作**坍缩风险筛查**（淘汰轻噪归零像素 GMM），不可当“最佳方法推荐器”；新域语义确认需少量标注（**半监督/小样本验证**）。"
+        )
 
     s = new_slide(
-        prs, "22 / 24", "六、方法选型",
-        "回到开篇三命题：实证检验结论与无标签选型辨析",
-        lead="✓ 证据闭环：三条命题均获得清晰量化回答——**表征决定上限，联合优化有条件占优，强预训练上简单聚类器已足矣**。",
-        summary="##方法论贡献：##明确区分“无标签训练侧选型（selection.json）”与“带标签回顾性评估（benchmark_interpretation.json）”，杜绝偷看答案。",
+        prs, slide_ids, "S22_verdict_e05_negative", "22 / 24", "六、方法选型",
+        "回到开篇三命题：实证检验结论与 E05 负面诊断（稳定 ≠ 正确）",
+        lead="✓ 证据闭环：三项命题全部获得量化回答，同时 E05 揭示**单纯最大化无标签扰动稳定性会选出语义较差的像素基线**。",
+        summary="##方法论贡献：##严格隔离 selection.json（无标签训练稳定性排雷）与 benchmark_interpretation.json（带标签回顾解读），详见附录 A5。",
     )
     verdicts = [
         ("命题 1：表征是否比聚类器更重要？", "强支持", TEAL, TEAL_SOFT,
-         f"• E04（CIFAR-10）：换冻结预训练编码器带来 **>11× ARI 跃升**（0.05→{fval(dino_km0, 'ari')}）；换聚类器无正增益。\n"
-         f"• E01（MNIST）：AE 非线性映射将 K-means 从 0.368 提升至 0.587，贡献整体提升的主体。"),
+         f"• E04（CIFAR-10）：冻结预训练带来 **{lift_x} ARI 跃升**（{fval(ae_km0, 'ari')}→{fval(dino_km0, 'ari')}），同特征换聚类器无正益。\n"
+         f"• E01（MNIST）：AE 非线性映射将 K-means 从 {fval(m_km)} 提升至 {fval(m_ae)}，贡献整体增益主体。"),
         ("命题 2：联合优化是否始终优于两阶段？", "有条件成立（非总是）", AMBER, AMBER_SOFT,
-         f"• 干净充足数据上成立：DEC 在 MNIST ({fval(m_dec)}) 与 Fashion ({fval(f_dec)}) 均高于 AE+KM。\n"
-         "• 边界条件下失效：强噪声（σ≥0.2）、极小样本（1%）或 λ≥1 量纲失配时优势反转；且 E02 表明初始化贡献远大于微调。"),
-        ("命题 3：强预训练特征下复杂聚类是否值得？", "本实验不支持", BLUE_DEEP, BLUE_SOFT,
-         f"• 在冻结 DINOv2 与 CLIP 特征上，朴素 K-means（{fval(dino3, 'ari_mean')} / {fval(clip3, 'ari_mean')}）即为最强基线。\n"
-         f"• 叠加 GMM 或 20 轮 DEC 投影头耗时更高且 ARI 反降（DINOv2 跌至 {fval(dino_dec0, 'ari')}）。"),
+         f"• 干净充足数据占优：DEC 在 MNIST ({fval(m_dec)}) 与 Fashion ({fval(f_dec)}) 高于 AE+KM ({fval(m_ae)} / {fval(f_ae)})。\n"
+         f"• 边界条件下反转：强噪声（σ≥0.2）、1% 小样本下落后 K-means；E02 亦显示 λ 受早停轮数共变且初始化贡献远超微调。"),
+        ("命题 3：强预训练特征下复杂聚类是否值得？", "当前设置不支持", BLUE_DEEP, BLUE_SOFT,
+         f"• 冻结 DINOv2 / CLIP 特征上，朴素 K-means（n=3: {fval(dino3, 'ari_mean')} / {fval(clip3, 'ari_mean')}）即为最强基线。\n"
+         f"• 本次 seed 0 叠加对角 GMM 或 10 维 DEC 投影头耗时更高且 ARI 反降（DINOv2 跌至 {fval(dino_dec0, 'ari')}）。"),
     ]
     for i, (q, tag, col, tint, body) in enumerate(verdicts):
         vy = 1.30 + i * 1.84
-        box(s, 0.42, vy, 8.40, 1.66, tint, col, 1.1, 0.05)
+        box(s, 0.42, vy, 8.20, 1.66, tint, col, 1.1, 0.05)
         box(s, 0.58, vy + 0.16, 2.15, 0.36, col, None, 0.0, 0.22)
         textbox(s, 0.58, vy + 0.16, 2.15, 0.36, tag, size=11.5, bold=True, color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-        textbox(s, 2.86, vy + 0.15, 5.80, 0.38, q, size=14.0, bold=True, color=col, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-        textbox(s, 0.58, vy + 0.62, 8.08, 0.94, body, size=12.0, color=INK, line_spacing=1.28, space_after=4)
+        textbox(s, 2.86, vy + 0.15, 5.60, 0.38, q, size=13.8, bold=True, color=col, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+        textbox(s, 0.58, vy + 0.62, 7.88, 0.94, body, size=11.7, color=INK, line_spacing=1.26, space_after=4)
 
-    # Right side: E05 label-free selection vs retrospective interpretation card
     header_card(
-        s, 9.02, 1.30, 3.88, 5.34,
-        "选型规则 vs. 回顾榜单",
-        "■ ##为什么不拿测试 ARI 选模型？##\n真实部署没有测试标签；用测试 ARI 反选属于数据泄露。\n\n"
-        f"■ ##无标签稳定性选型 (E05)##\n仅在拟合训练子集上测扰动 Macro Jaccard：\n"
-        f"• MNIST → {METHOD_LABELS.get(sel_m, sel_m)}\n"
-        f"• Fashion → {METHOD_LABELS.get(sel_f, sel_f)}\n"
-        f"• CIFAR-10 → {METHOD_LABELS.get(sel_c, sel_c)}\n\n"
-        "■ ##带标签历史回顾 (E01–E04)##\n仅用于事后总结域特性与帕累托权衡，两套文件独立保存（详见附录 A5）。",
-        header_fill=PURPLE, body_fill=PURPLE_SOFT, border=PURPLE, title_size=13.5, body_size=11.8, line_spacing=1.25,
+        s, 8.80, 1.30, 4.10, 5.34,
+        "E05 负面诊断：稳定 ≠ 正确",
+        e05_card_body,
+        header_fill=PURPLE, body_fill=PURPLE_SOFT, border=PURPLE, title_size=13.2, body_size=11.0, line_spacing=1.23,
     )
 
     # ---- Slide 23: Limitations & Open Problems ----
     s = new_slide(
-        prs, "23 / 24", "六、局限与展望",
+        prs, slide_ids, "S23_limitations_future", "23 / 24", "六、局限与展望",
         "实验边界、实现局限与未来开放研究方向",
         lead="✓ 学术诚信：下列 **四项硬边界** 必须与前文实证结论一并阅读，防止将特定协议下的观测外推为无条件普适排名。",
-        summary="##复现与透明声明：##所有限制均已同步写入仓库 README.md、docs/experiment_protocol.md 与 AGENTS.md。",
+        summary="##复现与透明声明：##所有限制均已同步写入仓库 README.md、docs/experiment_protocol.md、docs/method_selection.md 与 AGENTS.md。",
     )
     lims = [
-        ("1. 真实类数 K=10 已知假设", "主基准固定 K=10；尽管附录 A4 测试了 K=5..20 错配，但真实无监督探索往往连类别粒度都未预先定义。"),
-        ("2. 固定子集与单种子消融范围", "E01 与预训练 K-means 严格做 3 种子；E02、E03 敏感性与 E04 交叉矩阵在协议下为 seed 0 单划分观测。"),
-        ("3. 课程预算下的具体算法实现边界", "SimCLR 与 CC 采用 128 维小型 CNN（非原论文 ResNet），且 CC 省去官方簇熵项；VaDE 用每图 SSE 而非 Bernoulli 交叉熵；GMM 为对角协方差。"),
-        ("4. 外部预训练数据预算不对等", "DINOv2 与 CLIP 在课程前已学习海量外部视觉/图文样本，其高分反映先验知识迁移，而非聚类算法公式本身更优。"),
+        ("1. 真实类数 K=10 已知与单种子消融边界", "主基准固定 K=10；E01 与预训练 K-means 为 3 种子，E02、E03 敏感性与 E04 5×3 矩阵为 seed 0 单次观测，且 E02 λ 与早停轮数共变。"),
+        ("2. 课程预算下的具体算法实现边界", "SimCLR/CC 采用 128 维小型 CNN，且 CC 省去官方簇熵项导致簇偏斜；VaDE 用每图 SSE 而非 Bernoulli 交叉熵；GMM 为标准化对角协方差实现。"),
+        ("3. 外部预训练数据预算不对等与冻结范围", "DINOv2 与 CLIP 受益于海量外部预训练数据；E04 负增益结论仅限冻结主干 + 10 维投影头设置，不外推至端到端大主干微调。"),
+        ("4. E05 候选池与纯无标签选择局限", "当前 E05 仅覆盖从零 9 候选且未纳入预测耗时；扰动稳定性只能筛查坍缩风险，不能替代少量人工标注的半监督语义验证。"),
     ]
     box(s, 0.42, 1.30, 7.60, 5.34, WHITE, AMBER, 1.2, 0.05)
     box(s, 0.42, 1.30, 7.60, 0.42, AMBER, None, 0.0, None)
@@ -1001,44 +1110,45 @@ def build_slides(prs, ctx: dict) -> None:
     for i, (hd, bd) in enumerate(lims):
         ly = 1.84 + i * 1.18
         box(s, 0.60, ly, 7.24, 1.06, AMBER_SOFT if i % 2 == 0 else SLATE_SOFT, BLUE_LINE, 0.6, 0.05)
-        textbox(s, 0.76, ly + 0.08, 6.92, 0.30, hd, size=12.5, bold=True, color=AMBER if i % 2 == 0 else BLUE_DEEP, space_after=0)
-        textbox(s, 0.76, ly + 0.40, 6.92, 0.60, bd, size=11.3, color=INK, line_spacing=1.20)
+        textbox(s, 0.76, ly + 0.08, 6.92, 0.30, hd, size=12.2, bold=True, color=AMBER if i % 2 == 0 else BLUE_DEEP, space_after=0)
+        textbox(s, 0.76, ly + 0.40, 6.92, 0.60, bd, size=11.0, color=INK, line_spacing=1.18)
 
     opens = [
         ("方向 1：未知 K 的自适应聚类", "结合非参数贝叶斯、谱间隙或视觉语言模型粒度协商，动态确定簇数与层级结构。", BLUE_DEEP, BLUE_SOFT),
-        ("方向 2：无标签模型选择理论", "如何仅凭无标签稳定性、流形局部一致度与计算预算，可靠逼近真实语义分组质量。", TEAL, TEAL_SOFT),
+        ("方向 2：超越稳定性的无标签/少样本选型", "针对 E05“稳定≠正确”瓶颈，探索结合极少量标注（半监督验证）或跨视图语义一致性的可靠选型准则。", TEAL, TEAL_SOFT),
         ("方向 3：VLM 语义引导与分布鲁棒", "沿 TAC (ICML 2024) 与 VLM4Cluster (2026) 脉络，研究外部文本先验在跨领域漂移下的失真与成本边界。", PURPLE, PURPLE_SOFT),
     ]
     for i, (hd, bd, col, tint) in enumerate(opens):
         oy = 1.30 + i * 1.82
-        header_card(s, 8.24, oy, 4.67, 1.68, hd, bd, header_fill=col, body_fill=tint, border=col, title_size=13.0, body_size=11.8, header_h=0.38)
+        header_card(s, 8.24, oy, 4.67, 1.68, hd, bd, header_fill=col, body_fill=tint, border=col, title_size=12.6, body_size=11.5, header_h=0.38)
 
     # ---- Slide 24: Closing & Reproducibility ----
+    slide_ids.append("S24_closing_repro")
     s = prs.slides.add_slide(prs.slide_layouts[6])
     box(s, 0, 0, W, H, WHITE)
     box(s, 0, 0, W, 0.08, BLUE_DEEP)
     box(s, 0.42, 0.35, 12.49, 1.35, BLUE_DEEP, None, 0.0, 0.06)
-    textbox(s, 0.75, 0.48, 11.80, 0.56, "总结：先问表示与预算，再决定是否需要复杂聚类器",
-            size=24.0, bold=True, color=WHITE, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+    textbox(s, 0.75, 0.48, 11.80, 0.56, "总结：先问表示与预算，再区分历史基准与无标签排雷",
+            size=23.5, bold=True, color=WHITE, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
     textbox(s, 0.75, 1.08, 11.80, 0.48, "聚类算法解决的是“如何划界”；它划在怎样的表示空间里，往往比划界公式本身更决定成败。",
             size=14.5, color=RGBColor(0xFD, 0xE6, 0x8A), anchor=MSO_ANCHOR.MIDDLE, space_after=0)
 
     c_rules = [
-        ("准则 1 · 表示优先", "先检查已有预训练或简单降维坐标是否已具语义；自然图像优先冻结视觉基础模型 + K-means。", BLUE_DEEP, BLUE_SOFT),
-        ("准则 2 · 初始化与量纲", "从零训练深度聚类时，AE 预训练 + K-means 初始化贡献主导收益；IDEC 须先对齐 KL 与 SSE 量纲。", TEAL, TEAL_SOFT),
-        ("准则 3 · 预算与稳健边界", "强噪声、极小样本或极紧算力下，PCA+K-means 与像素 K-means 是更稳健可靠的帕累托基线。", AMBER, AMBER_SOFT),
+        ("准则 1 · 表示优先", "先评估已有预训练或简单降维坐标是否已具语义；自然图像优先冻结视觉基础模型 + K-means。", BLUE_DEEP, BLUE_SOFT),
+        ("准则 2 · 端到端成本与边界", "按含前置预训练的端到端成本权衡复杂度；强噪声、极小样本下 PCA+KM / K-means 更稳健。", TEAL, TEAL_SOFT),
+        ("准则 3 · 稳定性 ≠ 语义正确", "无标签训练稳定性只能排雷坍缩风险，不能替代语义验证；新域确认须依赖少量标注样本。", AMBER, AMBER_SOFT),
     ]
     for i, (hd, bd, col, tint) in enumerate(c_rules):
         cx = 0.42 + i * 4.22
-        header_card(s, cx, 1.98, 4.04, 2.75, hd, bd, header_fill=col, body_fill=tint, border=col, title_size=15.0, body_size=13.5, header_h=0.46, line_spacing=1.32)
+        header_card(s, cx, 1.98, 4.04, 2.75, hd, bd, header_fill=col, body_fill=tint, border=col, title_size=14.5, body_size=13.2, header_h=0.46, line_spacing=1.32)
 
     box(s, 0.42, 4.98, 12.49, 1.56, SLATE_SOFT, BLUE_LINE, 1.0, 0.06)
     textbox(s, 0.68, 5.10, 12.0, 0.36, "开源可复现与完整归档入口", size=14.0, bold=True, color=BLUE_DEEP, space_after=0)
     textbox(s, 0.68, 5.52, 12.0, 0.90,
-            f"■ ##GitHub 代码与证据仓库##：github.com/KQYaili/DeepClustering-Survey（协议、源码、{n_ok} 条原始 JSON、分析脚本、图表与 PPT）\n"
+            f"■ ##GitHub 代码与证据仓库##：github.com/KQYaili/DeepClustering-Survey（协议、源码、{n_ok} 条原始 JSON、CI 测试、图表与 PPT）\n"
             "■ ##Google Drive 完整归档##：DeepClustering-Survey（含 217 份训练权重 checkpoints、外部预训练缓存与历史溯源备份）\n"
-            "■ ##答疑跳转提示##：附录 A1（全指标表） · A2（E02 维度/组件） · A3–A4（E03 敏感性） · A5（E05 稳定性） · A6（文献与审计）",
-            size=12.0, color=INK, line_spacing=1.32)
+            "■ ##答疑跳转提示##：附录 A1（全指标与端到端耗时） · A2（E02 维度/组件） · A3–A4（E03 敏感性） · A5（E05 负面诊断） · A6（文献与审计）",
+            size=11.8, color=INK, line_spacing=1.32)
 
     textbox(s, 0.42, 6.76, 10.8, 0.46, "感谢各位老师与同学聆听！欢迎批评指正与交流讨论。",
             size=16.5, bold=True, color=BLUE_DEEP, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
@@ -1052,100 +1162,112 @@ def build_slides(prs, ctx: dict) -> None:
 
     # ---- Slide 25 (A1): Full E01 Quantitative Metrics Table ----
     s = new_slide(
-        prs, "A1 / A6", "技术附录",
-        "附录 A1：E01 全指标量化汇总表（ACC / NMI / ARI / 耗时）",
-        lead="✓ 完整记录：以下全部数字直接读取自 results/tables/e01_summary.csv（3 种子均值），便于答疑时核验 ACC、NMI 与 ARI 一致性。",
-        summary="##说明：##SimCLR 与 CC 使用 128 维小型 CNN；参数量与峰值显存详列于仓库 e01_summary.csv，轮廓系数仅限各自嵌入空间内部解读。",
+        prs, slide_ids, "A01_e01_full_table", "A1 / A6", "技术附录",
+        "附录 A1：E01 全指标量化汇总表（含 ±SD、端到端耗时与簇偏斜）",
+        lead="✓ 完整记录：以下全部数字直接读取自 results/tables/e01_summary.csv（n=3 种子），Fashion 耗时列为独立端到端训练秒数。",
+        summary=f"##簇偏斜诊断：##课程版 CC 省略官方熵项，MNIST/CIFAR 最大单簇占比达 {m_cc_mf}/{c_cc_mf}；IDEC 表格配置为 λ=1.0。",
     )
     a1_rows = []
     hi_a1: set[tuple[int, int]] = set()
     method_order = ["kmeans", "pca_kmeans", "gmm", "ae_kmeans", "dec", "idec", "vade", "simclr_kmeans", "cc"]
-    # Identify column maxima for ACC/NMI/ARI
     best_idx = {}
     for ds in ("mnist", "fashion_mnist", "cifar10"):
-        for mk in ("acc_mean", "nmi_mean", "ari_mean"):
-            vals = [(i, float(find_row(e01, dataset=ds, method=m)[mk])) for i, m in enumerate(method_order) if find_row(e01, dataset=ds, method=m)]
-            if vals:
-                best_idx[(ds, mk)] = max(vals, key=lambda x: x[1])[0]
+        vals = [(i, fnum(find_row(e01, dataset=ds, method=m), "ari_mean")) for i, m in enumerate(method_order)]
+        vals = [(i, v) for i, v in vals if v is not None]
+        if vals:
+            best_idx[ds] = max(vals, key=lambda x: x[1])[0]
 
     for i, m in enumerate(method_order):
         rm = find_row(e01, dataset="mnist", method=m)
         rf = find_row(e01, dataset="fashion_mnist", method=m)
         rc = find_row(e01, dataset="cifar10", method=m)
+        t_e2e = fval(rf, "time_train_e2e_mean_sec", 1)
+        t_raw = fval(rf, "time_train_mean_sec", 1)
+        t_disp = f"{t_e2e}s" if t_e2e == t_raw else f"{t_e2e}s ({t_raw}s*)"
         a1_rows.append([
             METHOD_LABELS[m],
-            fval(rm, "acc_mean"), fval(rm, "nmi_mean"), fval(rm, "ari_mean"),
-            fval(rf, "acc_mean"), fval(rf, "nmi_mean"), fval(rf, "ari_mean"),
-            f"{fval(rf, 'time_train_mean_sec', 1)}s",
-            fval(rc, "ari_mean"),
+            fval(rm, "acc_mean"), fval(rm, "nmi_mean"), fpm(rm, "ari_mean"),
+            fval(rf, "acc_mean"), fval(rf, "nmi_mean"), fpm(rf, "ari_mean"),
+            t_disp,
+            fpm(rc, "ari_mean"),
         ])
-        if best_idx.get(("mnist", "ari_mean")) == i:
+        if best_idx.get("mnist") == i:
             hi_a1.add((i, 3))
-        if best_idx.get(("fashion_mnist", "ari_mean")) == i:
+        if best_idx.get("fashion_mnist") == i:
             hi_a1.add((i, 6))
-        if best_idx.get(("cifar10", "ari_mean")) == i:
+        if best_idx.get("cifar10") == i:
             hi_a1.add((i, 8))
 
     data_table(
-        s, 0.42, 1.32, 12.49,
-        ["方法", "MNIST ACC", "MNIST NMI", "MNIST ARI", "Fashion ACC", "Fashion NMI", "Fashion ARI", "Fashion 耗时", "CIFAR ARI"],
-        a1_rows, [2.15, 1.25, 1.25, 1.28, 1.30, 1.30, 1.30, 1.36, 1.30],
-        font_size=11.5, header_size=11.5, max_h=5.25, highlight_cells=hi_a1, left_align_cols={0},
+        s, 0.36, 1.32, 12.61,
+        ["方法（*括号为缓存微调）", "M-ACC", "M-NMI", "MNIST ARI±SD", "F-ACC", "F-NMI", "Fashion ARI±SD", "Fashion 端到端", "CIFAR ARI±SD"],
+        a1_rows, [2.25, 0.88, 0.88, 1.65, 0.88, 0.88, 1.65, 1.89, 1.65],
+        font_size=10.3, header_size=10.5, max_h=5.25, highlight_cells=hi_a1, left_align_cols={0},
     )
 
     # ---- Slide 26 (A2): E02 Latent Dim (Fig.10) & Component Ablations ----
     d2 = find_row(e02, factor="latent_dim", value=2.0)
     d10 = find_row(e02, factor="latent_dim", value=10.0)
+    c_base = find_row(e02, factor="pretrain", value="True")
     c_np = find_row(e02, factor="pretrain", value="False")
     c_rc = find_row(e02, factor="center_init", value="random")
     c_fr = find_row(e02, factor="freeze_encoder", value="True")
+    d_np = fdiff(fnum(c_np, "ari"), fnum(c_base, "ari"))
+    d_rc = fdiff(fnum(c_rc, "ari"), fnum(c_base, "ari"))
+    d_fr = fdiff(fnum(c_fr, "ari"), fnum(c_base, "ari"))
 
     s = new_slide(
-        prs, "A2 / A6", "技术附录",
+        prs, slide_ids, "A02_e02_latent_components", "A2 / A6", "技术附录",
         "附录 A2：E02 隐空间维度曲线（Fig.10）与初始化组件消融",
-        lead=f"✓ 补充消融（Fashion-MNIST, IDEC, seed 0）：隐维度在 **d=10 达峰值 ({fval(d10)})**；去掉 AE 预训练或 K-means 初始化令 ARI **暴跌 0.12**。",
-        summary="##工程洞察：##相比“冻结编码器 (-0.022)”，高质量初始化贡献了超过 5 倍的 ARI 增益，说明联合优化高度依赖良好起点。",
+        lead=f"✓ 补充消融（n=1, seed 0）：维度 5 档均跑满 50 ep，**d=10 峰值 {fval(d10)}**；取消预训练 ({d_np}) 或随机中心 ({d_rc}) 远大于冻结编码器 ({d_fr})。",
+        summary="##工程洞察：##与存在早停共变的 λ 网格不同，维度 d 与初始化组件均在统一 50 ep 下对照（冻结编码器 10 ep 属结构性早停）。",
     )
-    fit_picture(s, FIGS / "fig_e02_latent.png", 0.36, 1.32, 6.22, 4.22)
-    fit_picture(s, FIGS / "fig_e02_components.png", 6.76, 1.32, 6.22, 4.22)
+    fit_picture(s, figs_dir / "fig_e02_latent.png", 0.36, 1.32, 6.22, 4.22)
+    fit_picture(s, figs_dir / "fig_e02_components.png", 6.76, 1.32, 6.22, 4.22)
     soft_panel(
         s, 0.42, 5.64, 6.10, 1.02,
-        "左图 · 隐空间维度 d（2 → 128）",
+        "左图 · 隐空间维度 d（2 → 128，均 50 ep）",
         f"d=2 信息瓶颈过窄（SSE {fval(d2, 'recon_sse', 1)}, ARI {fval(d2)}）；d≥32 重构趋平但高维稀释距离，d=10 兼顾紧致与可分。",
         fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.0, body_size=11.0,
     )
     soft_panel(
         s, 6.81, 5.64, 6.10, 1.02,
-        "右图 · 组件剥离归因",
-        f"取消 AE 预训练 ({fval(c_np)}) 与随机初始化中心 ({fval(c_rc)}) 均损失 -0.12 ARI，远大于冻结编码器 ({fval(c_fr)}) 的 -0.022。",
+        "右图 · 组件剥离归因（相对基准 ΔARI）",
+        f"取消 AE 预训练 ({fval(c_np)}, Δ={d_np}) 与随机中心 ({fval(c_rc)}, Δ={d_rc}) 降幅远超冻结编码器 ({fval(c_fr)}, Δ={d_fr})。",
         fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.0, body_size=11.0,
     )
 
     # ---- Slide 27 (A3): E03 Class Imbalance (Fig.12) & Sample Efficiency (Fig.13) ----
-    imb_idec = find_row(e03s, factor="imbalance", method="idec", value=50.0)
+    imb50_rows = [r for r in e03s if r.get("factor") == "imbalance" and fnum(r, "value") == 50.0]
+    imb_idec = find_row(imb50_rows, method="idec")
+    imb_km = find_row(imb50_rows, method="kmeans")
+    imb1_row = find_row(e03s, factor="imbalance", method="idec", value=1.0)
+    n_imb1 = f"{int(fnum(imb1_row, 'n_train')):,}" if fnum(imb1_row, "n_train") else "—"
+    n_imb50 = f"{int(fnum(imb_idec, 'n_train')):,}" if fnum(imb_idec, "n_train") else "—"
     sf_km = find_row(e03s, factor="sample_frac", method="kmeans", value=0.01)
     sf_dec = find_row(e03s, factor="sample_frac", method="dec", value=0.01)
     sf_ae = find_row(e03s, factor="sample_frac", method="ae_kmeans", value=0.01)
+    n_sf01 = f"{int(fnum(sf_km, 'n_train')):,}" if fnum(sf_km, "n_train") else "—"
 
     s = new_slide(
-        prs, "A3 / A6", "技术附录",
+        prs, slide_ids, "A03_e03_imbalance_samples", "A3 / A6", "技术附录",
         "附录 A3：E03 类别长尾不平衡（Fig.12）与样本规模效率（Fig.13）",
-        lead=f"✓ 边界规律：50:1 极端长尾下 IDEC 略稳 ({fval(imb_idec)})；**1% 极小样本（200 张）时像素 K-means ({fval(sf_km)}) 远超所有神经方法**。",
-        summary="##适用区间：##样本量达到 10%–25%（2,000–5,000 张）以上后，深度嵌入聚类 DEC/IDEC 才稳定建立相对于 K-means 的优势。",
+        lead=f"✓ 边界规律（n=1, seed 0）：50:1 长尾（n_train={n_imb50}）下 IDEC ({fval(imb_idec)}) 略稳；**1% 样本（{n_sf01} 张）时 K-means ({fval(sf_km)}) 显著领先**。",
+        summary="##适用区间：##长尾采样同时缩小了总样本量（见左图横轴标注）；样本量达 10%–25% 以上后深度嵌入聚类才稳定建立优势。",
     )
-    fit_picture(s, FIGS / "fig_e03_imbalance.png", 0.36, 1.32, 6.22, 4.20)
-    fit_picture(s, FIGS / "fig_e03_sample_frac.png", 6.76, 1.32, 6.22, 4.20)
+    fit_picture(s, figs_dir / "fig_e03_imbalance.png", 0.36, 1.32, 6.22, 4.20)
+    fit_picture(s, figs_dir / "fig_e03_sample_frac.png", 6.76, 1.32, 6.22, 4.20)
     soft_panel(
         s, 0.42, 5.64, 6.10, 1.02,
-        "左图 · 长尾不平衡（1:1 → 50:1）",
-        f"训练集比例通过实验设计构造（fit 仍不见标签），干净测试集评价；50:1 时退化至 0.27–{fval(imb_idec)}，IDEC 略居前。",
-        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=12.0, body_size=11.0,
+        f"左图 · 长尾不平衡（n_train: {n_imb1} → {n_imb50}）",
+        f"训练集按实验设计抽样（fit 仍不见标签），干净测试集评价；50:1 时 K-means 降至 {fval(imb_km)}，IDEC 保持 {fval(imb_idec)}。",
+        fill=TEAL_SOFT, border=TEAL, title_color=TEAL, title_size=11.8, body_size=11.0,
     )
     soft_panel(
         s, 6.81, 5.64, 6.10, 1.02,
         "右图 · 无标签样本效率（1% → 100%）",
-        f"200 张极小样本下深度网络过拟合严重（DEC {fval(sf_dec)} / AE {fval(sf_ae)}），传统 K-means 无需训参反而最稳（{fval(sf_km)}）。",
-        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=12.0, body_size=11.0,
+        f"{n_sf01} 张极小样本下深度网络过拟合明显（DEC {fval(sf_dec)} / AE {fval(sf_ae)}），传统 K-means 无需训参反而最稳（{fval(sf_km)}）。",
+        fill=BLUE_SOFT, border=BLUE_DEEP, title_color=BLUE_DEEP, title_size=11.8, body_size=11.0,
     )
 
     # ---- Slide 28 (A4): E03 K Mismatch (Fig.14) & Outlier Pollution ----
@@ -1156,15 +1278,17 @@ def build_slides(prs, ctx: dict) -> None:
     out20_idec = find_row(e03s, factor="outlier_frac", method="idec", value=0.2)
     out0_km = find_row(e03s, factor="outlier_frac", method="kmeans", value=0.0)
     out20_km = find_row(e03s, factor="outlier_frac", method="kmeans", value=0.2)
+    dec_out_d = fdiff(fnum(out20_dec, "ari"), fnum(out0_dec, "ari"))
+    idec_out_d = fdiff(fnum(out20_idec, "ari"), fnum(out0_idec, "ari"))
 
     s = new_slide(
-        prs, "A4 / A6", "技术附录",
+        prs, slide_ids, "A04_e03_k_outliers", "A4 / A6", "技术附录",
         "附录 A4：E03 预设聚类数 K 错配（Fig.14）与异常样本污染",
-        lead="✓ 未知类数与脏数据测试：低估 K=5 重创所有方法，适度高估（K=12–20）时 **DEC 退化最平缓**；20% 异常污染下各方法降幅有限。",
+        lead="✓ 未知类数与脏数据测试（n=1, seed 0）：低估 K=5 重创所有方法，适度高估（K=12–20）时 **DEC 退化最平缓**。",
         summary="##实务建议：##未知真实类数时，宁可轻度高估 K 再做后处理合并，避免严重低估；脏数据比例高时可辅以异常检测或简单基线兜底。",
     )
-    fit_picture(s, FIGS / "fig_e03_k.png", 0.36, 1.32, 6.22, 4.20)
-    fit_picture(s, FIGS / "fig_e03_outlier_frac.png", 6.76, 1.32, 6.22, 4.20)
+    fit_picture(s, figs_dir / "fig_e03_k.png", 0.36, 1.32, 6.22, 4.20)
+    fit_picture(s, figs_dir / "fig_e03_outlier_frac.png", 6.76, 1.32, 6.22, 4.20)
     soft_panel(
         s, 0.42, 5.64, 6.10, 1.02,
         "左图 · 预设聚类数 K 错配（真实 K=10）",
@@ -1174,31 +1298,34 @@ def build_slides(prs, ctx: dict) -> None:
     soft_panel(
         s, 6.81, 5.64, 6.10, 1.02,
         "右图 · 均匀噪声异常图污染（0% → 20%）",
-        f"DEC ({fval(out0_dec)}→{fval(out20_dec)}) 与 IDEC ({fval(out0_idec)}→{fval(out20_idec)}) 缓降约 0.03–0.04；像素 K-means 在 {fval(out0_km)}–{fval(out20_km)} 保持平稳。",
+        f"DEC ({fval(out0_dec)}→{fval(out20_dec)}, Δ={dec_out_d}) 与 IDEC ({fval(out0_idec)}→{fval(out20_idec)}, Δ={idec_out_d}) 缓降；K-means 在 {fval(out0_km)}–{fval(out20_km)} 平稳。",
         fill=AMBER_SOFT, border=AMBER, title_color=AMBER, title_size=12.0, body_size=11.0,
     )
 
-    # ---- Slide 29 (A5): E05 Label-Free Training Stability vs. Retrospective ARI ----
+    # ---- Slide 29 (A5): E05 Negative Diagnostic (3 Datasets) ----
+    m_gmm_j = sel.get("mnist", {}).get("evidence", {}).get("gmm", {}).get("macro_cluster_jaccard")
+    f_gmm_j = sel.get("fashion_mnist", {}).get("evidence", {}).get("gmm", {}).get("macro_cluster_jaccard")
+    gmm_j_s = f"{f_gmm_j:.3f}–{m_gmm_j:.3f}" if (isinstance(m_gmm_j, (int, float)) and isinstance(f_gmm_j, (int, float))) else "—"
     s = new_slide(
-        prs, "A5 / A6", "技术附录",
-        "附录 A5：E05 无标签训练稳定性诊断 vs. 带标签回顾性 ARI",
-        lead="✓ 方法论核心：无标签部署只能观察##训练侧扰动稳定性（蓝条）##，它偏好几何稳定的 **PCA+KM / K-means**，不同于事后 ARI 排序（橙条）。",
-        summary="##证据来源：##蓝条来自 results/raw/E05_train/*.npz（selection.json），橙条来自 e01_summary.csv，二者独立记录、严格分用。",
+        prs, slide_ids, "A05_e05_stability_negative", "A5 / A6", "技术附录",
+        "附录 A5：E05 负面诊断三数据集对照（训练稳定性 ≠ 语义正确）",
+        lead="✓ 三数据集一致反例：蓝条（无标签训练稳定性，未纳耗时）均选中像素 K-means/PCA+KM，但橙条（历史 ARI）全部落后于最优路线。",
+        summary="##探索性补充：##在 6 种正常工作方法上，稳定性与 ARI 的 Spearman 秩相关在三数据集均为负（-0.49/-0.60/-0.54，n=6 小样本反例，非统计定论）。",
     )
-    fit_picture(s, FIGS / "fig_e05_stability.png", 0.36, 1.26, 12.60, 4.32)
+    fit_picture(s, figs_dir / "fig_e05_stability.png", 0.30, 1.24, 12.73, 4.38)
     soft_panel(
-        s, 0.42, 5.68, 12.49, 0.98,
-        "为何要将无标签诊断与带标签基准分开保存？",
-        "E05 在已拟合的 2,000 张训练图上施加 σ=0.1 微扰并计算各簇 Macro Jaccard：高维 GMM 立即暴露塌缩（0.00–0.03）而被自动淘汰；PCA+KM / K-means 稳定性约 0.95，提供保守可靠的无标签兜底。",
-        fill=PURPLE_SOFT, border=PURPLE, title_color=PURPLE, title_size=12.0, body_size=11.2,
+        s, 0.42, 5.70, 12.49, 0.96,
+        "正确使用 E05：坍缩风险筛查器，而非最佳方法推荐器",
+        f"E05 在拟合训练子集施加 σ=0.1 微扰：能立刻排雷轻噪坍缩的像素 GMM（Jaccard {gmm_j_s}），但因不感知语义且不含外部预训练路线，无法选出语义最优模型；新域确认语义需少量标注（半监督验证）。",
+        fill=PURPLE_SOFT, border=PURPLE, title_color=PURPLE, title_size=11.8, body_size=11.0,
     )
 
     # ---- Slide 30 (A6): Core Literature Index & Reproducibility Audit ----
     s = new_slide(
-        prs, "A6 / A6", "技术附录",
+        prs, slide_ids, "A06_refs_audit", "A6 / A6", "技术附录",
         "附录 A6：核心文献核验索引与可复现审计清单",
-        lead="✓ 文献与数据溯源：全部引用严格对齐 docs/bibliography.bib；实验覆盖、失败留痕与协议修复哈希均公开可核验。",
-        summary="##审计结论：##15 项核心单元测试全部通过，809/809 队列任务覆盖率 100%，GitHub 与 Google Drive 双端完整归档。",
+        lead="✓ 文献与数据溯源：全部引用严格对齐 docs/bibliography.bib；测试标签隔离、端到端成本与讲稿 ID 绑定均纳入自动化测试。",
+        summary="##审计结论：##覆盖核心单元测试、标签隔离/成本/PPT 绑定回归测试及 GitHub Actions CI，GitHub 与 Google Drive 双端完整归档。",
     )
     bib_rows = [
         ["Zhou et al., 2025", "ACM Computing Surveys", "深度聚类综述；图 1 四类交互分类骨架"],
@@ -1207,7 +1334,7 @@ def build_slides(prs, ctx: dict) -> None:
         ["Jiang et al., 2017", "IJCAI", "VaDE：VAE + 高斯混合先验生成式深度聚类"],
         ["Caron et al., 2018/20", "ECCV / NeurIPS", "DeepCluster 伪标签迭代；SwAV 跨视图原型一致"],
         ["Chen et al., 2020", "ICML", "SimCLR：实例级对比视觉表征（+离线 K-means）"],
-        ["Li et al., 2021", "AAAI", "Contrastive Clustering (CC)：实例+簇双头对比"],
+        ["Li et al., 2021", "AAAI", "Contrastive Clustering (CC)：实例+簇联合对比"],
         ["Oquab 2024 / Radford 21", "TMLR / ICML", "DINOv2 无监督视觉基础模型；CLIP 图文对齐"],
         ["Li et al., 2024", "ICML (PMLR 235)", "TAC（Image Clustering with External Guidance）"],
         ["Hu et al., 2026*", "arXiv:2609.36648", "VLM4Cluster（预印本）：20 数据集 17 方法统一评测"],
@@ -1221,27 +1348,52 @@ def build_slides(prs, ctx: dict) -> None:
     header_card(
         s, 8.86, 1.30, 4.05, 5.34,
         "仓库审计与失败留痕清单",
-        f"■ ##运行覆盖率##：{n_ok} / {n_ok} 项计划记录状态 ok（E01:81 · E02:12 · E03:75 · 噪声:624 · E04:17）。\n\n"
-        f"■ ##失败透明留痕##：failures.csv 保留 {n_fail_hist} 次 CIFAR-10 下载中断记录（存 results/attempts/），仅按原 seed 重试 1 次，绝不因分数低换种。\n\n"
-        "■ ##协议修复溯源##：受影响历史结果存 results/history/pre-repair-8eb43fc/，哈希与日志存 results/provenance/。\n\n"
-        "■ ##双端存储分工##：GitHub 存代码/协议/表/图/PPT；Google Drive 另存 217 份权重（1.4 GB）与外部预训练缓存。",
-        header_fill=BLUE_DEEP, body_fill=BLUE_SOFT, border=BLUE_DEEP, title_size=13.0, body_size=11.4, line_spacing=1.24,
+        f"■ ##运行覆盖率##：{n_ok} / {n_ok} 项计划记录状态 ok（E01:{exp_counts.get('E01', 0)} · E02:{exp_counts.get('E02', 0)} · E03:{exp_counts.get('E03', 0)} · 噪声:{exp_counts.get('E03_noise', 0)} · E04:{exp_counts.get('E04', 0)}）。\n\n"
+        f"■ ##失败透明留痕##：failures.csv 保留 {n_fail_hist} 次 CIFAR-10 下载中断记录（已脱敏本地路径），仅按原 seed 重试 1 次，不因分数低换种。\n\n"
+        "■ ##自动化回归测试##：覆盖 E05 测试标签零泄漏、预测耗时口径、端到端成本、PPT 动态数据绑定与 30 页讲稿 ID 一一校验。\n\n"
+        "■ ##双端存储分工##：GitHub 存代码/协议/表/图/PPT（embeddings 1.6MB 留库保离线复现）；Drive 另存 217 份权重（1.4 GB）。",
+        header_fill=BLUE_DEEP, body_fill=BLUE_SOFT, border=BLUE_DEEP, title_size=13.0, body_size=11.1, line_spacing=1.22,
     )
+    return slide_ids
 
 
-def inject_speaker_notes(prs) -> None:
-    note_path = ROOT / "presentation" / "speaker_notes.md"
-    if not note_path.exists():
-        return
-    raw = note_path.read_text(encoding="utf-8")
-    matches = list(re.finditer(r"^## 第 (\d+) 页[^\n]*\n\n(.*?)(?=^## |\Z)", raw, re.MULTILINE | re.DOTALL))
-    for m in matches:
-        page = int(m.group(1))
-        if 1 <= page <= len(prs.slides):
-            prs.slides[page - 1].notes_slide.notes_text_frame.text = m.group(2).strip()
+def parse_speaker_notes(raw: str) -> list[tuple[str, str]]:
+    """Parse ## [SlideID] heading sections from speaker_notes.md."""
+    pattern = re.compile(r"^## \[([A-Za-z0-9_]+)\][^\n]*\n\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+    entries: list[tuple[str, str]] = []
+    for m in pattern.finditer(raw):
+        sid = m.group(1).strip()
+        body = m.group(2).strip()
+        entries.append((sid, body))
+    return entries
 
 
-def build() -> Path:
+def inject_speaker_notes(prs, slide_ids: list[str], notes_path: Path = NOTES_MD) -> None:
+    """Strictly bind speaker notes by stable slide ID; raise ValueError on any mismatch."""
+    if not notes_path.exists():
+        raise ValueError(f"Speaker notes file missing: {notes_path}")
+    entries = parse_speaker_notes(notes_path.read_text(encoding="utf-8"))
+    note_ids = [sid for sid, _ in entries]
+    if len(set(note_ids)) != len(note_ids):
+        dups = sorted({sid for sid in note_ids if note_ids.count(sid) > 1})
+        raise ValueError(f"Duplicate slide IDs in speaker notes: {dups}")
+    missing = [sid for sid in slide_ids if sid not in note_ids]
+    extra = [sid for sid in note_ids if sid not in slide_ids]
+    if missing or extra:
+        raise ValueError(f"Speaker notes slide ID mismatch: missing={missing}, extra={extra}")
+    if note_ids != slide_ids:
+        raise ValueError(f"Speaker notes slide order mismatch: expected={slide_ids}, got={note_ids}")
+
+    by_id = dict(entries)
+    for idx, sid in enumerate(slide_ids):
+        body = by_id[sid]
+        if not body:
+            raise ValueError(f"Empty speaker note body for slide ID: {sid}")
+        prs.slides[idx].notes_slide.notes_text_frame.text = f"[{sid}]\n{body}"
+
+
+def build(tables_dir: Path = TABLES, out_path: Path = OUT,
+          notes_path: Path = NOTES_MD, figs_dir: Path = FIGS) -> Path:
     prs = Presentation()
     prs.slide_width = Inches(W)
     prs.slide_height = Inches(H)
@@ -1250,23 +1402,26 @@ def build() -> Path:
     prs.core_properties.author = "第九组"
 
     ctx = {
-        "e01": load_csv("e01_summary.csv"),
-        "e02": load_csv("e02_ablation.csv"),
-        "e03_noise": load_csv("e03_noise.csv"),
-        "e03_sens": load_csv("e03_sensitivity.csv"),
-        "e04_paired": load_csv("e04_paired.csv"),
-        "e04_pretrained": load_csv("e04_pretrained.csv"),
-        "selection": load_json("selection.json"),
-        "coverage": load_csv("coverage.csv"),
-        "failures": load_csv("failures.csv"),
+        "figs_dir": figs_dir,
+        "e01": load_csv("e01_summary.csv", tables_dir),
+        "e02": load_csv("e02_ablation.csv", tables_dir),
+        "e03_noise": load_csv("e03_noise.csv", tables_dir),
+        "e03_sens": load_csv("e03_sensitivity.csv", tables_dir),
+        "e04_paired": load_csv("e04_paired.csv", tables_dir),
+        "e04_pretrained": load_csv("e04_pretrained.csv", tables_dir),
+        "costs": load_csv("benchmark_cost_frontiers.csv", tables_dir),
+        "all_runs": load_csv("all_runs.csv", tables_dir),
+        "selection": load_selection(tables_dir),
+        "coverage": load_csv("coverage.csv", tables_dir),
+        "failures": load_csv("failures.csv", tables_dir),
     }
-    build_slides(prs, ctx)
-    inject_speaker_notes(prs)
+    slide_ids = build_slides(prs, ctx)
+    inject_speaker_notes(prs, slide_ids, notes_path=notes_path)
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    prs.save(OUT)
-    print(f"Built {len(prs.slides)} slides -> {OUT}")
-    return OUT
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    prs.save(out_path)
+    print(f"Built {len(prs.slides)} slides ({len(slide_ids)} ID-verified notes) -> {out_path}")
+    return out_path
 
 
 if __name__ == "__main__":

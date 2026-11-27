@@ -73,4 +73,4 @@ ACC 使用匈牙利匹配，NMI 使用算术平均，ARI 使用成对计数。�
 
 ## 协议修复、路径脱敏与可追溯性
 
-本轮修复前的受影响文件保留在 `results/history/pre-repair-8eb43fc/`。`results/provenance/protocol-repair-20261126/manifest.json` 记录前一 commit、协议哈希、代码哈希、修复原因和替换文件。一次基础设施失败保留在 `results/attempts/` 与 `results/tables/failures.csv`（已清除个人目录与机器绝对路径，替换为 `<REPO>` / `<VENV>`），只按原配置和 seed 重试一次，绝不因准确率低换 seed。
+本轮修复前的受影响文件保留在 `results/history/before-protocol-repair/`。`results/provenance/protocol-repair-2026-11-26/manifest.json` 记录修复原因、环境、替换文件与运行日志。一次基础设施失败保留在 `results/attempts/` 与 `results/tables/failures.csv`（已清除个人目录与机器绝对路径，替换为 `<REPO>` / `<VENV>`），只按原配置和 seed 重试一次，绝不因准确率低换 seed。

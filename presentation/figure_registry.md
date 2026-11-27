@@ -1,15 +1,15 @@
 # 图表登记表（Figure Registry）
 
-所有**概念架构与原理图（Fig.1–Fig.6）**由 `scripts/render_diagrams.py` 生成；所有**实证数据图（Fig.7–Fig.16b）**严格由 `scripts/analyze.py` 从 `results/raw/` 计算并调用 `src/visualization/benchmark.py` 在 300 DPI 下生成；**选型决策树（Fig.17）**动态读取 `results/tables/` 实测统计量。仓库与 PPT 中不出现任何模拟或手填结果数字。
+概念架构与原理图（Fig.1–Fig.6）在 PPT 中由 `scripts/build_pptx.py` 直接绘制为可编辑的原生形状，`scripts/render_diagrams.py` 仍保留 PNG 预览与文献核对稿。实证数据图（Fig.7–Fig.16b）严格由 `scripts/analyze.py` 从 `results/raw/` 计算并调用 `src/visualization/benchmark.py` 在 300 DPI 下生成。选型决策树（Fig.17）动态读取 `results/tables/` 的实测统计量。仓库与 PPT 中不出现任何模拟或手填结果数字。
 
 | 编号 | 图表名称 | 类型 / 实验编号 | 文件路径 | 数据源 / 生成脚本 | 所在幻灯片 (Slide ID) |
 | --- | --- | --- | --- | --- | --- |
-| Fig.1 | 深度聚类范式演进谱系图 | 概念图（文献综合） | `presentation/assets/diag_paradigm_evolution.png` | `scripts/render_diagrams.py`（Zhou 2025 图 1 四类交互） | 第 6 页 (`S06_paradigm_evolution`) |
-| Fig.2 | 四维方法分类框架图 | 概念图（理论整理） | `presentation/assets/diag_taxonomy_4d.png` | `scripts/render_diagrams.py`（对齐 `docs/taxonomy.md`） | 第 7 页 (`S07_taxonomy_4d`) |
-| Fig.3 | DEC 与 IDEC 原理对照架构图 | 概念图（数学原理） | `presentation/assets/diag_dec_idec.png` | `scripts/render_diagrams.py` | 第 9 页 (`S09_idec_math`) |
-| Fig.4 | VaDE 深度生成式聚类架构图 | 概念图（数学原理） | `presentation/assets/diag_vade_arch.png` | `scripts/render_diagrams.py` | 第 10 页 (`S10_vade_arch`) |
-| Fig.5 | SimCLR 与 CC 双视图对比原理图 | 概念图（数学原理） | `presentation/assets/diag_contrastive_arch.png` | `scripts/render_diagrams.py` | 第 11 页 (`S11_contrastive_arch`) |
-| Fig.6 | 预训练特征与聚类器解耦框架图 | 概念图（E04 设计） | `presentation/assets/diag_pretrained_decouple.png` | `scripts/render_diagrams.py` | 第 12 页 (`S12_pretrained_frontier`) |
+| Fig.1 | 深度聚类范式演进谱系图 | 概念图（文献综合） | PPT 原生可编辑形状；PNG 预览：`presentation/assets/diag_paradigm_evolution.png` | `scripts/build_pptx.py::native_paradigm_diagram`；概念稿由 `scripts/render_diagrams.py` 生成 | 第 6 页 (`S06_paradigm_evolution`) |
+| Fig.2 | 四维方法分类框架图 | 概念图（理论整理） | PPT 原生可编辑形状；PNG 预览：`presentation/assets/diag_taxonomy_4d.png` | `scripts/build_pptx.py::native_taxonomy_diagram`；概念稿由 `scripts/render_diagrams.py` 生成 | 第 7 页 (`S07_taxonomy_4d`) |
+| Fig.3 | DEC 与 IDEC 原理对照架构图 | 概念图（数学原理） | PPT 原生可编辑形状；PNG 预览：`presentation/assets/diag_dec_idec.png` | `scripts/build_pptx.py::native_dec_idec_diagram`；概念稿由 `scripts/render_diagrams.py` 生成 | 第 9 页 (`S09_idec_math`) |
+| Fig.4 | VaDE 深度生成式聚类架构图 | 概念图（数学原理） | PPT 原生可编辑形状；PNG 预览：`presentation/assets/diag_vade_arch.png` | `scripts/build_pptx.py::native_vade_diagram`；概念稿由 `scripts/render_diagrams.py` 生成 | 第 10 页 (`S10_vade_arch`) |
+| Fig.5 | SimCLR 与 CC 双视图对比原理图 | 概念图（数学原理） | PPT 原生可编辑形状；PNG 预览：`presentation/assets/diag_contrastive_arch.png` | `scripts/build_pptx.py::native_contrastive_diagram`；概念稿由 `scripts/render_diagrams.py` 生成 | 第 11 页 (`S11_contrastive_arch`) |
+| Fig.6 | 预训练特征与聚类器解耦框架图 | 概念图（E04 设计） | PPT 原生可编辑形状；PNG 预览：`presentation/assets/diag_pretrained_decouple.png` | `scripts/build_pptx.py::native_pretrained_diagram`；概念稿由 `scripts/render_diagrams.py` 生成 | 第 12 页 (`S12_pretrained_frontier`) |
 | Fig.7 | E01 多数据集 9 方法 ARI 热力图（±SD 与近似并列） | 实证数据图（E01，n=3） | `results/figures/fig_e01_ari.png` | `scripts/analyze.py` ← `e01_summary.csv` | 第 15 页 (`S15_e01_benchmark`) |
 | Fig.8 | E01 潜在空间二维 t-SNE 投影图（预测簇上色） | 实证数据图（E01，seed 0） | `results/figures/fig_e01_embeddings.png` | `scripts/analyze.py` ← `results/raw/embeddings/` | 第 16 页 (`S16_e01_embeddings`) |
 | Fig.9 | E02 重构权重 λ 消融曲线（含早停 `epochs_ran` 与 `λ=0` 不可比注） | 实证数据图（E02，n=1） | `results/figures/fig_e02_lambda.png` | `scripts/analyze.py` ← `e02_ablation.csv` | 第 17 页 (`S17_e02_lambda_ablation`) |

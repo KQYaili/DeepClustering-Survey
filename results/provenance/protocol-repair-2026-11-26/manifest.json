@@ -1,7 +1,7 @@
 {
   "date": "2026-11-26",
   "previous_commit": "8eb43fc7f3326f37c0f7a286e844657dc16a3eca",
-  "previous_files": "results/history/pre-repair-8eb43fc/",
+  "previous_files": "results/history/before-protocol-repair/",
   "reason": [
     "AE and DEC/IDEC retained the full ten-epoch extension specified by protocol.yaml when triggered; recomputed all six affected small-subset E03 fits and their noise evaluations.",
     "SimCLR now seeds the network before parameter initialization. Refit all nine E01 configurations at their original seeds, with the two dependent E04 heads and all E01 noise evaluations.",

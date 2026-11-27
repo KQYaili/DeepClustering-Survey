@@ -1,68 +1,90 @@
-# Deep Clustering: A Survey of Paradigm Evolution, Empirical Benchmarks, and Method Selection
+# 深度聚类：从原理到方法选择
 
-深度聚类：范式演进、实验基准与方法选型综述。
+![深度聚类范式总览](presentation/assets/diag_paradigm_evolution.png)
 
-这是一份面向课程汇报的可复现实验仓库。它回答一个实际问题：当数据结构、计算预算和先验条件不同，应该优先尝试经典聚类、联合优化、生成式聚类、对比聚类，还是外部预训练特征。
+这是一份配套课程汇报的研究仓库，面向第一次接触深度聚类的听众。仓库用统一实验协议比较经典聚类、表征学习、联合优化、生成式模型、对比聚类和外部预训练特征，回答一个实际问题：**面对新的图像数据，应该先改善表示，还是先更换聚类器？**
 
-## 当前状态
+## 先看这三份材料
 
-协议先写入 `configs/protocol.yaml`，再读取测试集指标。当前 `results/raw` 有 809 条成功 JSON 记录，包含 E01 基准、E02 消融、E03 敏感性、E03 噪声和 E04 表征/聚类器比较。E05 是训练侧无标签稳定性诊断，结果以 `results/raw/E05_train/*.npz` 保存，不把测试标签送入拟合或选型，且明确呈现为**“稳定 ≠ 正确”的负面诊断结果**（仅用于排雷坍缩风险，未纳入预测耗时）。
+1. [汇报幻灯片](presentation/deep-clustering-evolution-selection-guide.pptx) 适合课堂讲解，包含 24 页正文和 6 页技术附录。
+2. [逐页讲稿](presentation/speaker_notes.md) 用通俗语言解释每页图表、公式和实验限制。
+3. [实验协议](docs/experiment_protocol.md) 说明数据切分、标签隔离、早停和结果生成规则。
 
-本轮协议修复以 `8eb43fc` 为前一状态。受影响的旧文件保存在 `results/history/pre-repair-8eb43fc/`，修复说明、来源哈希和运行日志保存在 `results/provenance/protocol-repair-20261126/`。其中修复了 SimCLR 初始化顺序和小样本 E03 的 epoch 追加逻辑，并按原 seed 重跑受影响记录。一次失败的 CIFAR-10 GMM 下载中断记录已脱敏本地路径后保留在 `results/attempts/` 与 `results/tables/failures.csv`，随后按同一 seed 只重试一次。
+## 这份研究讲了什么
 
-汇总表和图全部由 `scripts/analyze.py` 从 `results/raw` 生成。`results/tables/benchmark_cost_frontiers.csv` 与 `results/figures/fig_benchmark_pareto.png` 明确标注为**带测试标签的回顾性端到端成本基准分析**（已补回 DEC/IDEC 的前置 AE 预训练成本），与无标签 E05 `selection.json` 严格分离。模型权重、外部预训练缓存和完整运行归档不进入 Git，另存于 Google Drive 的 `DeepClustering-Survey` 文件夹。
+- **表示通常比聚类器更重要。** 原始像素距离缺少语义，先学习合适的隐空间往往比在原始空间换用更复杂的聚类器有效。
+- **联合优化有条件地有效。** DEC 和 IDEC 在干净、样本充足的数据上有优势，噪声和极小样本会改变方法顺序。
+- **预训练特征改变了比较方式。** 在自然图像上，冻结 DINOv2 或 CLIP 特征再做 K-means 是强基线，复杂聚类头需要单独证明收益。
+- **训练稳定不等于语义正确。** E05 只用于发现坍缩和退化风险，不能代替少量标注验证，也不能自动宣布最佳方法。
 
-## 怎么跑
+## 实验怎样保证可比较
 
-在 WSL2 中：
+- 数据集包括 MNIST、Fashion-MNIST 和 CIFAR-10，所有方法使用统一切分和预先固定的配置。
+- `fit` 阶段不接收标签。测试标签只在评价步骤读取，类别不平衡子集只用训练集标签构造比例。
+- 早停只看训练集簇分配变化，追加 epoch 只看训练损失是否继续下降。
+- 所有汇总表和图由 `scripts/analyze.py` 从原始运行记录生成，空白结果保持为空。
+- 失败运行保留状态和 traceback，基础设施问题按原配置和 seed 重试一次。
+
+## 证据从哪里看
+
+| 读者想看什么 | 文件或目录 |
+| --- | --- |
+| 三数据集基准结果 | [results/tables/e01_summary.csv](results/tables/e01_summary.csv) |
+| E01 ARI 总览图 | [results/figures/fig_e01_ari.png](results/figures/fig_e01_ari.png) |
+| λ、隐空间和组件消融 | [results/tables/e02_ablation.csv](results/tables/e02_ablation.csv) |
+| 噪声与敏感性实验 | [results/tables/e03_noise.csv](results/tables/e03_noise.csv)、[results/tables/e03_sensitivity.csv](results/tables/e03_sensitivity.csv) |
+| 预训练表示与聚类器对照 | [results/tables/e04_paired.csv](results/tables/e04_paired.csv)、[results/tables/e04_pretrained.csv](results/tables/e04_pretrained.csv) |
+| 无标签稳定性诊断 | [results/tables/selection.json](results/tables/selection.json) |
+| 原始运行记录 | [results/raw/](results/raw/) |
+| 运行失败记录 | [results/tables/failures.csv](results/tables/failures.csv) |
+| 本轮完成事项 | [docs/change_log.md](docs/change_log.md) |
+
+## 如何运行
+
+在 WSL2 中执行：
 
 ```bash
 bash scripts/setup_wsl.sh
 bash scripts/launch_wsl.sh
 ```
 
-`launch_wsl.sh` 会先跑核心测试，再按队列、噪声评估和分析脚本执行。运行完整回归测试与离线复现检查（无需 GPU）：
-
-```bash
-python -m unittest discover -s tests -v
-```
-
-只查看队列而不运行：
+只查看计划而不运行：
 
 ```bash
 python scripts/run_queue.py --dry-run
 ```
 
-当前实验使用本机 WSL2 的 RTX 5070 Ti Laptop GPU。数据缓存在 `~/.cache/dc-survey/data`，不放进 Git。
+重新生成表格和图：
 
-## 证据目录
+```bash
+python scripts/analyze.py
+```
 
-| 路径 | 内容 |
-| --- | --- |
-| `results/raw/**/*.json` | 每次运行的指标、训练轨迹、耗时和状态（809 条 ok 记录） |
-| `results/raw/embeddings/*.npz` | Fashion-MNIST seed 0 四个模型的测试嵌入（共 1.6 MB，保留入库以保证无权重离线运行 `analyze.py` 复现 `fig_e01_embeddings.png`） |
-| `results/raw/E05_train/*.npz` | 不看测试标签的训练稳定性诊断（从零 9 候选） |
-| `results/tables/` | 由原始 JSON 生成的 CSV/JSON 汇总（含 `benchmark_cost_frontiers.csv`、`selection.json`、`benchmark_interpretation.json`） |
-| `results/figures/` | 由 `scripts/analyze.py` 自动生成的 13 张 300-DPI 科研数据图 |
-| `results/checkpoints/` | 模型权重（217 份，约 1.4 GB），保存于 Google Drive 归档 |
-| `results/history/` | 协议修复前的历史结果备份 |
-| `results/provenance/` | 协议、代码哈希和修复运行日志 |
-| `presentation/DeepClustering-Survey.pptx` | 蓝白学术信息图风 30 页汇报（24 页正文 + 6 页技术附录 A1–A6，全量动态读表 + Slide ID 严格绑定讲稿） |
-| `presentation/DeepClustering-Survey.pdf` | 由 PowerPoint 导出的 30 页高清 PDF 交付版 |
-| `presentation/speaker_notes.md` / `.docx` | 按稳定 Slide ID 与 30 页幻灯片严格一一绑定的逐页讲稿（含 Word 打印版） |
-| `tests/` & `.github/workflows/ci.yml` | 覆盖核心指标、标签隔离、端到端成本、路径脱敏、PPT 动态绑定与讲稿 ID 校验的自动化 CI 套件 |
+重新生成汇报文件：
 
-## 读结果前先知道
+```bash
+python scripts/build_pptx.py
+```
 
-- `fit` 不接收标签。测试集标签只在评价步骤加载。类别不平衡子集使用训练集标签构造，这是实验设计，不是损失函数或选种子。
-- 早停只观察训练集簇分配变化。追加 epoch 只在训练损失继续下降时触发，两个阈值固定在 `configs/protocol.yaml`。
-- **E02 λ 消融早停共变边界**：在当前统一早停协议下，`λ=0..10` 的实际训练轮数为 `20→27→35→50→50 ep`，ARI 变化受 `λ` 与训练时长共同作用，不能单独归因于量纲；`λ=0` 时重构项未入损失，其 `recon_sse` 不可直接横向比较。
-- 重构项是每张图的平方误差和再对 batch 取平均。IDEC 写成 `L_cluster + λ L_recon`（E01 主表配置 `λ=1.0`），这里的 λ 不能直接当作 Guo 等人论文中的 γ。
-- **端到端成本口径**：DEC/IDEC 命中 AE 预训练缓存时，`time_train_sec` 仅计微调耗时；`e01_summary.csv` 与 `benchmark_cost_frontiers.csv` 额外给出补回同配置 AE 预训练后的 `time_train_e2e_mean_sec` 及共享摊销 `time_train_amortized_mean_sec`。
-- SimCLR 和 Contrastive Clustering 使用课程版 128 维小型 CNN，不是原论文的 ResNet。课程版 CC 省略了原论文的边际簇熵项，在 MNIST 与 CIFAR-10 上出现明显簇规模偏斜（`max_fraction_mean` 达 0.42–0.47）。
-- VaDE 的重构误差按图计算平方误差，不是 Bernoulli 交叉熵。GMM 使用 `StandardScaler` 标准化和对角协方差，其轻噪坍缩限定于当前实现，不泛化至整个概率模型家族（VaDE 保持约 53% ARI）。
-- DINOv2 和 CLIP 是冻结的外部预训练模型，与从零训练模型分栏独立汇报；E04 5×3 交叉矩阵为 `seed 0` 单次配对（AE/SimCLR+K-means 来自同切分 E01），DINOv2/CLIP+K-means 另有 3 种子稳定性汇总。
+运行自动化测试：
 
-## 汇报入口与许可
+```bash
+python -m unittest discover -s tests -v
+```
 
-直接打开 `presentation/DeepClustering-Survey.pptx`。图表登记见 `presentation/figure_registry.md`，大纲见 `presentation/outline.md`，方法选型与 E05 诊断边界见 `docs/method_selection.md`，实验协议见 `docs/experiment_protocol.md`，分类框架见 `docs/taxonomy.md`。本仓库遵循 MIT 开源协议（详见 `LICENSE`）。
+## 文档导航
+
+- [实验协议](docs/experiment_protocol.md) 说明实验规则和标签隔离。
+- [文献综述](docs/literature_review.md) 用论文原始定义解释 DEC、IDEC、VaDE、SimCLR、CC 和预训练方法。
+- [数学基础](docs/mathematical_foundations.md) 连接 K-means、GMM、PCA 与深度聚类目标函数。
+- [方法选型](docs/method_selection.md) 区分历史带标签基准和无标签稳定性诊断。
+- [分类框架](docs/taxonomy.md) 用表征空间、优化交互、聚类机制和监督信号四个维度整理方法。
+- [完成记录](docs/change_log.md) 按日期记录本轮修改、验证和已知限制。
+
+## 需要一起阅读的限制
+
+SimCLR 和 CC 使用课程版小型 CNN，CC 省略原论文的边际簇熵项。VaDE 的重构项是每张图的平方误差，GMM 使用标准化后的对角协方差。E02、E03 和 E04 的部分比较使用单个 seed，预训练模型含外部数据预算。结论只适用于当前协议和实现边界。
+
+模型权重、外部预训练缓存和完整运行归档保存在 Google Drive 的 `DeepClustering-Survey` 文件夹，GitHub 保留代码、协议、表格、图表、轻量嵌入和汇报文件。
+
+本仓库使用 MIT License。

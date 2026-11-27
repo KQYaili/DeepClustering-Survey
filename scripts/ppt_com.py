@@ -7,7 +7,7 @@ from pathlib import Path
 
 import win32com.client
 
-PPTX = Path(__file__).resolve().parents[1] / "presentation" / "DeepClustering-Survey.pptx"
+PPTX = Path(__file__).resolve().parents[1] / "presentation" / "deep-clustering-evolution-selection-guide.pptx"
 
 
 def application():

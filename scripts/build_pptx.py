@@ -16,7 +16,8 @@ from PIL import Image
 from lxml import etree
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.enum.dml import MSO_LINE_DASH_STYLE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Inches, Pt
@@ -26,7 +27,7 @@ ASSETS = ROOT / "presentation" / "assets"
 FIGS = ROOT / "results" / "figures"
 TABLES = ROOT / "results" / "tables"
 NOTES_MD = ROOT / "presentation" / "speaker_notes.md"
-OUT = ROOT / "presentation" / "DeepClustering-Survey.pptx"
+OUT = ROOT / "presentation" / "deep-clustering-evolution-selection-guide.pptx"
 
 # Blue-White Academic Infographic Palette
 BLUE_DEEP = RGBColor(0x07, 0x3D, 0xA5)
@@ -75,6 +76,18 @@ SHORT_LABELS = {
     "vade": "VaDE",
     "simclr_kmeans": "SimCLR+KM",
     "cc": "CC",
+}
+
+# Keep equations as ordinary PowerPoint text.  Unicode subscripts/superscripts
+# preserve the notation while avoiding a non-editable LaTeX raster asset.
+EDITABLE_EQUATIONS = {
+    "kmeans": "min{μₖ, cᵢ}  Σᵢ₌₁ᴺ ‖xᵢ − μ꜀ᵢ‖₂²",
+    "map": "x   →   z = fθ(x)   →   ĉ",
+    "dec": "qᵢⱼ = (1 + ‖zᵢ − μⱼ‖²)⁻¹ / Σⱼ′(1 + ‖zᵢ − μⱼ′‖²)⁻¹,    pᵢⱼ = (qᵢⱼ² / fⱼ) / Σⱼ′(qᵢⱼ′² / fⱼ′)",
+    "kl": "L_DEC = KL(P ‖ Q) = (1/B) Σᵢ₌₁ᴮ Σⱼ₌₁ᴷ pᵢⱼ log(pᵢⱼ / qᵢⱼ)",
+    "idec": "L_IDEC = L_cluster + λ (1/B) Σᵢ₌₁ᴮ Σ_d₌₁ᴰ (xᵢd − x̂ᵢd)²",
+    "vade": "p(x, z, c) = p(c) p(z│c) p(x│z),    p(z│c) = N(μ꜀, σ꜀² I)",
+    "pareto": "maxₘ (ARI(m), Robustness(m), −Time(m), −Memory(m))",
 }
 
 
@@ -237,10 +250,11 @@ def box(slide, l, t, w, h, fill: RGBColor | None, line: RGBColor | None = None,
 
 def textbox(slide, l, t, w, h, content: str, size: float = 14.0, bold: bool = False,
             color: RGBColor = INK, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP,
-            line_spacing: float = 1.22, space_after: float = 4.0):
+            line_spacing: float = 1.22, space_after: float = 4.0,
+            font: str = "Microsoft YaHei", word_wrap: bool = True):
     tb = slide.shapes.add_textbox(Inches(l), Inches(t), Inches(w), Inches(h))
     tf = tb.text_frame
-    tf.word_wrap = True
+    tf.word_wrap = word_wrap
     tf.auto_size = None
     tf.margin_left = Emu(0)
     tf.margin_right = Emu(0)
@@ -257,8 +271,241 @@ def textbox(slide, l, t, w, h, content: str, size: float = 14.0, bold: bool = Fa
         p.line_spacing = line_spacing
         p.space_before = Pt(0)
         p.space_after = Pt(space_after if idx < len(lines) - 1 else 0)
-        _write_rich_line(p, raw_line, size, bold, color)
+        _write_rich_line(p, raw_line, size, bold, color, font)
     return tb
+
+
+def editable_equation(slide, l: float, t: float, w: float, h: float, text: str,
+                      size: float = 20.0, color: RGBColor = BLUE_DEEP,
+                      align=PP_ALIGN.CENTER):
+    """Add a native editable math text box.
+
+    The earlier deck placed Matplotlib PNGs for LaTeX.  Those images looked crisp
+    but PowerPoint treated every formula, fraction bar, and Roman label as one
+    raster object.  These Unicode/Math-font equations keep the same notation in
+    an ordinary text box, so the user can select and edit every character and the
+    long fraction bars are no longer clipped by tight image bounding boxes.
+    """
+    return textbox(
+        slide, l, t, w, h, text, size=size, color=color, align=align,
+        anchor=MSO_ANCHOR.MIDDLE, space_after=0, font="Cambria Math", word_wrap=False,
+    )
+
+
+def diagram_card(slide, l: float, t: float, w: float, h: float, title: str, body: str,
+                 accent: RGBColor = BLUE_DEEP, fill: RGBColor = WHITE,
+                 title_color: RGBColor | None = None, body_color: RGBColor = INK,
+                 title_size: float = 10.0, body_size: float = 8.3):
+    """Editable card used by the native architecture diagrams."""
+    box(slide, l, t, w, h, fill, accent, 1.2, 0.06)
+    if title:
+        textbox(slide, l + 0.08, t + 0.08, w - 0.16, min(0.28, h * 0.36), title,
+                size=title_size, bold=True, color=title_color or accent,
+                align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+        body_top = t + min(0.42, h * 0.40)
+        body_height = max(0.06, h - (body_top - t) - 0.08)
+    else:
+        body_top = t + 0.02
+        body_height = max(0.06, h - 0.04)
+    textbox(slide, l + 0.10, body_top, w - 0.20, body_height, body,
+            size=body_size, color=body_color, align=PP_ALIGN.CENTER,
+            anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.14, space_after=0)
+
+
+def diagram_connector(slide, x1: float, y1: float, x2: float, y2: float,
+                      color: RGBColor = BLUE_DEEP, width: float = 1.5,
+                      dashed: bool = False):
+    """Add an editable line connector. Labels and arrow glyphs remain text."""
+    line = slide.shapes.add_connector(
+        MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2)
+    )
+    line.line.color.rgb = color
+    line.line.width = Pt(width)
+    if dashed:
+        line.line.dash_style = MSO_LINE_DASH_STYLE.DASH
+    return line
+
+
+def diagram_arrow(slide, x1: float, y1: float, x2: float, y2: float,
+                  color: RGBColor = BLUE_DEEP, width: float = 1.5,
+                  label: str = "→"):
+    """Draw a connector and an editable arrow glyph at its midpoint."""
+    diagram_connector(slide, x1, y1, x2, y2, color=color, width=width)
+    textbox(slide, (x1 + x2) / 2 - 0.16, (y1 + y2) / 2 - 0.16, 0.32, 0.32,
+            label, size=13.0, bold=True, color=color, align=PP_ALIGN.CENTER,
+            anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+
+
+def native_paradigm_diagram(slide):
+    """Editable replacement for the paradigm-evolution raster diagram."""
+    diagram_connector(slide, 0.62, 1.84, 12.55, 1.84, color=BLUE_LINE, width=2.0)
+    textbox(slide, 1.0, 1.30, 11.2, 0.34,
+            "深度聚类范式演进谱系：多种范式长期并存，并非简单线性淘汰",
+            size=13.0, bold=True, color=BLUE_DEEP, align=PP_ALIGN.CENTER,
+            anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+    stages = [
+        ("固定特征基线", "经典统计聚类", "K-means / GMM\nPCA + K-means", "坐标固定\n欧氏距离或高斯云", SLATE, SLATE_SOFT),
+        ("多阶段式", "Multi-stage", "AE + K-means\nSimCLR + K-means", "先学表征\n再接聚类器", BLUE_DEEP, BLUE_SOFT),
+        ("联合优化式", "Simultaneously", "DEC / IDEC\n对比聚类 CC", "聚类与表示\n同步反向更新", AMBER, AMBER_SOFT),
+        ("生成式潜变量", "Generative", "VaDE\n深度混合先验", "VAE + GMM\n联合推断与生成", TEAL, TEAL_SOFT),
+        ("迭代式", "Iterative", "DeepCluster\nSwAV", "伪标签 → 表示\n→ 再聚类循环", PURPLE, PURPLE_SOFT),
+        ("外部预训练引导", "2024–2026 前沿", "DINOv2 / CLIP\nTAC / VLM4Cluster*", "冻结视觉模型\n外部语义引导", CRIMSON, RGBColor(0xFB, 0xEC, 0xEC)),
+    ]
+    for i, (title, sub, rep, mech, accent, tint) in enumerate(stages):
+        x = 0.42 + i * 2.10
+        diagram_card(slide, x, 2.14, 1.86, 3.20, title, f"{sub}\n\n{rep}\n\n{mech}",
+                     accent=accent, fill=tint, title_color=accent, body_color=INK,
+                     title_size=10.0, body_size=8.0)
+        diagram_connector(slide, x + 0.93, 1.84, x + 0.93, 2.12, color=accent, width=1.2)
+        if i < len(stages) - 1:
+            diagram_arrow(slide, x + 1.88, 3.72, x + 2.07, 3.72, color=BLUE_LINE, width=1.2)
+    textbox(slide, 0.66, 5.70, 12.0, 0.48,
+            "Zhou 等（ACM Computing Surveys, 2025）图 1 四类核心交互：Multi-stage · Simultaneously · Generative · Iterative",
+            size=10.5, bold=True, color=BLUE_DEEP, align=PP_ALIGN.CENTER,
+            anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+    textbox(slide, 0.66, 6.25, 12.0, 0.30,
+            "* VLM4Cluster（arXiv:2609.36648）按预印本引用。",
+            size=9.0, color=SLATE, align=PP_ALIGN.RIGHT, space_after=0)
+
+
+def native_taxonomy_diagram(slide):
+    """Editable replacement for the four-dimensional taxonomy raster diagram."""
+    cols = [
+        ("维度 1：表征空间", "数据如何编码为坐标 z", BLUE_DEEP, BLUE_SOFT,
+         ["原始像素\nK-means / GMM", "线性投影\nPCA + K-means", "深度隐空间\nAE / DEC / VaDE / CC", "外部预训练\nDINOv2 / CLIP"]),
+        ("维度 2：优化交互", "表示与聚类如何配合", TEAL, TEAL_SOFT,
+         ["固定特征\nK-means / GMM", "多阶段解耦\nAE / SimCLR", "交替迭代\nDeepCluster / SwAV", "端到端联合\nDEC / IDEC / CC"]),
+        ("维度 3：聚类机制", "如何划分样本归属", AMBER, AMBER_SOFT,
+         ["欧氏质心\nK-means", "Student-t 软分配\nDEC / IDEC", "高斯概率云\nGMM / VaDE", "对比簇头\nCC / IIC"]),
+        ("维度 4：监督信号", "无标签信息从哪来", PURPLE, PURPLE_SOFT,
+         ["像素重构误差\nAE / IDEC / VaDE", "自训练锐化\nDEC / IDEC", "双视图增强\nSimCLR / CC / SwAV", "外部语义\nDINOv2 / CLIP / TAC"]),
+    ]
+    for i, (title, sub, accent, tint, items) in enumerate(cols):
+        x = 0.42 + i * 3.17
+        box(slide, x, 1.42, 2.92, 4.78, WHITE, accent, 1.3, 0.06)
+        box(slide, x, 1.42, 2.92, 0.48, accent, None, 0.0, 0.06)
+        textbox(slide, x + 0.08, 1.47, 2.76, 0.34, title, size=10.6, bold=True,
+                color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+        textbox(slide, x + 0.12, 2.02, 2.68, 0.34, sub, size=8.8, bold=True,
+                color=accent, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+        for j, item in enumerate(items):
+            diagram_card(slide, x + 0.14, 2.48 + j * 0.83, 2.64, 0.66, "", item,
+                         accent=accent, fill=tint, title_color=accent, body_color=INK,
+                         title_size=8.6, body_size=8.1)
+        if i < 3:
+            diagram_arrow(slide, x + 2.94, 3.72, x + 3.13, 3.72, color=BLUE_LINE, width=1.2)
+
+
+def native_dec_idec_diagram(slide):
+    """Editable DEC/IDEC architecture with native cards and connectors."""
+    diagram_card(slide, 0.72, 4.10, 1.26, 0.96, "输入图像 x", "784 维像素\n28×28", accent=SLATE, fill=SLATE_SOFT, title_color=INK)
+    diagram_card(slide, 2.35, 3.82, 1.62, 1.52, "编码器 fθ", "784→500→500\n→2000→10", accent=BLUE_DEEP, fill=BLUE_SOFT)
+    diagram_card(slide, 4.35, 4.05, 1.42, 1.06, "隐表示 z", "d = 10\nAE 预训练", accent=BLUE_DEEP, fill=WHITE)
+    diagram_arrow(slide, 1.99, 4.58, 2.32, 4.58, color=BLUE_DEEP)
+    diagram_arrow(slide, 3.99, 4.58, 4.32, 4.58, color=BLUE_DEEP)
+
+    box(slide, 5.98, 2.56, 6.28, 2.08, BLUE_PALE, BLUE_DEEP, 1.2, 0.08)
+    textbox(slide, 6.18, 2.70, 5.88, 0.28, "上分支：DEC 聚类自训练目标（KL 反向更新编码器与中心）",
+            size=9.8, bold=True, color=BLUE_DEEP, space_after=0)
+    diagram_card(slide, 6.18, 3.22, 1.72, 0.96, "Student-t 软分配", "qᵢⱼ ∝ (1+‖zᵢ−μⱼ‖²)⁻¹\nK-means 初始化", accent=BLUE_MID, title_size=9.0, body_size=7.7)
+    diagram_card(slide, 8.24, 3.22, 1.58, 0.96, "锐化目标 P", "pᵢⱼ ∝ qᵢⱼ²/fⱼ\n拉紧高置信簇", accent=BLUE_MID, title_size=9.0, body_size=7.7)
+    diagram_card(slide, 10.16, 3.22, 1.78, 0.96, "聚类损失", "L_cluster =\nKL(P ‖ Q)", accent=BLUE_DEEP, fill=BLUE_DEEP, title_color=WHITE, body_color=WHITE, title_size=9.2, body_size=8.0)
+    diagram_arrow(slide, 5.78, 4.58, 6.16, 3.70, color=BLUE_DEEP)
+    diagram_arrow(slide, 7.92, 3.70, 8.20, 3.70, color=BLUE_DEEP)
+    diagram_arrow(slide, 9.84, 3.70, 10.12, 3.70, color=BLUE_DEEP)
+    diagram_connector(slide, 11.00, 3.12, 3.10, 3.76, color=CRIMSON, width=1.4, dashed=True)
+    textbox(slide, 6.35, 2.96, 5.45, 0.24, "反向传播：同时更新 μⱼ 与 fθ",
+            size=9.0, bold=True, color=CRIMSON, align=PP_ALIGN.CENTER, space_after=0)
+
+    box(slide, 5.98, 4.88, 6.28, 1.60, AMBER_SOFT, AMBER, 1.2, 0.08)
+    textbox(slide, 6.18, 5.02, 5.88, 0.28, "下分支：IDEC 重构约束（保留解码器以守护局部流形）",
+            size=9.8, bold=True, color=AMBER, space_after=0)
+    diagram_card(slide, 6.18, 5.40, 1.78, 0.82, "解码器 gφ", "10→2000→500\n→500→784", accent=AMBER, title_size=9.0, body_size=7.8)
+    diagram_card(slide, 8.30, 5.40, 1.62, 0.82, "重构图像 x̂", "与 x 逐像素\n平方误差", accent=AMBER, title_size=9.0, body_size=7.8)
+    diagram_card(slide, 10.26, 5.40, 1.78, 0.82, "重构约束项", "λ · SSE / B\nλ=0 退化 DEC", accent=AMBER, fill=AMBER, title_color=WHITE, body_color=WHITE, title_size=9.0, body_size=7.8)
+    diagram_arrow(slide, 5.78, 4.58, 6.16, 5.80, color=AMBER)
+    diagram_arrow(slide, 7.98, 5.80, 8.26, 5.80, color=AMBER)
+    diagram_arrow(slide, 9.96, 5.80, 10.22, 5.80, color=AMBER)
+    box(slide, 0.72, 5.50, 4.54, 0.78, TEAL_SOFT, TEAL, 1.0, 0.05)
+    textbox(slide, 0.88, 5.60, 4.22, 0.58, "E02 核心问题\n只优化上分支（λ=0）会不会破坏表示结构？", size=9.0, bold=True, color=INK, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+
+
+def native_vade_diagram(slide):
+    """Editable VaDE generative and inference architecture."""
+    box(slide, 0.62, 2.48, 5.78, 3.62, TEAL_SOFT, TEAL, 1.2, 0.08)
+    textbox(slide, 0.86, 2.66, 5.30, 0.28, "生成过程：每个簇是隐空间的一团高斯云", size=10.2, bold=True, color=TEAL, align=PP_ALIGN.CENTER, space_after=0)
+    diagram_card(slide, 0.92, 3.32, 1.56, 0.92, "1. 抽取簇 c", "c ~ Cat(π)\n先验比例 πc", accent=TEAL, title_size=9.2, body_size=8.0)
+    diagram_card(slide, 2.78, 3.32, 1.84, 0.92, "2. 抽取隐变量 z", "z|c ~ N(μc, σc²I)\n中心与方差", accent=TEAL, title_size=9.2, body_size=8.0)
+    diagram_arrow(slide, 2.50, 3.78, 2.74, 3.78, color=TEAL)
+    diagram_connector(slide, 3.70, 4.24, 2.08, 5.20, color=TEAL, width=1.3)
+    diagram_connector(slide, 3.70, 4.24, 3.10, 5.20, color=TEAL, width=1.3)
+    diagram_connector(slide, 3.70, 4.24, 4.20, 5.20, color=TEAL, width=1.3)
+    diagram_card(slide, 1.00, 5.00, 4.88, 0.72, "隐空间混合先验 p(z)", "Σc πc N(z | μc, σc²I)   →   解码器 gφ(z) 重构 x̂", accent=TEAL, fill=WHITE, title_size=9.0, body_size=8.0)
+
+    box(slide, 6.72, 2.48, 5.98, 3.62, BLUE_PALE, BLUE_DEEP, 1.2, 0.08)
+    textbox(slide, 6.98, 2.66, 5.46, 0.28, "变分推断与 ELBO 联合优化", size=10.2, bold=True, color=BLUE_DEEP, align=PP_ALIGN.CENTER, space_after=0)
+    diagram_card(slide, 7.00, 3.32, 1.26, 0.92, "输入 x", "图像像素", accent=BLUE_DEEP, title_size=9.2, body_size=8.0)
+    diagram_card(slide, 8.56, 3.32, 1.86, 0.92, "推断编码器", "μ̃, log σ̃²\n重参数化采样 z", accent=BLUE_DEEP, title_size=9.2, body_size=8.0)
+    diagram_card(slide, 10.74, 3.32, 1.60, 0.92, "后验归属 γc", "q(c|x)=p(c|z)\nBayes 推断", accent=BLUE_DEEP, fill=BLUE_DEEP, title_color=WHITE, body_color=WHITE, title_size=9.0, body_size=7.9)
+    diagram_arrow(slide, 8.28, 3.78, 8.52, 3.78, color=BLUE_DEEP)
+    diagram_arrow(slide, 10.46, 3.78, 10.70, 3.78, color=BLUE_DEEP)
+    diagram_card(slide, 7.00, 4.78, 5.34, 0.96, "ELBO = 重构保真项 − 隐变量与混合先验 KL", "对比 K-means：可建模簇方差与先验 πc；本仓库重构项采用每图 SSE。", accent=BLUE_DEEP, fill=WHITE, title_size=9.0, body_size=8.0)
+
+
+def native_contrastive_diagram(slide):
+    """Editable SimCLR + K-means and CC dual-view architecture."""
+    diagram_card(slide, 0.62, 3.55, 1.20, 0.92, "原图 x", "无标签样本", accent=SLATE, fill=SLATE_SOFT, title_color=INK)
+    diagram_card(slide, 2.18, 2.62, 1.34, 0.72, "增强视图 a", "裁剪 / 抖动", accent=BLUE_DEEP, fill=BLUE_SOFT, title_size=9.0, body_size=7.8)
+    diagram_card(slide, 2.18, 4.62, 1.34, 0.72, "增强视图 b", "语义保持", accent=BLUE_DEEP, fill=BLUE_SOFT, title_size=9.0, body_size=7.8)
+    diagram_arrow(slide, 1.84, 3.92, 2.14, 2.98, color=BLUE_DEEP)
+    diagram_arrow(slide, 1.84, 4.10, 2.14, 4.98, color=BLUE_DEEP)
+    diagram_card(slide, 3.96, 3.38, 1.82, 1.32, "共享 CNN 编码器", "小型课程 CNN\n输出 128 维 h\n非原论文 ResNet", accent=BLUE_DEEP, title_size=9.4, body_size=8.0)
+    diagram_arrow(slide, 3.54, 2.98, 3.92, 3.78, color=BLUE_DEEP)
+    diagram_arrow(slide, 3.54, 4.98, 3.92, 4.28, color=BLUE_DEEP)
+    box(slide, 6.12, 2.20, 6.22, 2.30, BLUE_PALE, BLUE_DEEP, 1.2, 0.08)
+    textbox(slide, 6.34, 2.36, 5.80, 0.26, "路线 A：SimCLR + K-means（先对比学表征，再离线聚类）", size=9.7, bold=True, color=BLUE_DEEP, space_after=0)
+    diagram_card(slide, 6.34, 2.92, 1.84, 0.96, "实例投影头", "NT-Xent：正对靠近\n负对推远", accent=BLUE_MID, title_size=9.0, body_size=7.9)
+    diagram_card(slide, 8.54, 2.92, 1.58, 0.96, "丢弃投影头", "取出 128 维\n冻结 h", accent=BLUE_MID, title_size=9.0, body_size=7.9)
+    diagram_card(slide, 10.48, 2.92, 1.56, 0.96, "离线 K-means", "n_init=20\n输出 ĉ", accent=BLUE_DEEP, fill=BLUE_DEEP, title_color=WHITE, body_color=WHITE, title_size=9.0, body_size=7.9)
+    diagram_arrow(slide, 5.80, 4.02, 6.30, 3.40, color=BLUE_DEEP)
+    diagram_arrow(slide, 8.20, 3.40, 8.50, 3.40, color=BLUE_DEEP)
+    diagram_arrow(slide, 10.16, 3.40, 10.44, 3.40, color=BLUE_DEEP)
+    box(slide, 6.12, 4.82, 6.22, 1.46, PURPLE_SOFT, PURPLE, 1.2, 0.08)
+    textbox(slide, 6.34, 4.96, 5.80, 0.26, "路线 B：CC（同时进行实例级 + 簇级对比）", size=9.7, bold=True, color=PURPLE, space_after=0)
+    diagram_card(slide, 6.34, 5.38, 2.28, 0.64, "行对比（实例级）", "同一图像两视图靠近", accent=PURPLE, title_size=8.6, body_size=7.7)
+    diagram_card(slide, 8.84, 5.38, 2.28, 0.64, "列对比（簇级）", "两视图簇概率一致", accent=PURPLE, title_size=8.6, body_size=7.7)
+    diagram_card(slide, 11.24, 5.38, 0.86, 0.64, "簇头 ĉ", "联合输出", accent=PURPLE, fill=PURPLE, title_color=WHITE, body_color=WHITE, title_size=8.0, body_size=7.2)
+    diagram_arrow(slide, 5.80, 4.18, 6.30, 5.70, color=PURPLE)
+    diagram_arrow(slide, 8.66, 5.70, 8.80, 5.70, color=PURPLE)
+    diagram_arrow(slide, 11.16, 5.70, 11.20, 5.70, color=PURPLE)
+
+
+def native_pretrained_diagram(slide):
+    """Editable encoder/clusterer decoupling diagram for E04."""
+    diagram_card(slide, 0.62, 3.70, 1.34, 0.98, "CIFAR-10", "10,000 训练图\n2,000 测试图", accent=SLATE, fill=SLATE_SOFT, title_color=INK)
+    box(slide, 2.32, 2.22, 3.30, 2.18, SLATE_SOFT, SLATE, 1.1, 0.08)
+    textbox(slide, 2.52, 2.36, 2.90, 0.26, "从零训练主干", size=9.8, bold=True, color=SLATE, align=PP_ALIGN.CENTER, space_after=0)
+    for i, txt in enumerate(["随机 CNN（基线）", "卷积自编码器 AE", "SimCLR（小型 CNN）"]):
+        diagram_card(slide, 2.56, 2.86 + i * 0.46, 2.82, 0.34, "", txt, accent=BLUE_LINE, fill=WHITE, title_size=8.0, body_size=7.9)
+    box(slide, 2.32, 4.68, 3.30, 1.34, BLUE_SOFT, BLUE_DEEP, 1.2, 0.08)
+    textbox(slide, 2.52, 4.82, 2.90, 0.26, "冻结外部预训练主干", size=9.8, bold=True, color=BLUE_DEEP, align=PP_ALIGN.CENTER, space_after=0)
+    diagram_card(slide, 2.56, 5.22, 2.82, 0.32, "", "DINOv2 ViT-S/14", accent=BLUE_DEEP, fill=WHITE, title_size=8.0, body_size=7.9)
+    diagram_card(slide, 2.56, 5.60, 2.82, 0.32, "", "CLIP ViT-B/32", accent=BLUE_DEEP, fill=WHITE, title_size=8.0, body_size=7.9)
+    diagram_arrow(slide, 1.98, 4.18, 2.28, 3.28, color=SLATE)
+    diagram_arrow(slide, 1.98, 4.18, 2.28, 5.22, color=BLUE_DEEP)
+    diagram_card(slide, 6.18, 3.70, 1.48, 1.08, "冻结特征 z", "统一切分\nL2 归一化", accent=TEAL, fill=TEAL_SOFT, title_size=9.2, body_size=8.0)
+    diagram_arrow(slide, 5.66, 3.28, 6.14, 4.10, color=SLATE)
+    diagram_arrow(slide, 5.66, 5.22, 6.14, 4.38, color=BLUE_DEEP)
+    diagram_card(slide, 8.18, 2.62, 1.90, 0.92, "K-means", "欧氏质心\nn_init=20", accent=BLUE_DEEP, title_size=9.2, body_size=8.0)
+    diagram_card(slide, 8.18, 3.80, 1.90, 0.92, "高斯混合 GMM", "对角协方差\n特征标准化", accent=TEAL, title_size=9.2, body_size=8.0)
+    diagram_card(slide, 8.18, 4.98, 1.90, 0.92, "投影 + DEC 头", "10 维头\n20 epochs", accent=AMBER, title_size=9.2, body_size=8.0)
+    diagram_arrow(slide, 7.70, 4.16, 8.14, 3.08, color=BLUE_DEEP)
+    diagram_arrow(slide, 7.70, 4.16, 8.14, 4.26, color=TEAL)
+    diagram_arrow(slide, 7.70, 4.16, 8.14, 5.44, color=AMBER)
+    diagram_card(slide, 10.70, 3.22, 1.52, 1.92, "5 × 3 解耦检验", "行差看表示收益\n\n列差看聚类器收益", accent=BLUE_DEEP, fill=BLUE_DEEP, title_color=WHITE, body_color=WHITE, title_size=9.6, body_size=8.0)
+    diagram_arrow(slide, 10.12, 3.08, 10.64, 4.12, color=BLUE_LINE)
+    diagram_arrow(slide, 10.12, 4.26, 10.64, 4.12, color=BLUE_LINE)
+    diagram_arrow(slide, 10.12, 5.44, 10.64, 4.12, color=BLUE_LINE)
 
 
 def fit_picture(slide, path: Path, l: float, t: float, max_w: float, max_h: float,
@@ -545,7 +792,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
     box(s, 0.42, 1.30, 12.49, 1.18, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
     textbox(s, 0.62, 1.38, 2.35, 0.34, "K-means 目标函数", size=13.0, bold=True, color=BLUE_DEEP, space_after=0)
     textbox(s, 0.62, 1.76, 2.65, 0.60, "在“分配最近中心”与\n“更新组内均值”间交替迭代", size=11.5, color=MUTED)
-    fit_picture(s, ASSETS / "eq_kmeans.png", 3.40, 1.38, 8.80, 1.00)
+    editable_equation(s, 3.40, 1.38, 8.80, 1.00, EDITABLE_EQUATIONS["kmeans"], size=20.0)
 
     header_card(
         s, 0.42, 2.68, 6.08, 3.92,
@@ -572,7 +819,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
         summary="##范式分化根源：##后续全部算法的差异，归根结底在于“z 靠什么无标签信号学出”以及“编码器与聚类器如何交互”。",
     )
     box(s, 0.42, 1.30, 12.49, 1.06, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
-    fit_picture(s, ASSETS / "eq_map.png", 1.20, 1.38, 10.90, 0.90)
+    editable_equation(s, 1.20, 1.38, 10.90, 0.90, EDITABLE_EQUATIONS["map"], size=24.0)
 
     steps = [
         ("STEP 1", "高维观测 x", "原始像素矩阵或自然图像\n（MNIST 784 / CIFAR 3072 维）\n含光照、背景与位移干扰", SLATE, SLATE_SOFT),
@@ -604,7 +851,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
         lead="✓ 演进视角：依据 ##Zhou 等（ACM Computing Surveys, 2025）##图 1，四类交互长期并存：CC 属**联合优化**，DeepCluster/SwAV 属**迭代式**。",
         summary="##图 1 要点：##新范式并未取消旧范式；DeepCluster 靠“伪标签→更新表示→再聚类”迭代循环，DINOv2/CLIP+KM 回归多阶段解耦。",
     )
-    fit_picture(s, ASSETS / "diag_paradigm_evolution.png", 0.36, 1.26, 12.60, 5.38)
+    native_paradigm_diagram(s)
 
     # ---- Slide 7: Fig.2 Four-Dimensional Taxonomy ----
     s = new_slide(
@@ -613,7 +860,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
         lead="✓ 理论骨架：用**表征空间 × 优化交互 × 聚类机制 × 监督信号**四个正交坐标拆解任意算法，避免强行互斥归类。",
         summary="##对比示例：##SimCLR + K-means（多阶段）、CC（联合优化直出）与 DeepCluster（伪标签迭代）可在四维坐标中清晰区分。",
     )
-    fit_picture(s, ASSETS / "diag_taxonomy_4d.png", 0.38, 1.28, 12.56, 4.92)
+    native_taxonomy_diagram(s)
     textbox(s, 0.48, 6.26, 12.36, 0.42,
             "注：本综述实验覆盖其中 12 种典型方法配置（K-means / GMM / PCA / AE / DEC / IDEC / VaDE / SimCLR / CC / 随机CNN / DINOv2 / CLIP），DeepCluster / IIC / SwAV / TAC / VLM4Cluster 用于谱系分析。",
             size=11.0, color=MUTED, anchor=MSO_ANCHOR.MIDDLE)
@@ -626,11 +873,11 @@ def build_slides(prs, ctx: dict) -> list[str]:
         summary="##无标签自训练闭环：##DEC 全程不读取真实类别标签；但纯 KL 目标缺少输入保真约束，可能放大初始误分或扭曲局部流形。",
     )
     box(s, 0.42, 1.28, 12.49, 1.12, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
-    fit_picture(s, ASSETS / "eq_dec.png", 0.65, 1.34, 12.0, 0.98)
+    editable_equation(s, 0.65, 1.34, 12.0, 0.98, EDITABLE_EQUATIONS["dec"], size=13.5)
 
     box(s, 0.42, 2.52, 12.49, 0.88, WHITE, BLUE_LINE, 1.0, 0.06)
     textbox(s, 0.62, 2.62, 2.05, 0.68, "自训练目标\n（固定 P 更新 Q）", size=12.5, bold=True, color=BLUE_DEEP, anchor=MSO_ANCHOR.MIDDLE)
-    fit_picture(s, ASSETS / "eq_kl.png", 2.85, 2.58, 9.60, 0.76)
+    editable_equation(s, 2.85, 2.58, 9.60, 0.76, EDITABLE_EQUATIONS["kl"], size=18.0)
 
     dec_cards = [
         ("1. Student-t 软归属 q_ij", "采用自由度 α=1 的重尾 Student-t 核衡量 z_i 与中心 μ_j 的相似度：离中心越近，归属概率越高，梯度对离群点更平滑。", BLUE_DEEP, BLUE_SOFT),
@@ -650,8 +897,8 @@ def build_slides(prs, ctx: dict) -> list[str]:
         summary="##量纲提示：##本协议重构项为每图平方误差和 SSE，写作 L_cluster + λ L_recon；与原论文写 L_recon + γ L_cluster 的换算约为 λ = 1/(γD)。",
     )
     box(s, 0.42, 1.26, 12.49, 0.86, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
-    fit_picture(s, ASSETS / "eq_idec.png", 0.80, 1.30, 11.70, 0.78)
-    fit_picture(s, ASSETS / "diag_dec_idec.png", 0.42, 2.20, 12.49, 4.48)
+    editable_equation(s, 0.80, 1.30, 11.70, 0.78, EDITABLE_EQUATIONS["idec"], size=18.0)
+    native_dec_idec_diagram(s)
 
     # ---- Slide 10: Generative Deep Clustering — VaDE & Fig.4 ----
     s = new_slide(
@@ -661,8 +908,8 @@ def build_slides(prs, ctx: dict) -> list[str]:
         summary="##实验实现边界：##本仓库 VaDE 重构项采用每图平方误差 SSE（非原论文 Bernoulli 交叉熵），结果严格在统一协议内部横向比较。",
     )
     box(s, 0.42, 1.26, 12.49, 0.82, TEAL_SOFT, TEAL, 0.9, 0.06)
-    fit_picture(s, ASSETS / "eq_vade.png", 0.80, 1.30, 11.70, 0.74)
-    fit_picture(s, ASSETS / "diag_vade_arch.png", 0.42, 2.18, 12.49, 4.48)
+    editable_equation(s, 0.80, 1.30, 11.70, 0.74, EDITABLE_EQUATIONS["vade"], size=18.0)
+    native_vade_diagram(s)
 
     # ---- Slide 11: Self-Supervised & Contrastive Clustering — Fig.5 ----
     s = new_slide(
@@ -671,7 +918,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
         lead="✓ 视图一致性假设：同一图像的两种语义保持增强视图应在隐空间靠近；依据是否直出簇概率分化出**多阶段**与**联合优化**两条路线。",
         summary="##课程预算实现限制：##二者均采用 128 维小型 CNN（非原论文 ResNet），课程版 CC 省去官方边际簇熵正则，易诱发簇规模偏斜。",
     )
-    fit_picture(s, ASSETS / "diag_contrastive_arch.png", 0.42, 1.26, 12.49, 4.35)
+    native_contrastive_diagram(s)
     soft_panel(
         s, 0.42, 5.68, 6.10, 0.98,
         "SimCLR + K-means（Chen et al., ICML 2020 · 多阶段）",
@@ -692,7 +939,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
         lead="✓ 范式转向：大规模视觉与跨模态预训练重塑了表征起点，使“##强冻结特征 + 简单聚类器##”成为自然图像强基准。",
         summary="##公平性纪律：##外部预训练模型见过海量外部数据，在 E04 中与从零训练模型分栏独立汇报，不混排为等预算榜单。",
     )
-    fit_picture(s, ASSETS / "diag_pretrained_decouple.png", 0.42, 1.26, 12.49, 4.18)
+    native_pretrained_diagram(s)
 
     f_cards = [
         ("DINOv2 (TMLR 2024)", "大规模无标签视觉自监督；冻结 ViT-S/14 提取语义特征", BLUE_DEEP, BLUE_SOFT),
@@ -999,7 +1246,7 @@ def build_slides(prs, ctx: dict) -> list[str]:
     fit_picture(s, figs_dir / "fig_benchmark_pareto.png", 0.34, 1.28, 8.26, 5.36)
 
     box(s, 8.74, 1.32, 4.16, 0.78, BLUE_PALE, BLUE_LINE, 1.0, 0.06)
-    fit_picture(s, ASSETS / "eq_pareto.png", 8.82, 1.36, 4.00, 0.70)
+    editable_equation(s, 8.82, 1.36, 4.00, 0.70, EDITABLE_EQUATIONS["pareto"], size=9.4)
 
     soft_panel(
         s, 8.74, 2.22, 4.16, 2.24,

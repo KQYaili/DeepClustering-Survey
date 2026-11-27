@@ -35,13 +35,14 @@ python scripts/run_queue.py --dry-run
 | --- | --- |
 | `results/raw/**/*.json` | 每次运行的指标、训练轨迹、耗时和状态 |
 | `results/tables/` | 由原始 JSON 生成的 CSV/JSON 汇总 |
-| `results/figures/` | 与汇总表对应的图 |
+| `results/figures/` | 由 `scripts/analyze.py` 自动生成的 13 张 300-DPI 科研数据图 |
 | `results/raw/E05_train/*.npz` | 不看测试标签的训练稳定性诊断 |
-| `results/checkpoints/` | 模型权重，提交到 Drive 归档 |
+| `results/checkpoints/` | 模型权重（217 份，约 1.4 GB），保存于 Drive 归档 |
 | `results/history/` | 协议修复前的历史结果备份 |
 | `results/provenance/` | 协议、代码哈希和修复运行日志 |
-| `presentation/DeepClustering-Survey.pptx` | 24 页面向零背景听众的汇报 |
-| `presentation/speaker_notes.md` | 对应的逐页讲稿 |
+| `presentation/DeepClustering-Survey.pptx` | 蓝白学术信息图风 30 页汇报（24 页正文 + 6 页技术附录 A1–A6） |
+| `presentation/DeepClustering-Survey.pdf` | 由 PowerPoint 导出的 30 页高清 PDF 交付版 |
+| `presentation/speaker_notes.md` / `.docx` | 与 30 页幻灯片严格一一对应的逐页讲稿（含 Word 打印版） |
 
 ## 读结果前先知道
 

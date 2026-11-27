@@ -245,10 +245,11 @@ def main():
                    e04_paired=paired, e04_pretrained=pretrained, e05_cost_frontiers=costs)
     for name, table in outputs.items():
         table.to_csv(TABLES / f"{name}.csv", index=False, lineterminator="\n")
-    write_json(TABLES / "selection.json", training_selections(jobs, protocol))
+    train_sel = training_selections(jobs, protocol)
+    write_json(TABLES / "selection.json", train_sel)
     write_json(TABLES / "benchmark_interpretation.json",
                benchmark_interpretation(summary, noise, paired, pretrained, protocol))
-    render_figures(ROOT, protocol, outputs)
+    render_figures(ROOT, protocol, outputs, selection=train_sel)
     print(f"{len(runs)} successful records; {coverage.status.value_counts().to_dict()}", flush=True)
 
 

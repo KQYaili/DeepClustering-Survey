@@ -2,9 +2,7 @@
 
 ![同一批 CIFAR-10 测试图在像素空间（左）与 DINOv2 表示空间（右）中的排列](presentation/assets/readme_mosaics.png)
 
-面对一批没有标签的图像，应该先改进“看图的方式（表示）”，还是先换更复杂的“分组规则（聚类器）”？本仓库在统一协议下系统比较了经典统计聚类、自编码器系深度聚类（AE + K-means、DEC、IDEC）、生成式（VaDE）、对比学习（SimCLR + K-means、CC）以及冻结外部预训练模型（DINOv2、CLIP）共 **5 大家族 11 种方法**，并整理为一份 **29 页正文 + 6 页附录** 的课程综述汇报。
-
-全文按 **“统计基础与原始数学推导 → 模型架构 → 数据集与实验设计 → 各实验结果对比与选型结论”** 的顺序组织。
+面对一批没有标签的图像，应该先改进“看图的方式（表示）”，还是先换更复杂的“分组规则（聚类器）”？在统一协议下系统比较了经典统计聚类、自编码器系深度聚类（AE + K-means、DEC、IDEC）、生成式（VaDE）、对比学习（SimCLR + K-means、CC）以及冻结外部预训练模型（DINOv2、CLIP）共 **5 大家族 11 种方法**。
 
 ## 方法谱系、模型架构与原始数学推导
 
@@ -29,7 +27,7 @@
 | **Fashion-MNIST** | 28×28×1 灰度（784 维） | 20,000 / 10,000 | 难度 2：平移失配且上装四类高度重叠，承担主消融（E02）与敏感性（E03） |
 | **CIFAR-10** | 32×32×3 彩色（3,072 维） | 10,000 / 2,000 | 难度 3：背景颜色与姿态变化主导像素距离，检验从零训练语义极限 |
 
-### 七组对照实验（E01–E05）与防泄密铁律
+### 七组对照实验（E01–E05）与防泄密
 
 全套实验共完成 **1,068 条有效评估记录**（E01 主基准 81、E02 消融 36、E02_fixed 固定轮次对照 15、E03 敏感性 195、E03_noise 测试噪声 624、E04 编码器×聚类器 117）及 **27 份 E05 嵌入快照与无标签稳定性诊断**，详见 [数据集介绍与实验协议](docs/experiment_protocol.md)：
 
@@ -37,24 +35,6 @@
 - **规则事前锁定**：早停仅看训练集簇分配变化率（$\Delta < 0.1\%$ 连续 2 次），追加轮次只看训练损失是否仍在下降，全部参数写入 `configs/protocol.yaml`。
 - **端到端耗时记账与自动出图**：DEC / IDEC 耗时包含 AE 预训练全链路；所有表和图由 `scripts/analyze.py` 直接从 `results/raw/` 生成，不手填结果，失败运行原样保留。
 - **3 种子重复与预训练分表**：主要对比均跑 3 个随机种子报均值±标准差；DINOv2 与 CLIP 借助外部数据，与从零训练严格分表报告。
-
-## 汇报文件与复现方式
-
-| 文件 | 内容 |
-| --- | --- |
-| [presentation/deep-clustering-evolution-selection-guide.pptx](presentation/deep-clustering-evolution-selection-guide.pptx) | 29 页正文 + 6 页附录，原生可编辑；含逐模型网络架构图、原始数学推导、数据集与实验设计及全部结果对比 |
-| [presentation/deep-clustering-evolution-selection-guide.pdf](presentation/deep-clustering-evolution-selection-guide.pdf) | 同名 35 页汇报 PDF |
-| [presentation/speaker_notes.docx](presentation/speaker_notes.docx) | 可打印的逐页讲稿 |
-| [presentation/outline.md](presentation/outline.md) | 全部 35 页结构、结论与证据索引 |
-
-幻灯片和讲稿中的全部实验数值均在构建时直接从 `results/tables/` 读取。完整流程见 [WORKFLOW.md](WORKFLOW.md)；重建图表、幻灯片并运行全部测试：
-
-```bash
-python scripts/analyze.py
-python scripts/build_pptx.py
-python scripts/export_notes_docx.py
-python -m unittest discover -s tests -v
-```
 
 ## 各实验结果对比与主要结论
 

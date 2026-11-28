@@ -4,6 +4,11 @@
 
 ## 2026-11-28
 
+### 原始数学推导、数据集与实验设计文档整理
+
+- **重写 [数学基础与原始推导](mathematical_foundations.md)**：补齐统一符号表与教材章节映射、K-means 交替极小化与各向同性噪声保序证明、PCA 最大方差/最小重构等价证明、GMM 的 EM 推导与标准化像素对角协方差轻噪坍缩机理、DEC 原始梯度（Xie et al. Eq. 4–5）逐行求导、IDEC 权重换算证明（$\lambda = 1/(\gamma D)$）、VaDE 完整 ELBO 展开与最优簇后验 $q^*(c\mid x)=p(c\mid z)$ 证明、SimCLR NT-Xent/InfoNCE 与 CC 行列双对比及簇熵正则、L2 归一化余弦等价性，以及 ACC / NMI / ARI / 轮廓系数 / 簇均衡度 / E05 Macro Cluster Jaccard 精确公式，并逐节标注原论文与课程实现边界。
+- **完善 [数据集介绍与实验协议](experiment_protocol.md)**：系统整理 MNIST / Fashion-MNIST / CIFAR-10 官方全量与确定性切分、全部 10 类标签与统计难度梯度、4 类数据扰动构造（同步更新 3 种子类别不平衡均值样本数 `20,000 / 5,749.3 / 3,901.3 / 2,422.3`）、E01–E05 七组对照实验全景矩阵（精确核对 `coverage.csv` 共 1,068 条成功记录 + 27 组 E05 `.npz`）、11 种模型架构与超参数边界总表及三套训练时间核算口径。
+
 ### 各模型网络架构图补齐与全览页新增
 
 - **逐模型分层网络架构图（第 7–11 页，PowerPoint 原生可编辑矢量）**：对照 `src/` 实际模型代码与 `configs/protocol.yaml` 配置，全面重绘 DEC（两阶段 MLP `784→500→500→2000→10` / CIFAR ConvAE、阶段②丢弃解码器虚线分支、可学习簇中心与 KL 反向回路）、IDEC（对称自编码器沙漏结构 + 聚类/重构双分支）、VaDE（变分编码器 → `(μ, log σ²)` 双头 → 重参数 `z = μ + σ⊙ε` → 对称解码器 + 隐空间可学习 GMM 先验）、SimCLR & CC（共享 `SmallCNN 32→64→128→GAP→FC(128)` 骨干 + `MLP 128→128→128` 实例头 + `Linear 128→10+Softmax` 簇头）、DINOv2 & CLIP（`Resize 224²` → 冻结 `ViT-S/14 (384d)` / `ViT-B/32 (512d)` → `L2 归一化` → `K-means / Diag-GMM / DEC 头(D→64→10)` 三分支）。

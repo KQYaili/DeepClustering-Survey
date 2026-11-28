@@ -56,9 +56,9 @@ python -m unittest discover -s tests -v
 
 ## 文档
 
-- [实验协议](docs/experiment_protocol.md)：数据切分、损失、早停、标签隔离和运行覆盖。
+- [数学基础与原始推导](docs/mathematical_foundations.md)：K-means/PCA/GMM(EM) 与轻噪坍缩机理、DEC 原始梯度、IDEC 系数换算、VaDE 完整 ELBO 与最优后验证明、SimCLR/CC 对比目标、L2 归一化余弦等价性，以及 ACC/NMI/ARI/Jaccard 精确公式。
+- [数据集介绍与实验协议](docs/experiment_protocol.md)：MNIST / Fashion-MNIST / CIFAR-10 规格、全部 10 类与难度梯度、数据切分与 4 类扰动构造、E01–E05 七组对照实验矩阵（1,068 条记录 + 27 组稳定性诊断）、11 种模型超参数边界与端到端成本核算。
 - [文献综述](docs/literature_review.md)：DEC、IDEC、VaDE、SimCLR、CC 与预训练方法的原始定义。
-- [数学基础](docs/mathematical_foundations.md)：从 K-means、GMM、PCA 到深度聚类目标函数。
 - [方法选择](docs/method_selection.md)：带标签基准与无标签诊断各自能回答什么。
 - [分类框架](docs/taxonomy.md)：表示与聚类的四种配合方式。
 

@@ -2,7 +2,7 @@
 
 ![同一批 CIFAR-10 测试图在像素空间（左）与 DINOv2 表示空间（右）中的排列](presentation/assets/readme_mosaics.png)
 
-面对一批没有标签的图像，应该先改进表示，还是先换一个更复杂的聚类器？这个仓库用统一协议比较了经典聚类、自编码器系的深度聚类（AE + K-means、DEC、IDEC）、生成式的 VaDE、对比学习（SimCLR + K-means、CC）和冻结的预训练模型（DINOv2、CLIP），并把结论整理成一份 24 页的课程汇报。
+面对一批没有标签的图像，应该先改进表示，还是先换一个更复杂的聚类器？这个仓库用统一协议比较了经典聚类、自编码器系的深度聚类（AE + K-means、DEC、IDEC）、生成式的 VaDE、对比学习（SimCLR + K-means、CC）和冻结的预训练模型（DINOv2、CLIP），并把结论整理成一份 25 页的课程汇报。
 
 ## 主要结论
 
@@ -15,7 +15,7 @@
 
 | 文件 | 内容 |
 | --- | --- |
-| [presentation/deep-clustering-evolution-selection-guide.pptx](presentation/deep-clustering-evolution-selection-guide.pptx) | 24 页正文 + 6 页附录，可编辑；备注中是逐页讲稿 |
+| [presentation/deep-clustering-evolution-selection-guide.pptx](presentation/deep-clustering-evolution-selection-guide.pptx) | 25 页正文 + 6 页附录，可编辑；含各模型架构图与逐页讲稿 |
 | [presentation/deep-clustering-evolution-selection-guide.pdf](presentation/deep-clustering-evolution-selection-guide.pdf) | 同一份幻灯片的 PDF |
 | [presentation/speaker_notes.docx](presentation/speaker_notes.docx) | 可打印的讲稿 |
 | [presentation/outline.md](presentation/outline.md) | 每页的结论与证据 |

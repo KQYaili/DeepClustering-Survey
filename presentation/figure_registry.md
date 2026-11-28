@@ -6,15 +6,15 @@
 | --- | --- | --- | --- |
 | `presentation/assets/cover_mosaic.png` | CIFAR-10 测试图按 DINOv2 表示的 t-SNE 排列 | 种子 0 测试切分、DINOv2 特征缓存 | 1 |
 | `presentation/assets/pixel_*.png`、`pixel_distance.yaml` | T 恤、右移 4 像素的同一图、最近的另一类图；1000 张 T 恤的统计 | Fashion-MNIST 训练集 | 4 |
-| `presentation/assets/strip_*.png` | 三个数据集的样例图 | 各数据集训练集 | 12 |
-| `results/figures/benchmark_ari.png` | 9 种从零训练方法在三个数据集上的 ARI | `e01_summary.csv` | 13 |
-| `results/figures/embeddings_tsne.png` | PCA、AE、DEC、IDEC 表示空间的 t-SNE | `results/raw/embeddings/` | 14 |
-| `results/figures/representation_vs_clusterer.png` | 5 种编码器 × 3 种聚类器 × 3 个数据集 | `e04_summary.csv` | 15 |
-| `presentation/assets/mosaic_pixels.png`、`mosaic_dinov2.png` | 同一批 300 张图在像素空间与 DINOv2 空间的排列 | 种子 0 测试切分、DINOv2 特征缓存 | 16 |
-| `results/figures/noise_robustness.png`、`presentation/assets/noise_*.png` | 干净与加噪测试图上的 ARI；噪声示例 | `e03_noise.csv` | 17 |
-| `results/figures/sample_size.png` | 训练样本量与 ARI | `e03_sensitivity_summary.csv` | 18 |
-| `results/figures/components_lambda.png` | IDEC 组件消融；λ 在早停与固定 50 轮下的对照 | `e02_summary.csv`、`e02_fixed_epochs.csv` | 19 |
-| `results/figures/cost_frontier.png` | 端到端训练时间与 ARI 的帕累托前沿 | `benchmark_cost_frontiers.csv` | 20 |
-| `results/figures/stability_vs_ari.png` | 无标签稳定性与 ARI | `selection.json`、`e01_summary.csv` | 21 |
+| `presentation/assets/strip_*.png` | 三个数据集的样例图 | 各数据集训练集 | 13 |
+| `results/figures/benchmark_ari.png` | 9 种从零训练方法在三个数据集上的 ARI | `e01_summary.csv` | 14 |
+| `results/figures/embeddings_tsne.png` | PCA、AE、DEC、IDEC 表示空间的 t-SNE | `results/raw/embeddings/` | 15 |
+| `results/figures/representation_vs_clusterer.png` | 5 种编码器 × 3 种聚类器 × 3 个数据集 | `e04_summary.csv` | 16 |
+| `presentation/assets/mosaic_pixels.png`、`mosaic_dinov2.png` | 同一批 300 张图在像素空间与 DINOv2 空间的排列 | 种子 0 测试切分、DINOv2 特征缓存 | 17 |
+| `results/figures/noise_robustness.png`、`presentation/assets/noise_*.png` | 干净与加噪测试图上的 ARI；噪声示例 | `e03_noise.csv` | 18 |
+| `results/figures/sample_size.png` | 训练样本量与 ARI | `e03_sensitivity_summary.csv` | 19 |
+| `results/figures/components_lambda.png` | IDEC 组件消融；λ 在早停与固定 50 轮下的对照 | `e02_summary.csv`、`e02_fixed_epochs.csv` | 20 |
+| `results/figures/cost_frontier.png` | 端到端训练时间与 ARI 的帕累托前沿 | `benchmark_cost_frontiers.csv` | 21 |
+| `results/figures/stability_vs_ari.png` | 无标签稳定性与 ARI | `selection.json`、`e01_summary.csv` | 22 |
 | `results/figures/latent_dim.png` | 隐空间维度消融 | `e02_summary.csv` | A02 |
 | `results/figures/sensitivity_k_outliers_imbalance.png` | 簇数、噪声图比例、类别不平衡 | `e03_sensitivity_summary.csv` | A03 |

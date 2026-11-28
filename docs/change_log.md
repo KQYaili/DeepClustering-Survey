@@ -4,6 +4,12 @@
 
 ## 2026-11-28
 
+### 各模型网络架构图补齐与全览页新增
+
+- **逐模型分层网络架构图（第 7–11 页，PowerPoint 原生可编辑矢量）**：对照 `src/` 实际模型代码与 `configs/protocol.yaml` 配置，全面重绘 DEC（两阶段 MLP `784→500→500→2000→10` / CIFAR ConvAE、阶段②丢弃解码器虚线分支、可学习簇中心与 KL 反向回路）、IDEC（对称自编码器沙漏结构 + 聚类/重构双分支）、VaDE（变分编码器 → `(μ, log σ²)` 双头 → 重参数 `z = μ + σ⊙ε` → 对称解码器 + 隐空间可学习 GMM 先验）、SimCLR & CC（共享 `SmallCNN 32→64→128→GAP→FC(128)` 骨干 + `MLP 128→128→128` 实例头 + `Linear 128→10+Softmax` 簇头）、DINOv2 & CLIP（`Resize 224²` → 冻结 `ViT-S/14 (384d)` / `ViT-B/32 (512d)` → `L2 归一化` → `K-means / Diag-GMM / DEC 头(D→64→10)` 三分支）。
+- **新增第 12 页《各模型网络架构总览》（`S11b_architectures`）**：用 5 条按家族着色的横向泳道同屏对照全部 11 种实验模型的输入处理、表示骨干、输出头、损失目标，并从 `results/tables/e01_summary.csv` 动态绑定实测参数量（正文 25 页 + 附录 6 页共 31 页）。
+- 同步更新 `presentation/speaker_notes.md`、`scripts/export_notes_docx.py`、`tests/test_audit_and_ppt.py`、`presentation/outline.md`、`presentation/figure_registry.md` 与 `README.md`。
+
 ### 汇报易懂度与图表可读性优化
 
 - **直觉翻译与数学示意**：封面补充“看图方式（表示）”与“分组规则（聚类器）”直觉对照，并为右下角马赛克说明增加暗底条确保清晰；第 4 页高对比标注像素距离反常（11.3 > 4.8）并标注符号含义；第 6 页为四种交互范式增加一句话比喻；第 7 页 DEC 增加 `[0.70, 0.30] → [0.84, 0.16]` 数学示意卡解释平方锐化；第 8 页 IDEC 用“拔河比喻”说明 KL 与重构项权衡；第 9 页 VaDE 补充三步生成与 ELBO 通俗解释，并注明每图平方误差（SSE）实现口径；第 10 页具体化变形视图与 NT-Xent 分子分母直觉；第 11 页修正输入节点为三个数据集。

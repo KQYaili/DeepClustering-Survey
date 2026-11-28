@@ -60,9 +60,10 @@ def main() -> None:
         for line in text.split("\n\n"):
             if line.strip():
                 blocks.append(_para(line.strip()))
+    n_main = sum(1 for sid, _ in notes if sid.startswith("S"))
     head = [
         _para("深度聚类：范式演进、对照实验与方法选择 — 讲稿", size=34, bold=True, before=0, after=120),
-        _para(f"第九组 · 正文 24 页约 {main_chars} 字，按每分钟 {CHARS_PER_MIN} 字约 {main_chars / CHARS_PER_MIN:.0f} 分钟；"
+        _para(f"第九组 · 正文 {n_main} 页约 {main_chars} 字，按每分钟 {CHARS_PER_MIN} 字约 {main_chars / CHARS_PER_MIN:.0f} 分钟；"
               "附录 A01–A06 用于答疑。数字与幻灯片同源，均来自 results/tables。", size=20, color="6B6B73", before=0,
               after=240),
     ]

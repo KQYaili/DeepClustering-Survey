@@ -1,4 +1,4 @@
-"""Build the 24 + 6 slide deck from results/tables, results/figures and presentation/assets.
+"""Build the 25 + 6 slide deck from results/tables, results/figures and presentation/assets.
 
 One message per slide: the title states the finding, the body shows the evidence.
 Every number on a slide and in the speaker notes is read from results/tables at build
@@ -46,6 +46,7 @@ DASH = "—"
 SLIDE_IDS = [
     "S01_cover", "S02_question", "S03_statistics_roots", "S04_pixel_distance", "S05_core_idea",
     "S06_paradigms", "S07_dec", "S08_idec", "S09_vade", "S10_contrastive", "S11_pretrained",
+    "S11b_architectures",
     "S12_setup", "S13_benchmark", "S14_geometry", "S15_representation_vs_clusterer",
     "S16_pixels_vs_dinov2", "S17_noise", "S18_sample_size", "S19_components", "S20_cost",
     "S21_stability", "S22_verdict", "S23_selection_guide", "S24_limits_and_close",
@@ -119,6 +120,7 @@ def compute_facts(t: dict) -> dict:
         for m in ("kmeans", "pca_kmeans", "gmm", "ae_kmeans", "dec", "idec", "vade", "simclr_kmeans", "cc"):
             facts[f"ari_{ds}_{m}"] = _lookup(e01, "ari_mean", dataset=ds, method=m)
             facts[f"sd_{ds}_{m}"] = _lookup(e01, "ari_std", dataset=ds, method=m)
+            facts[f"params_{ds}_{m}"] = _lookup(e01, "n_parameters_mean", dataset=ds, method=m)
         rows = e01[e01.dataset.eq(ds)] if not e01.empty else e01
         if len(rows):
             best = rows.loc[rows.ari_mean.idxmax()]
@@ -266,6 +268,18 @@ class Facts(dict):
     def p(self, key):
         return _pct(self.get(key))
 
+    def k(self, key):
+        v = _num(self.get(key))
+        if v is None:
+            return DASH
+        if v >= 1_000_000:
+            return f"{v / 1_000_000:.2f}M"
+        if v >= 100_000:
+            return f"{v / 1_000:.0f}K"
+        if v >= 1_000:
+            return f"{v / 1_000:.1f}K"
+        return f"{v:.0f}"
+
 
 class NotesFormatter(string.Formatter):
     def __init__(self, facts: Facts):
@@ -379,7 +393,7 @@ class Deck:
         if style is not None:
             shape._element.remove(style)
 
-    def rect(self, slide, x, y, w, h, fill=S.PANEL, line=None, radius=0.0, line_w=1.0):
+    def rect(self, slide, x, y, w, h, fill=S.PANEL, line=None, radius=0.0, line_w=1.0, dash=False):
         kind = MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE
         shape = slide.shapes.add_shape(kind, Inches(x), Inches(y), Inches(w), Inches(h))
         self._plain(shape)
@@ -393,6 +407,10 @@ class Deck:
         if line:
             shape.line.color.rgb = rgb(line)
             shape.line.width = Pt(line_w)
+            if dash:
+                ln = shape.line._get_or_add_ln()
+                prst = etree.SubElement(ln, qn("a:prstDash"))
+                prst.set("val", "sysDash")
         else:
             shape.line.fill.background()
         return shape
@@ -410,13 +428,14 @@ class Deck:
         return shape
 
     def box(self, slide, x, y, w, h, label, fill=S.PANEL, color=S.INK, size=15, bold=True, line=None,
-            radius=0.08, sub=None, sub_size=11.5, sub_color=None):
-        shape = self.rect(slide, x, y, w, h, fill=fill, line=line, radius=radius)
+            radius=0.08, sub=None, sub_size=11.5, sub_color=None, line_w=1.0, dash=False):
+        shape = self.rect(slide, x, y, w, h, fill=fill, line=line, radius=radius, line_w=line_w, dash=dash)
         runs = [(label, {})] if isinstance(label, str) else [(r, {}) if isinstance(r, str) else r for r in label]
         paras = [[(text, {"bold": bold, "size": size, "color": color, **over}) for text, over in runs]]
         if sub:
-            paras.append([(sub, {"bold": False, "size": sub_size, "color": sub_color or S.SECONDARY})])
-        self.text(slide, x + 0.08, y, w - 0.16, h, paras, align="c", anchor="m", line=1.1)
+            for part in (sub.split("\n") if isinstance(sub, str) else [sub]):
+                paras.append([(part, {"bold": False, "size": sub_size, "color": sub_color or S.SECONDARY})])
+        self.text(slide, x + 0.06, y, w - 0.12, h, paras, align="c", anchor="m", line=1.12)
         return shape
 
     def line(self, slide, x1, y1, x2, y2, color=S.MUTED, width=1.5, arrow=False, dash=False):
@@ -818,137 +837,237 @@ def s07_dec(d: Deck):
     y = 1.62
     for title, desc, eq in steps:
         d.text(s, MX, y, 1.75, 0.36, title, size=16, bold=True, color=S.INK)
-        d.text(s, MX + 1.80, y + 0.02, 5.45, 0.36, desc, size=13.5, color=S.SECONDARY)
+        d.text(s, MX + 1.80, y + 0.02, 5.25, 0.36, desc, size=13.5, color=S.SECONDARY)
         _, eh = d.equation(s, eq, MX + 1.80, y + 0.42, scale=0.70)
         y += 0.42 + eh + 0.24
     # Concrete intuitive numeric illustration of squaring/sharpening
-    d.rect(s, MX, 5.42, 7.25, 1.32, fill=S.PANEL, radius=0.08)
-    d.text(s, MX + 0.24, 5.54, 6.8, 0.32, "直觉小例子：为什么“平方”有效？（数学示意，设两簇等大）",
+    d.rect(s, MX, 5.42, 7.05, 1.32, fill=S.PANEL, radius=0.08)
+    d.text(s, MX + 0.22, 5.54, 6.65, 0.32, "直觉小例子：为什么“平方”有效？（数学示意，设两簇等大）",
            size=13, bold=True, color=S.DEEP)
-    d.text(s, MX + 0.24, 5.90, 6.8, 0.78,
+    d.text(s, MX + 0.22, 5.90, 6.65, 0.78,
            "原归属概率 q = [0.70, 0.30]  →  平方再归一得目标 p = [0.84, 0.16]\n"
            "本来较像第 1 类，就被推得更笃定——像“强者愈强”，把松散的簇往中心压紧。",
            size=12.5, color=S.BODY, line=1.42)
-    # diagram on the right
-    x0, y0 = 8.35, 1.82
-    d.box(s, x0, y0, 1.25, 0.60, "图像 x", fill=S.PANEL, size=14)
-    d.box(s, x0 + 1.75, y0, 1.45, 0.60, "编码器", fill="#E3EEFB", size=14)
-    d.box(s, x0 + 1.88, y0 + 1.18, 1.20, 0.60, "特征 z", fill=S.PANEL, size=14)
-    d.box(s, x0 + 1.50, y0 + 2.36, 1.95, 0.60, "当前概率 Q", fill=S.PANEL, size=13.5)
-    d.box(s, x0 + 1.50, y0 + 3.54, 1.95, 0.60, "锐化目标 P", fill=S.PANEL, size=13.5)
-    d.arrow(s, x0 + 1.29, y0 + 0.30, x0 + 1.71, y0 + 0.30)
-    d.arrow(s, x0 + 2.475, y0 + 0.64, x0 + 2.475, y0 + 1.14)
-    d.arrow(s, x0 + 2.475, y0 + 1.82, x0 + 2.475, y0 + 2.32)
-    d.arrow(s, x0 + 2.475, y0 + 3.00, x0 + 2.475, y0 + 3.50)
-    d.text(s, x0 + 2.60, y0 + 3.08, 1.65, 0.32, "平方、按簇归一", size=11, color=S.SECONDARY)
-    # feedback
-    d.path(s, [(x0 + 3.49, y0 + 3.84), (x0 + 4.25, y0 + 3.84), (x0 + 4.25, y0 + 0.30), (x0 + 3.24, y0 + 0.30)],
-           color=S.DEEP, width=2)
-    d.text(s, x0 + 3.05, y0 + 1.15, 1.12, 0.85, "拉近 Q 与 P\nKL 反向更新", size=12, bold=True, color=S.DEEP, align="r")
-    d.text(s, x0, y0 + 4.42, 4.35, 0.55, "训练全程不读标签；簇分配变化 < 0.1% 时早停。", size=12.5,
+    # Right: real two-stage DEC neural network architecture
+    d.text(s, 7.92, 1.48, 4.76, 0.28, "DEC 网络架构（阶段① AE 预训练 → 阶段② 弃解码器自训练）",
+           size=11.5, bold=True, color=S.DEEP)
+    cx = 10.62
+    d.box(s, cx - 1.25, 1.82, 2.50, 0.50, "输入图像 x", fill=S.PANEL, size=12.5,
+          sub="784 维灰度 / CIFAR 3×32²", sub_size=9.5)
+    d.arrow(s, cx, 2.34, cx, 2.54)
+    # Encoder container with exact layers
+    d.rect(s, cx - 1.52, 2.56, 3.04, 1.12, fill="#EEF5FD", line=S.DEEP, radius=0.08, line_w=1.25)
+    d.text(s, cx - 1.44, 2.61, 2.88, 0.26, [[("编码器 f", {}), ("θ", {"sub": True}), ("（联合微调）", {})]],
+           size=11, bold=True, color=S.DEEP, align="c")
+    d.box(s, cx - 1.38, 2.91, 2.76, 0.31, "MLP: 784 → 500 → 500 → 2000 → 10", fill=S.SURFACE,
+          color=S.INK, size=9.5, bold=True, line=S.HAIRLINE, radius=0.14)
+    d.box(s, cx - 1.38, 3.28, 2.76, 0.31, "CIFAR: Conv 32→64→128 → FC(10)", fill=S.SURFACE,
+          color=S.SECONDARY, size=9.2, bold=False, line=S.HAIRLINE, radius=0.14)
+    d.arrow(s, cx, 3.70, cx, 3.92)
+    # Bottleneck z + dashed discarded decoder on left
+    d.box(s, cx - 0.86, 3.94, 1.72, 0.44, "隐特征 z ∈ ℝ¹⁰", fill="#DCEBFA", color=S.INK,
+          size=12, bold=True, line=S.DEEP, line_w=1.5)
+    d.line(s, cx - 0.88, 4.16, 9.48, 4.16, color=S.MUTED, width=1.25, arrow=True, dash=True)
+    d.box(s, 7.92, 3.80, 1.52, 0.72, "对称解码器", fill=S.SURFACE, color=S.SECONDARY, size=10.5,
+          sub="仅预训练用\n阶段②丢弃", sub_size=8.8, line=S.MUTED, dash=True)
+    # Clustering layer: learnable centers + Q + P
+    d.arrow(s, cx, 4.40, cx, 4.66)
+    d.box(s, 7.92, 4.68, 1.56, 0.56, ["簇中心 {μ", ("k", {"sub": True}), "}"], fill="#EEF5FD", color=S.DEEP, size=10.5,
+          sub="K×10 · K-means 初始化", sub_size=8.5, line=S.DEEP)
+    d.arrow(s, 9.50, 4.96, cx - 0.88, 4.96, color=S.DEEP, width=1.5)
+    d.box(s, cx - 0.86, 4.68, 1.72, 0.56, "软分配 Q", fill=S.PANEL, size=11.5,
+          sub="Student-t 核", sub_size=9.5, line=S.HAIRLINE)
+    d.arrow(s, cx, 5.26, cx, 5.56)
+    d.text(s, cx + 0.08, 5.28, 1.35, 0.26, "平方、按簇归一", size=9.2, color=S.SECONDARY)
+    d.box(s, cx - 0.86, 5.58, 1.72, 0.50, "锐化目标 P", fill=S.PANEL, size=11.5,
+          sub="高置信目标分布", sub_size=9.5, line=S.DEEP)
+    # KL feedback loop to encoder & centers
+    d.path(s, [(cx + 0.88, 5.83), (12.56, 5.83), (12.56, 3.12), (cx + 1.54, 3.12)], color=S.DEEP, width=1.8)
+    d.line(s, cx + 0.88, 4.96, 12.56, 4.96, color=S.DEEP, width=1.2, dash=True)
+    d.box(s, 11.56, 4.02, 1.12, 0.56, "KL(P‖Q)", fill=S.DEEP, color="#FFFFFF", size=10.5,
+          sub="反向更新", sub_size=8.8, sub_color="#E3EEFB", radius=0.14)
+    d.text(s, 7.92, 6.26, 4.76, 0.48, "训练全程不读标签；簇分配变化 < 0.1% 时早停。", size=12,
            color=S.SECONDARY, line=1.35)
 
 
 def s08_idec(d: Deck):
     s = d.slide("S08_idec", SECTION["method"], "IDEC：保留解码器，防止表示被聚类目标拉坏",
                 source="Guo et al., Improved Deep Embedded Clustering with Local Structure Preservation, IJCAI 2017")
-    d.equation(s, "idec_loss", MX, 1.78, scale=0.90)
-    d.text(s, MX, 2.62, 5.75, 2.1,
+    d.equation(s, "idec_loss", MX, 1.75, scale=0.88)
+    d.text(s, MX, 2.58, 5.55, 2.1,
            "只用 KL 自训练时，早期分错的样本会被越拉越偏，隐空间容易被扭曲。\n"
            "**可以想成一场拔河：**聚类项 KL 拼命把同类往中心压紧；**重构项拉住编码器，要求 z 仍能画回原图**，系数 λ 控制两者的比重。",
-           size=15.5, color=S.BODY, line=1.5, after=10)
-    d.rect(s, MX, 4.82, 5.75, 1.28, fill=S.PANEL, radius=0.08)
-    d.text(s, MX + 0.22, 4.92, 5.32, 1.08,
+           size=15, color=S.BODY, line=1.5, after=10)
+    d.rect(s, MX, 4.78, 5.55, 1.32, fill=S.PANEL, radius=0.08)
+    d.text(s, MX + 0.20, 4.86, 5.15, 1.16,
            "实现口径说明：本项目的 λ 乘在每张图的平方重构误差（对像素求和）上；原论文把 γ 乘在聚类项上、重构误差按像素取平均，两者换算为 λ = 1/(γD)，D 为像素数。",
-           size=12, color=S.SECONDARY, line=1.42, anchor="m")
-    x0, y0 = 6.62, 1.88
-    d.box(s, x0, y0 + 1.05, 1.10, 0.62, "图像 x", fill=S.PANEL, size=13.5)
-    d.box(s, x0 + 1.48, y0 + 1.05, 1.22, 0.62, "编码器", fill="#E3EEFB", size=13.5)
-    d.box(s, x0 + 3.06, y0 + 1.05, 0.92, 0.62, "特征 z", fill=S.PANEL, size=13.5)
-    d.box(s, x0 + 4.38, y0, 1.65, 0.66, "软分配 Q", fill=S.PANEL, size=13.5)
-    d.box(s, x0 + 4.38, y0 + 2.08, 1.65, 0.66, ["解码器 g", ("φ", {"sub": True})], fill="#E3EEFB", size=13.5,
-          sub="还原原图 x̂", sub_size=10.5)
-    d.arrow(s, x0 + 1.14, y0 + 1.36, x0 + 1.44, y0 + 1.36)
-    d.arrow(s, x0 + 2.74, y0 + 1.36, x0 + 3.02, y0 + 1.36)
-    d.path(s, [(x0 + 4.02, y0 + 1.20), (x0 + 4.19, y0 + 1.20), (x0 + 4.19, y0 + 0.33), (x0 + 4.34, y0 + 0.33)])
-    d.path(s, [(x0 + 4.02, y0 + 1.52), (x0 + 4.19, y0 + 1.52), (x0 + 4.19, y0 + 2.41), (x0 + 4.34, y0 + 2.41)])
-    d.text(s, x0 + 4.34, y0 + 0.72, 2.0, 0.34, "聚类损失 KL（压紧簇）", size=11.5, color=S.DEEP, bold=True)
-    d.text(s, x0 + 4.34, y0 + 2.82, 2.0, 0.34, "重构损失 × λ（保细节）", size=11.5, color=S.DEEP, bold=True)
-    d.text(s, x0, y0 + 3.62, 5.9, 0.9, "DEC 就是 λ = 0 的特例：解码器只在预训练阶段用一次，之后直接丢弃。",
-           size=14.5, color=S.BODY, line=1.38)
+           size=11.8, color=S.SECONDARY, line=1.42, anchor="m")
+    # Right: real hourglass dual-branch architecture
+    x0 = 6.42
+    d.text(s, x0, 1.52, 6.26, 0.28, "IDEC 对称自编码器 + 双分支联合优化架构", size=12, bold=True, color=S.DEEP)
+    d.box(s, x0, 3.04, 0.90, 0.80, "图像 x", fill=S.PANEL, size=12.5, sub="784 /\n3×32²", sub_size=9.2)
+    d.arrow(s, x0 + 0.92, 3.44, x0 + 1.12, 3.44)
+    # Encoder block
+    d.rect(s, x0 + 1.14, 2.66, 1.54, 1.56, fill="#EEF5FD", line=S.DEEP, radius=0.08, line_w=1.25)
+    d.text(s, x0 + 1.18, 2.72, 1.46, 0.26, [[("编码器 f", {}), ("θ", {"sub": True})]],
+           size=11.5, bold=True, color=S.DEEP, align="c")
+    d.box(s, x0 + 1.24, 3.02, 1.34, 0.34, "784→500→500", fill=S.SURFACE, color=S.INK, size=8.8, bold=True,
+          line=S.HAIRLINE, radius=0.14)
+    d.box(s, x0 + 1.24, 3.41, 1.34, 0.32, "→2000 (ReLU)", fill=S.SURFACE, color=S.INK, size=8.8, bold=False,
+          line=S.HAIRLINE, radius=0.14)
+    d.box(s, x0 + 1.24, 3.79, 1.34, 0.32, "CIFAR: Conv×3", fill=S.SURFACE, color=S.SECONDARY, size=8.5,
+          bold=False, line=S.HAIRLINE, radius=0.14)
+    d.arrow(s, x0 + 2.70, 3.44, x0 + 2.90, 3.44)
+    # Bottleneck z
+    d.box(s, x0 + 2.92, 3.04, 0.78, 0.80, "特征 z", fill="#DCEBFA", color=S.INK, size=12, bold=True,
+          sub="10 维", sub_size=9.5, line=S.DEEP, line_w=1.6)
+    # Split to two branches
+    d.path(s, [(x0 + 3.72, 3.26), (x0 + 3.90, 3.26), (x0 + 3.90, 2.34), (x0 + 4.06, 2.34)], color=S.DEEP, width=1.6)
+    d.path(s, [(x0 + 3.72, 3.62), (x0 + 3.90, 3.62), (x0 + 3.90, 4.44), (x0 + 4.06, 4.44)], color=S.DEEP, width=1.6)
+    # Upper branch: Clustering (KL)
+    d.box(s, x0 + 4.08, 1.94, 1.18, 0.80, "软分配 Q", fill=S.PANEL, size=11.5,
+          sub="Student-t\n+ 簇中心 {μₖ}", sub_size=8.8, line=S.DEEP)
+    d.arrow(s, x0 + 5.28, 2.34, x0 + 5.42, 2.34, color=S.DEEP, width=1.5)
+    d.box(s, x0 + 5.44, 1.98, 0.82, 0.72, "KL(P‖Q)", fill=S.DEEP, color="#FFFFFF", size=10,
+          sub="压紧簇", sub_size=8.8, sub_color="#E3EEFB")
+    # Lower branch: Reconstruction (retained in IDEC, dropped in DEC)
+    d.rect(s, x0 + 3.98, 3.76, 2.30, 1.66, fill="#FAFBFD", line=S.DEEP, radius=0.08, line_w=1.2, dash=True)
+    d.box(s, x0 + 4.08, 3.90, 1.18, 1.06, ["解码器 g", ("φ", {"sub": True})], fill="#EEF5FD", color=S.INK, size=11.5,
+          sub="2000→500→\n500→784\nSigmoid", sub_size=8.4, line=S.DEEP)
+    d.arrow(s, x0 + 5.28, 4.43, x0 + 5.42, 4.43, color=S.DEEP, width=1.5)
+    d.box(s, x0 + 5.44, 3.98, 0.76, 0.90, "还原 x̂", fill=S.PANEL, color=S.INK, size=10.5,
+          sub="λ·SSE\n保细节", sub_size=8.8, sub_color=S.DEEP, line=S.DEEP)
+    d.text(s, x0 + 4.02, 5.06, 2.22, 0.30, "IDEC 保留重构；DEC(λ=0) 丢弃", size=9.2, bold=True,
+           color=S.DEEP, align="c")
+    d.text(s, x0, 5.78, 6.26, 0.55,
+           "DEC 是 λ = 0 的特例：解码器只在预训练时用一次，微调时直接丢弃。",
+           size=13.5, color=S.BODY, line=1.35)
 
 
 def s09_vade(d: Deck):
     s = d.slide("S09_vade", SECTION["method"], "VaDE：把高斯混合模型搬进隐空间",
                 source="Jiang et al., Variational Deep Embedding, IJCAI 2017 · 本项目实现中重构项采用每图平方误差（SSE），非 Bernoulli 交叉熵。")
-    d.text(s, MX, 1.58, 6.4, 0.28, "生成过程（模型怎么“想象”出一张图）", size=13, color=S.SECONDARY)
-    d.equation(s, "vade_gen", MX, 1.90, scale=0.80)
-    d.text(s, MX, 2.45, 6.6, 0.32, "① 按比例 π 抽类别 c  →  ② 在该类正态云抽特征 z  →  ③ 解码画成图 x",
-           size=12, bold=True, color=S.GENERATIVE)
-    d.text(s, MX, 2.92, 6.4, 0.28, "训练目标（证据下界 ELBO）", size=13, color=S.SECONDARY)
-    d.equation(s, "vade_elbo", MX, 3.22, scale=0.80)
-    d.text(s, MX, 3.80, 6.6, 0.34, "直觉：既要“还原得像原图”（前项重构），又要“特征贴合高斯混合云”（后项 KL）。",
-           size=12, color=S.BODY)
-    # diagram
-    y = 4.68
-    nodes = [("c", "类别 c", S.PANEL), ("z", "特征 z", "#F3E6F1"), ("x", "图像 x", S.PANEL)]
-    for i, (sym, lab, fill) in enumerate(nodes):
-        x = MX + 0.25 + i * 2.1
-        d.oval(s, x, y, 0.80, fill)
-        d.text(s, x, y, 0.80, 0.80, sym, size=21, bold=True, color=S.INK, align="c", anchor="m", italic=True,
-               font="Cambria Math")
-        d.text(s, x - 0.3, y + 0.86, 1.4, 0.28, lab, size=12, color=S.SECONDARY, align="c")
-        if i < 2:
-            d.arrow(s, x + 0.85, y + 0.40, x + 2.05, y + 0.40, color=S.GENERATIVE, width=2)
-    d.text(s, MX + 0.95, y - 0.36, 4.2, 0.28,
-           [["生成方向：π → N(μ", ("c", {"sub": True}), ", σ", ("c", {"sub": True}), "²) → 解码器"]],
-           size=11.5, color=S.GENERATIVE)
-    d.path(s, [(MX + 4.65, y + 1.24), (MX + 4.65, y + 1.50), (MX + 2.65, y + 1.50), (MX + 2.65, y + 1.22)],
-           color=S.SECONDARY)
-    d.text(s, MX + 2.55, y + 1.54, 3.2, 0.28, "推断方向：编码器由图反推 q(z, c | x)", size=11.5, color=S.SECONDARY)
+    d.text(s, MX, 1.52, 6.5, 0.28, "生成过程（模型怎么“想象”出一张图）", size=12.5, color=S.SECONDARY)
+    d.equation(s, "vade_gen", MX, 1.82, scale=0.76)
+    d.text(s, MX, 2.34, 6.6, 0.30, "① 按比例 π 抽类别 c  →  ② 在该类正态云抽特征 z  →  ③ 解码画成图 x",
+           size=11.8, bold=True, color=S.GENERATIVE)
+    d.text(s, MX, 2.74, 6.5, 0.28, "训练目标（证据下界 ELBO）", size=12.5, color=S.SECONDARY)
+    d.equation(s, "vade_elbo", MX, 3.04, scale=0.76)
+    d.text(s, MX, 3.58, 6.6, 0.30, "直觉：既要“还原得像原图”（前项 SSE），又要“特征贴合高斯混合云”（后项 KL）。",
+           size=11.8, color=S.BODY)
+    # Real VaDE variational architecture diagram
+    d.text(s, MX, 4.08, 6.55, 0.26, "VaDE 变分编码器 + 隐空间 GMM 先验网络架构",
+           size=11.5, bold=True, color=S.GENERATIVE)
+    # GMM Prior sitting cleanly above z
+    d.rect(s, MX + 2.88, 4.40, 2.08, 0.56, fill="#F3E6F1", line=S.GENERATIVE, radius=0.08, line_w=1.4)
+    d.text(s, MX + 2.94, 4.40, 1.96, 0.56,
+           [[("可学习 GMM 先验", {"bold": True, "size": 11, "color": S.GENERATIVE})],
+            [("π", {}), ("c", {"sub": True}), (", μ", {}), ("c", {"sub": True}), (", σ", {}),
+             ("c", {"sub": True}), ("²（K=10 团高斯云）", {})]],
+           size=8.8, color=S.SECONDARY, align="c", anchor="m", line=1.12)
+    d.line(s, MX + 3.92, 4.98, MX + 3.92, 5.28, color=S.GENERATIVE, width=1.6, arrow=True)
+    d.text(s, MX + 4.02, 5.00, 1.65, 0.26, [[("KL 正则 & 后验 γ", {}), ("c", {"sub": True})]],
+           size=9.2, bold=True, color=S.GENERATIVE)
+    # Main horizontal encoder -> (mu, logvar) -> reparam z -> decoder -> x_hat
+    ym = 5.66
+    d.box(s, MX, ym - 0.34, 0.68, 0.68, "图 x", fill=S.PANEL, size=11.5, sub="784", sub_size=9)
+    d.arrow(s, MX + 0.70, ym, MX + 0.84, ym)
+    d.box(s, MX + 0.86, ym - 0.44, 1.18, 0.88, "编码器", fill="#F7ECF5", color=S.INK, size=11.5,
+          sub="784→500→\n500→2000\n(CIFAR Conv)", sub_size=8.2, line=S.GENERATIVE)
+    # Fork to mu & logvar heads
+    d.path(s, [(MX + 2.06, ym - 0.14), (MX + 2.18, ym - 0.14), (MX + 2.18, ym - 0.28), (MX + 2.28, ym - 0.28)],
+           color=S.GENERATIVE, width=1.4)
+    d.path(s, [(MX + 2.06, ym + 0.14), (MX + 2.18, ym + 0.14), (MX + 2.18, ym + 0.28), (MX + 2.28, ym + 0.28)],
+           color=S.GENERATIVE, width=1.4)
+    d.box(s, MX + 2.30, ym - 0.48, 0.76, 0.40, "均值 μ", fill=S.SURFACE, color=S.INK, size=10,
+          sub="10d", sub_size=8.2, line=S.GENERATIVE)
+    d.box(s, MX + 2.30, ym + 0.08, 0.76, 0.40, "log σ²", fill=S.SURFACE, color=S.INK, size=10,
+          sub="10d", sub_size=8.2, line=S.GENERATIVE)
+    # Merge into reparameterized z
+    d.path(s, [(MX + 3.08, ym - 0.28), (MX + 3.22, ym - 0.28), (MX + 3.22, ym - 0.10), (MX + 3.34, ym - 0.10)],
+           color=S.GENERATIVE, width=1.4)
+    d.path(s, [(MX + 3.08, ym + 0.28), (MX + 3.22, ym + 0.28), (MX + 3.22, ym + 0.10), (MX + 3.34, ym + 0.10)],
+           color=S.GENERATIVE, width=1.4)
+    d.box(s, MX + 3.36, ym - 0.36, 1.12, 0.72, "z = μ+σ⊙ε", fill="#F3E6F1", color=S.INK, size=10.5, bold=True,
+          sub="重参数采样 10d", sub_size=8.5, line=S.GENERATIVE, line_w=1.6)
+    d.arrow(s, MX + 4.50, ym, MX + 4.66, ym, color=S.GENERATIVE, width=1.5)
+    d.box(s, MX + 4.68, ym - 0.44, 1.14, 0.88, "对称解码器", fill="#F7ECF5", color=S.INK, size=11,
+          sub="10→2000→\n500→784\nSigmoid", sub_size=8.2, line=S.GENERATIVE)
+    d.arrow(s, MX + 5.84, ym, MX + 5.96, ym, color=S.GENERATIVE, width=1.5)
+    d.box(s, MX + 5.98, ym - 0.34, 0.64, 0.68, "x̂", fill=S.PANEL, size=12, sub="SSE", sub_size=9, line=S.GENERATIVE)
+    d.text(s, MX, 6.28, 6.62, 0.45,
+           [[("推断：由编码器得 μ 及每簇后验 γ", {}), ("c", {"sub": True}), (" 判类别；生成：从 GMM 抽 z 经解码器画图。", {})]],
+           size=11.5, color=S.SECONDARY, line=1.35)
     # comparison on the right
-    x0 = 7.55
+    x0 = 7.62
     rows = [("与 K-means 相比", "每个簇有自己的方差和先验比例 π，是一团“概率云”，而不只是一个孤立中心点。"),
             ("与像素空间 GMM 相比", "先降到 10 维再建模，避开 784 维像素协方差难以估计的难题。"),
             ("与统计教材的联系", "第 3 章多元正态 + 第 8 章潜变量模型，用神经网络把两者连起来。")]
     for i, (head, body) in enumerate(rows):
         y0 = 1.82 + i * 1.52
-        d.rule(s, x0, y0, 5.1, color=S.GENERATIVE if i == 0 else S.HAIRLINE, width=2 if i == 0 else 1)
-        d.text(s, x0, y0 + 0.15, 5.1, 0.38, head, size=16, bold=True, color=S.INK)
-        d.text(s, x0, y0 + 0.58, 5.1, 0.88, body, size=14.5, color=S.BODY, line=1.42)
+        d.rule(s, x0, y0, 5.06, color=S.GENERATIVE if i == 0 else S.HAIRLINE, width=2 if i == 0 else 1)
+        d.text(s, x0, y0 + 0.15, 5.06, 0.38, head, size=16, bold=True, color=S.INK)
+        d.text(s, x0, y0 + 0.58, 5.06, 0.88, body, size=14.5, color=S.BODY, line=1.42)
 
 
 def s10_contrastive(d: Deck):
     s = d.slide("S10_contrastive", SECTION["method"], "对比学习：同一张图的两张变形照应当靠近",
                 source="Chen et al., SimCLR, ICML 2020 · Li et al., Contrastive Clustering, AAAI 2021")
-    x0, y0 = MX, 1.95
-    d.box(s, x0, y0 + 0.90, 1.32, 0.78, "图像 x", fill=S.PANEL, size=14, sub="例：同一张猫图", sub_size=10)
-    d.box(s, x0 + 1.82, y0, 1.65, 0.68, "变形视图 1", fill=S.PANEL, size=13.5, sub="随机裁剪 + 变亮", sub_size=10.5)
-    d.box(s, x0 + 1.82, y0 + 1.92, 1.65, 0.68, "变形视图 2", fill=S.PANEL, size=13.5, sub="水平翻转 + 调色", sub_size=10.5)
-    d.path(s, [(x0 + 1.36, y0 + 1.15), (x0 + 1.58, y0 + 1.15), (x0 + 1.58, y0 + 0.34), (x0 + 1.78, y0 + 0.34)])
-    d.path(s, [(x0 + 1.36, y0 + 1.45), (x0 + 1.58, y0 + 1.45), (x0 + 1.58, y0 + 2.26), (x0 + 1.78, y0 + 2.26)])
-    d.box(s, x0 + 3.92, y0 + 0.84, 1.50, 0.92, "共享编码器", fill="#E2F3EE", size=14)
-    d.arrow(s, x0 + 3.51, y0 + 0.34, x0 + 3.88, y0 + 1.00)
-    d.arrow(s, x0 + 3.51, y0 + 2.26, x0 + 3.88, y0 + 1.60)
-    d.box(s, x0 + 5.88, y0, 2.42, 0.78, "样本对比（行）", fill=S.PANEL, size=13.5, sub="同图两视图拉近，异图推远", sub_size=10.5)
-    d.box(s, x0 + 5.88, y0 + 1.82, 2.42, 0.78, "簇对比（列 · CC）", fill=S.PANEL, size=13.5, sub="同簇在两视图成员应一致", sub_size=10.5)
-    d.path(s, [(x0 + 5.46, y0 + 1.10), (x0 + 5.66, y0 + 1.10), (x0 + 5.66, y0 + 0.39), (x0 + 5.84, y0 + 0.39)])
-    d.path(s, [(x0 + 5.46, y0 + 1.50), (x0 + 5.66, y0 + 1.50), (x0 + 5.66, y0 + 2.21), (x0 + 5.84, y0 + 2.21)])
-    d.equation(s, "nt_xent", x0 + 0.05, 5.02, scale=0.80)
-    d.text(s, x0 + 4.10, 5.05, 4.35, 1.05,
+    x0 = MX
+    d.text(s, x0, 1.48, 8.65, 0.28, "SimCLR & CC 孪生网络架构（共享 SmallCNN 骨干 + 双对比头）",
+           size=11.8, bold=True, color=S.CONTRASTIVE)
+    # Input + Two augmented views
+    d.box(s, x0, 2.66, 1.04, 0.78, "图像 x", fill=S.PANEL, size=13, sub="例：猫图", sub_size=9.5)
+    d.box(s, x0 + 1.32, 1.82, 1.44, 0.68, "变形视图 x̃₁", fill=S.PANEL, size=12, sub="随机裁剪 + 变亮", sub_size=9.5)
+    d.box(s, x0 + 1.32, 3.60, 1.44, 0.68, "变形视图 x̃₂", fill=S.PANEL, size=12, sub="水平翻转 + 调色", sub_size=9.5)
+    d.path(s, [(x0 + 1.06, 2.90), (x0 + 1.18, 2.90), (x0 + 1.18, 2.16), (x0 + 1.30, 2.16)])
+    d.path(s, [(x0 + 1.06, 3.20), (x0 + 1.18, 3.20), (x0 + 1.18, 3.94), (x0 + 1.30, 3.94)])
+    # Real SmallCNN Shared Backbone container
+    bx, bw = x0 + 3.08, 2.38
+    d.arrow(s, x0 + 2.78, 2.16, bx - 0.04, 2.68, color=S.CONTRASTIVE, width=1.6)
+    d.arrow(s, x0 + 2.78, 3.94, bx - 0.04, 3.42, color=S.CONTRASTIVE, width=1.6)
+    d.rect(s, bx, 1.80, bw, 2.52, fill="#E8F6F1", line=S.CONTRASTIVE, radius=0.07, line_w=1.4)
+    d.text(s, bx + 0.08, 1.86, bw - 0.16, 0.26, "共享骨干 SmallCNN", size=11.5, bold=True,
+           color=S.CONTRASTIVE, align="c")
+    layers = [
+        ("Conv 3×3 (32) · ReLU · Pool", S.SURFACE, S.INK, False),
+        ("Conv 3×3 (64) · ReLU · Pool", S.SURFACE, S.INK, False),
+        ("Conv 3×3 (128) · ReLU · GAP", S.SURFACE, S.INK, False),
+        ("FC → 表征 h₁, h₂ ∈ ℝ¹²⁸", "#D4EFE6", S.INK, True),
+    ]
+    for idx, (txt, fill, col, is_b) in enumerate(layers):
+        d.box(s, bx + 0.12, 2.18 + idx * 0.44, bw - 0.24, 0.36, txt, fill=fill, color=col,
+              size=9.5, bold=is_b, line=S.HAIRLINE if not is_b else S.CONTRASTIVE, radius=0.14)
+    d.text(s, bx + 0.08, 3.98, bw - 0.16, 0.26, "两视图共享同一套卷积参数", size=9.2,
+           color=S.CONTRASTIVE, align="c")
+    # Two real heads: Instance MLP + CC Cluster Linear+Softmax
+    hx, hw = x0 + 5.76, 2.90
+    d.path(s, [(bx + bw + 0.02, 2.72), (hx - 0.16, 2.72), (hx - 0.16, 2.34), (hx - 0.02, 2.34)],
+           color=S.CONTRASTIVE, width=1.6)
+    d.path(s, [(bx + bw + 0.02, 3.38), (hx - 0.16, 3.38), (hx - 0.16, 3.74), (hx - 0.02, 3.74)],
+           color=S.CONTRASTIVE, width=1.6)
+    d.box(s, hx, 1.80, hw, 1.10, "实例头（行对比 · SimCLR & CC）", fill=S.PANEL, color=S.INK, size=11,
+          sub="MLP: 128 → 128 → ReLU → 128\nNT-Xent (τ=0.5)：同图拉近、异图推远", sub_size=9.2,
+          line=S.CONTRASTIVE)
+    d.box(s, hx, 3.20, hw, 1.12, "簇头（列对比 · 仅 CC）", fill=S.PANEL, color=S.INK, size=11,
+          sub="Linear: 128 → K(10) + Softmax\n列对比 (τ=1.0)：同簇两视图一致", sub_size=9.2,
+          line=S.CONTRASTIVE, dash=True)
+    # NT-Xent formula + plain intuition below
+    d.equation(s, "nt_xent", x0 + 0.05, 4.98, scale=0.80)
+    d.text(s, x0 + 4.10, 5.02, 4.50, 1.05,
            [[("NT-Xent 直觉：", {"bold": True, "color": S.INK}),
              ("分子为同图两视图相似度（拉大），分母为与其他所有图的相似度（压小）。", {})]],
            size=13, color=S.SECONDARY, line=1.42)
     xr = 9.55
-    rows = [("SimCLR + K-means", S.CONTRASTIVE, "多阶段：只用行对比学好特征，最后离线做 K-means。"),
-            ("CC（对比聚类）", S.CONTRASTIVE, "联合优化：同时做样本级与簇级对比，簇头直接输出分组。")]
+    rows = [("SimCLR + K-means", S.CONTRASTIVE, "多阶段：只用实例头学特征 h，最后离线做 K-means。"),
+            ("CC（对比聚类）", S.CONTRASTIVE, "联合优化：实例头与簇头联合训练，直接输出簇分配。")]
     for i, (name, color, body) in enumerate(rows):
-        y = 1.95 + i * 1.52
+        y = 1.85 + i * 1.54
         d.dot(s, xr, y + 0.10, color, d=0.16)
         d.text(s, xr + 0.28, y, 2.9, 0.38, name, size=15.5, bold=True, color=S.INK)
         d.text(s, xr + 0.28, y + 0.44, 2.9, 0.96, body, size=13.5, color=S.BODY, line=1.38)
-    d.rect(s, xr, 5.02, 3.13, 1.50, fill=S.PANEL, radius=0.06)
-    d.text(s, xr + 0.18, 5.10, 2.78, 1.34,
+    d.rect(s, xr, 5.00, 3.13, 1.50, fill=S.PANEL, radius=0.06)
+    d.text(s, xr + 0.18, 5.08, 2.78, 1.34,
            "实验算力限制：两者均用 128 维小型 CNN、训练 100 轮（非原论文 ResNet）；CC 未加簇熵正则，因此对比路线被低估。",
            size=11.8, color=S.SECONDARY, line=1.4, anchor="m")
 
@@ -956,32 +1075,132 @@ def s10_contrastive(d: Deck):
 def s11_pretrained(d: Deck):
     s = d.slide("S11_pretrained", SECTION["method"], "预训练模型把“学表示”交给了海量外部数据",
                 source="Oquab et al., TMLR 2024 · Radford et al., ICML 2021 · Li et al., ICML 2024 · Hu et al., 2026（预印本）")
-    y = 1.92
-    items = [("输入图像", "MNIST / Fashion / CIFAR-10", S.PANEL, 2.25),
-             ("冻结编码器", "DINOv2 ViT-S/14 · CLIP ViT-B/32", "#FDF0EA", 2.75),
-             ("特征向量", "384 / 512 维，L2 归一化", S.PANEL, 2.15),
-             ("简单聚类器", "K-means · GMM · DEC 头", S.PANEL, 2.25)]
-    _flow_row(d, s, items, y, h=0.95, gap=0.42, size=15)
-    d.text(s, MX + 2.67, y + 1.02, 2.75, 0.30, "参数锁死不重训，直接借用现成识图能力", size=11,
+    # Real Pretrained ViT + L2 Norm + 3 parallel downstream clusterers architecture
+    d.box(s, MX, 1.84, 2.02, 1.24, "输入图像", fill=S.PANEL, size=13.5,
+          sub="MNIST / Fashion / CIFAR-10\n转 RGB · Resize 224²", sub_size=9.5)
+    d.arrow(s, MX + 2.04, 2.46, MX + 2.28, 2.46)
+    # Frozen ViT backbone container
+    bx = MX + 2.30
+    d.rect(s, bx, 1.56, 3.44, 1.80, fill="#FDF0EA", line=S.PRETRAINED, radius=0.07, line_w=1.4, dash=True)
+    d.text(s, bx + 0.10, 1.63, 3.24, 0.26, "冻结预训练骨干（参数锁死不重训）", size=11, bold=True,
            color=S.PRETRAINED, align="c")
-    cards = [("DINOv2", "纯视觉自监督", "约 1.42 亿张无标签图像自监督训练，只看图像学物体语义。"),
+    d.box(s, bx + 0.14, 1.98, 3.16, 0.58, "DINOv2 ViT-S/14  →  384 维", fill=S.SURFACE, color=S.INK, size=11.5,
+          sub="LVD-142M 无标签自然图自监督", sub_size=9.2, line=S.PRETRAINED)
+    d.box(s, bx + 0.14, 2.66, 3.16, 0.58, "CLIP ViT-B/32   →  512 维", fill=S.SURFACE, color=S.INK, size=11.5,
+          sub="OpenAI 4 亿图文对对比对齐", sub_size=9.2, line=S.PRETRAINED)
+    d.arrow(s, bx + 3.46, 2.46, bx + 3.70, 2.46, color=S.PRETRAINED, width=1.6)
+    # L2 normalization
+    nx = bx + 3.72
+    d.box(s, nx, 1.94, 1.48, 1.04, "L2 归一化", fill=S.PANEL, color=S.INK, size=12.5,
+          sub="单位球面特征\n384 / 512 维", sub_size=9.5, line=S.PRETRAINED)
+    # Fork to 3 parallel downstream clusterers (matching E04)
+    cx = nx + 1.82
+    cw_c = W - MX - cx
+    ys_c = [1.56, 2.21, 2.86]
+    d.line(s, nx + 1.50, 2.46, nx + 1.66, 2.46, color=S.SECONDARY, width=1.4)
+    d.line(s, nx + 1.66, ys_c[0] + 0.25, nx + 1.66, ys_c[2] + 0.25, color=S.SECONDARY, width=1.4)
+    heads = [
+        ("● K-means", "直接划组（无额外参数）", "#FDF0EA", S.PRETRAINED),
+        ("■ Diag-GMM", "标准化 + 对角协方差混合", S.PANEL, S.HAIRLINE),
+        ("▲ DEC 聚类头", "Linear D→64→ReLU→10 + KL", S.PANEL, S.HAIRLINE),
+    ]
+    for yc, (hname, hsub, hfill, hline) in zip(ys_c, heads):
+        d.arrow(s, nx + 1.66, yc + 0.25, cx - 0.04, yc + 0.25, color=S.SECONDARY, width=1.4)
+        d.rect(s, cx, yc, cw_c, 0.50, fill=hfill, line=hline, radius=0.14)
+        d.text(s, cx + 0.14, yc, 1.38, 0.50, hname, size=11, bold=True, color=S.INK, anchor="m")
+        d.text(s, cx + 1.48, yc, cw_c - 1.56, 0.50, hsub, size=9.8, color=S.SECONDARY, anchor="m")
+    # 4 literature & method cards below
+    cards = [("DINOv2", "纯视觉自监督", "1.42 亿无标签图自监督训练，纯视觉学物体语义。"),
              ("CLIP", "图文对比对齐", "4 亿对图文配对训练，让视觉特征与自然语言对齐。"),
              ("TAC", "外部名词引导", "ICML 2024：引入 WordNet 名词语义，辅助图像聚类。"),
              ("VLM4Cluster", "2026 预印本基准", "在 20 个数据集上系统比较 17 种方法的效果、鲁棒性与成本。")]
     cw, gap = 2.85, 0.21
+    d.text(s, MX, 3.60, 4.0, 0.26, "本项目实验中使用（冻结提特征）", size=11, bold=True, color=S.PRETRAINED)
+    d.text(s, MX + 2 * (cw + gap), 3.60, 4.0, 0.26, "文献前沿方向", size=11, color=S.SECONDARY)
     for i, (name, role, body) in enumerate(cards):
         x = MX + i * (cw + gap)
-        d.rule(s, x, 3.74, cw, color=S.PRETRAINED if i < 2 else S.HAIRLINE, width=2 if i < 2 else 1)
-        d.text(s, x, 3.90, cw, 0.38, name, size=17, bold=True, color=S.INK)
-        d.text(s, x, 4.28, cw, 0.28, role, size=11.5, bold=True, color=S.PRETRAINED if i < 2 else S.SECONDARY)
-        d.text(s, x, 4.62, cw, 1.15, body, size=13.5, color=S.BODY, line=1.38)
-    d.text(s, MX, 3.42, 4.0, 0.28, "本项目实验中使用（冻结提特征）", size=11.5, bold=True, color=S.PRETRAINED)
-    d.text(s, MX + 2 * (cw + gap), 3.42, 4.0, 0.28, "文献前沿方向", size=11.5, color=S.SECONDARY)
-    d.rect(s, MX, 5.98, CW, 0.72, fill=S.PANEL, radius=0.12)
-    d.text(s, MX + 0.30, 5.98, CW - 0.60, 0.72,
+        d.rule(s, x, 3.90, cw, color=S.PRETRAINED if i < 2 else S.HAIRLINE, width=2 if i < 2 else 1)
+        d.text(s, x, 4.04, cw, 0.36, name, size=16.5, bold=True, color=S.INK)
+        d.text(s, x, 4.40, cw, 0.26, role, size=11, bold=True, color=S.PRETRAINED if i < 2 else S.SECONDARY)
+        d.text(s, x, 4.72, cw, 1.12, body, size=13, color=S.BODY, line=1.36)
+    d.rect(s, MX, 6.02, CW, 0.68, fill=S.PANEL, radius=0.12)
+    d.text(s, MX + 0.30, 6.02, CW - 0.60, 0.68,
            [[("公平口径：", {"bold": True, "color": S.INK}),
              ("预训练模型在实验前已见过海量外部图像，训练成本不可与从零训练直接比较，因此单独分组报告。", {})]],
-           size=14, color=S.BODY, anchor="m")
+           size=13.8, color=S.BODY, anchor="m")
+
+
+def s11b_architectures(d: Deck):
+    f = d.facts
+    s = d.slide("S11b_architectures", SECTION["method"], "各模型网络架构总览：从像素统计到预训练骨干",
+                source="参数量为 Fashion-MNIST（MLP 784 维）与 CIFAR-10（CNN 3×32²）实测均值，读取自 results/tables/e01_summary.csv。")
+    # Column headers
+    cols = [
+        (MX, 1.92, "家族与方法"),
+        (2.68, 1.48, "输入处理"),
+        (4.36, 3.24, "核心表示网络（编码器 / 骨干）"),
+        (7.80, 2.48, "特征与输出头"),
+        (10.48, 2.20, "聚类目标 & 实测参数"),
+    ]
+    for cx, cw, title in cols:
+        d.text(s, cx, 1.38, cw, 0.26, title, size=11.5, bold=True, color=S.SECONDARY)
+    d.rule(s, MX, 1.66, CW, color=S.HAIRLINE, width=1.2)
+    lanes = [
+        (S.CLASSICAL, "#F4F4F5", "经典方法", "K-means · PCA · GMM",
+         "拉平像素\n784 / 3072 维",
+         "无神经网络", "原像素 / PCA(10) / 标准化",
+         "784 或 10 维向量", "直接度量欧氏/高斯距离",
+         "最近中心 / 对角 GMM",
+         f"参数 {f.k('params_fashion_mnist_kmeans')}–{f.k('params_fashion_mnist_gmm')}"),
+        (S.DEEP, "#EEF5FD", "自编码器系", "AE+KM · DEC · IDEC",
+         "原始图像\n1×28² / 3×32²",
+         "MLP: 784→500→500→2000→10", "CIFAR-10: Conv 32→64→128→10",
+         "z ∈ ℝ¹⁰ + 对称解码器", "DEC 微调丢弃 / IDEC 保留",
+         "K-means / KL [+ λ·SSE]",
+         f"MLP {f.k('params_fashion_mnist_dec')} · CNN {f.k('params_cifar10_dec')}"),
+        (S.GENERATIVE, "#F7ECF5", "生成式", "VaDE",
+         "原始图像\n1×28² / 3×32²",
+         "同上编码器 → (μ, log σ²) → 重参数", "每簇对应隐空间高斯云 N(μₖ, σₖ²I)",
+         "z ∈ ℝ¹⁰ + 解码器 + GMM 先验", "同时学习各簇先验 πₖ, μₖ, σₖ²",
+         "ELBO = 每图 SSE + KL",
+         f"MLP {f.k('params_fashion_mnist_vade')} · CNN {f.k('params_cifar10_vade')}"),
+        (S.CONTRASTIVE, "#E8F6F1", "对比学习", "SimCLR+KM · CC",
+         "两份随机增强\n裁剪 / 翻转 / 亮度",
+         "共享 SmallCNN: Conv 32→64→128", "GAP → FC(128)（非 ResNet）",
+         "h ∈ ℝ¹²⁸ + 实例 MLP(128)", "CC 加簇头 Linear 128→10",
+         "NT-Xent [+ 列对比]",
+         f"仅 ~{f.k('params_fashion_mnist_simclr_kmeans')}（小 CNN）"),
+        (S.PRETRAINED, "#FDF0EA", "外部预训练", "DINOv2 · CLIP（冻结）",
+         "转 RGB · 224²\nImageNet 归一",
+         "冻结 ViT-S/14 (DINOv2) / ViT-B/32", "参数锁死不重训，仅前向提特征",
+         "384 / 512 维 + L2 归一", "外接 K-means / GMM / DEC 头",
+         "冻结提特征 + 独立聚类",
+         "外部预训练（下游极轻）"),
+    ]
+    y0, lh, gap = 1.76, 0.90, 0.11
+    for i, (color, tint, fam, mlist, inp, enc_top, enc_sub, head_top, head_sub, loss_top, param_sub) in enumerate(lanes):
+        y = y0 + i * (lh + gap)
+        # Subtle row container + left family stripe
+        d.rect(s, MX, y, CW, lh, fill=S.SURFACE, line=S.HAIRLINE, radius=0.05, line_w=0.8)
+        d.rect(s, MX, y, 0.09, lh, fill=color)
+        # Col 1: Family & models
+        d.text(s, MX + 0.18, y + 0.14, 1.72, 0.30, fam, size=13, bold=True, color=color)
+        d.text(s, MX + 0.18, y + 0.46, 1.72, 0.34, mlist, size=9.8, color=S.BODY, line=1.18)
+        # Col 2: Input box
+        d.box(s, 2.68, y + 0.12, 1.48, lh - 0.24, inp.split("\n")[0], fill=S.PANEL, color=S.INK, size=10.5,
+              sub=inp.split("\n")[1], sub_size=8.8)
+        d.arrow(s, 4.18, y + lh / 2, 4.34, y + lh / 2, color=color, width=1.4)
+        # Col 3: Backbone / encoder box
+        d.box(s, 4.36, y + 0.10, 3.24, lh - 0.20, enc_top, fill=tint, color=S.INK, size=10.5,
+              sub=enc_sub, sub_size=8.8, line=color, line_w=1.1, dash=(i == 4))
+        d.arrow(s, 7.62, y + lh / 2, 7.78, y + lh / 2, color=color, width=1.4)
+        # Col 4: Latent & heads box
+        d.box(s, 7.80, y + 0.10, 2.48, lh - 0.20, head_top, fill=S.PANEL, color=S.INK, size=10.2,
+              sub=head_sub, sub_size=8.6, line=S.HAIRLINE)
+        d.arrow(s, 10.30, y + lh / 2, 10.46, y + lh / 2, color=color, width=1.4)
+        # Col 5: Objective & measured params
+        d.box(s, 10.48, y + 0.10, 2.12, lh - 0.20, loss_top, fill=S.SURFACE, color=S.INK, size=10.0,
+              sub=param_sub, sub_size=8.8, sub_color=color, line=color, line_w=0.9)
 
 
 def s12_setup(d: Deck):
@@ -1468,9 +1687,9 @@ def a06_references(d: Deck, t: dict):
 
 
 SLIDES = [s01_cover, s02_question, s03_statistics, s04_pixel_distance, s05_core_idea, s06_paradigms, s07_dec,
-          s08_idec, s09_vade, s10_contrastive, s11_pretrained, s12_setup, s13_benchmark, s14_geometry,
-          s15_repr_vs_clusterer, s16_pixels_vs_dinov2, s17_noise, s18_sample_size, s19_components, s20_cost,
-          s21_stability, s22_verdict, s23_selection_guide, s24_limits]
+          s08_idec, s09_vade, s10_contrastive, s11_pretrained, s11b_architectures, s12_setup, s13_benchmark,
+          s14_geometry, s15_repr_vs_clusterer, s16_pixels_vs_dinov2, s17_noise, s18_sample_size, s19_components,
+          s20_cost, s21_stability, s22_verdict, s23_selection_guide, s24_limits]
 APPENDIX = [a01_table, a02_ablations, a03_sensitivity, a04_encoder_table, a05_stability_table, a06_references]
 
 

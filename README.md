@@ -2,13 +2,7 @@
 
 ![深度聚类范式总览](presentation/assets/diag_paradigm_evolution.png)
 
-这是一份配套课程汇报的研究仓库，面向第一次接触深度聚类的听众。仓库用统一实验协议比较经典聚类、表征学习、联合优化、生成式模型、对比聚类和外部预训练特征，回答一个实际问题：**面对新的图像数据，应该先改善表示，还是先更换聚类器？**
-
-## 先看这三份材料
-
-1. [汇报幻灯片](presentation/deep-clustering-evolution-selection-guide.pptx) 适合课堂讲解，包含 24 页正文和 6 页技术附录。
-2. [逐页讲稿](presentation/speaker_notes.md) 用通俗语言解释每页图表、公式和实验限制。
-3. [实验协议](docs/experiment_protocol.md) 说明数据切分、标签隔离、早停和结果生成规则。
+实验比较经典聚类、表征学习、联合优化、生成式模型、对比聚类和外部预训练特征，回答一个实际问题：**面对新的图像数据，应该先改善表示，还是先更换聚类器？**
 
 ## 这份研究讲了什么
 
@@ -23,11 +17,10 @@
 - `fit` 阶段不接收标签。测试标签只在评价步骤读取，类别不平衡子集只用训练集标签构造比例。
 - 早停只看训练集簇分配变化，追加 epoch 只看训练损失是否继续下降。
 - 所有汇总表和图由 `scripts/analyze.py` 从原始运行记录生成，空白结果保持为空。
-- 失败运行保留状态和 traceback，基础设施问题按原配置和 seed 重试一次。
 
-## 证据从哪里看
+## 从哪里看
 
-| 读者想看什么 | 文件或目录 |
+| 看什么 | 文件或目录 |
 | --- | --- |
 | 三数据集基准结果 | [results/tables/e01_summary.csv](results/tables/e01_summary.csv) |
 | E01 ARI 总览图 | [results/figures/fig_e01_ari.png](results/figures/fig_e01_ari.png) |
@@ -36,8 +29,6 @@
 | 预训练表示与聚类器对照 | [results/tables/e04_paired.csv](results/tables/e04_paired.csv)、[results/tables/e04_pretrained.csv](results/tables/e04_pretrained.csv) |
 | 无标签稳定性诊断 | [results/tables/selection.json](results/tables/selection.json) |
 | 原始运行记录 | [results/raw/](results/raw/) |
-| 运行失败记录 | [results/tables/failures.csv](results/tables/failures.csv) |
-| 本轮完成事项 | [docs/change_log.md](docs/change_log.md) |
 
 ## 如何运行
 
@@ -48,23 +39,6 @@ bash scripts/setup_wsl.sh
 bash scripts/launch_wsl.sh
 ```
 
-只查看计划而不运行：
-
-```bash
-python scripts/run_queue.py --dry-run
-```
-
-重新生成表格和图：
-
-```bash
-python scripts/analyze.py
-```
-
-重新生成汇报文件：
-
-```bash
-python scripts/build_pptx.py
-```
 
 运行自动化测试：
 
@@ -81,10 +55,8 @@ python -m unittest discover -s tests -v
 - [分类框架](docs/taxonomy.md) 用表征空间、优化交互、聚类机制和监督信号四个维度整理方法。
 - [完成记录](docs/change_log.md) 按日期记录本轮修改、验证和已知限制。
 
-## 需要一起阅读的限制
+## 局限性
 
 SimCLR 和 CC 使用课程版小型 CNN，CC 省略原论文的边际簇熵项。VaDE 的重构项是每张图的平方误差，GMM 使用标准化后的对角协方差。E02、E03 和 E04 的部分比较使用单个 seed，预训练模型含外部数据预算。结论只适用于当前协议和实现边界。
-
-模型权重、外部预训练缓存和完整运行归档保存在 Google Drive 的 `DeepClustering-Survey` 文件夹，GitHub 保留代码、协议、表格、图表、轻量嵌入和汇报文件。
 
 本仓库使用 MIT License。

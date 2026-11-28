@@ -38,19 +38,62 @@
 
 ## 各实验结果对比与主要结论
 
-### 结果汇总表与可视化索引
+### 1. 从零训练主基准（E01）
 
-| 对比维度 | 数据表与图表 |
-| --- | --- |
-| 从零训练基准（E01） | [results/tables/e01_summary.csv](results/tables/e01_summary.csv)、[benchmark_ari.png](results/figures/benchmark_ari.png) |
-| 隐空间几何演化（E05） | [embeddings_tsne.png](results/figures/embeddings_tsne.png) |
-| 编码器 × 聚类器矩阵（E04） | [results/tables/e04_summary.csv](results/tables/e04_summary.csv)、[representation_vs_clusterer.png](results/figures/representation_vs_clusterer.png) |
-| 测试高斯噪声鲁棒性（E03_noise） | [results/tables/e03_noise.csv](results/tables/e03_noise.csv)、[noise_robustness.png](results/figures/noise_robustness.png) |
-| 样本量、K、离群点与不平衡（E03） | [results/tables/e03_sensitivity_summary.csv](results/tables/e03_sensitivity_summary.csv)、[sample_size.png](results/figures/sample_size.png) |
-| IDEC 组件消融与重构权重 $\lambda$（E02 / E02_fixed） | [results/tables/e02_summary.csv](results/tables/e02_summary.csv)、[results/tables/e02_fixed_epochs.csv](results/tables/e02_fixed_epochs.csv)、[components_lambda.png](results/figures/components_lambda.png) |
-| 端到端训练成本前沿 | [results/tables/benchmark_cost_frontiers.csv](results/tables/benchmark_cost_frontiers.csv)、[cost_frontier.png](results/figures/cost_frontier.png) |
-| 无标签稳定性诊断（E05） | [results/tables/selection.json](results/tables/selection.json)、[stability_vs_ari.png](results/figures/stability_vs_ari.png) |
-| 原始运行记录 | [results/raw/](results/raw/) |
+![从零训练基准 ARI 对比](results/figures/benchmark_ari.png)
+
+> 灰度图（MNIST / Fashion-MNIST）上自编码器系（DEC、IDEC）与生成式（VaDE）明显领先；彩色自然图 CIFAR-10 上九种从零训练方法全部 ≤ 0.054，接近随机乱分。
+
+### 2. 隐空间几何演化（E05）
+
+![PCA、AE、DEC、IDEC 隐空间 t-SNE 演化](results/figures/embeddings_tsne.png)
+
+> Fashion-MNIST 2,000 张测试图 t-SNE：非线性自编码器先把大类拉开，DEC 自训练进一步把每个簇压成紧凑孤岛，IDEC 因保留重构约束簇边界相对松散。
+
+### 3. 改表示 vs 换聚类器（E04）
+
+![5 种编码器 × 3 种聚类器 ARI 对比](results/figures/representation_vs_clusterer.png)
+
+> 上下跨行（换表示）ARI 最多变化 0.60，同行横向（换聚类器）平均仅变化约 0.10；冻结 DINOv2 + K-means 在 CIFAR-10 上达 0.62，但在手写数字 MNIST 上仅 0.32，不及本地自编码器（0.59）。
+
+### 4. 测试高斯噪声鲁棒性（E03_noise）
+
+![测试高斯噪声鲁棒性对比](results/figures/noise_robustness.png)
+
+> 测试集加噪后排名反转：DEC 仅保留 47% 的干净图 ARI，像素 K-means 保留 93%；标准化像素对角 GMM 在 $\sigma = 0.1$ 即塌缩。
+
+### 5. 训练样本量敏感性（E03）
+
+![训练样本量梯度对比](results/figures/sample_size.png)
+
+> 仅用 1%（200 张）训练图时 K-means 超过 DEC；样本量增至千张以上，深度编码器预训练充分后联合优化才稳定反超。
+
+### 6. IDEC 组件消融与重构权重 $\lambda$（E02 / E02_fixed）
+
+![IDEC 组件消融与重构权重 λ 对比](results/figures/components_lambda.png)
+
+> 去掉 AE 预训练或随机初始化中心导致最大跌幅；固定 50 轮排除早停干扰后，$\lambda \le 0.1$ 与 DEC 持平，$\lambda \ge 1$ 在三个种子上全部低于 DEC。
+
+### 7. 端到端训练成本前沿
+
+![端到端训练时间与 ARI 帕累托前沿](results/figures/cost_frontier.png)
+
+> 横轴计入完整端到端耗时（DEC / IDEC 含 AE 预训练）：`PCA + K-means → K-means → AE + K-means → DEC` 构成性价比帕累托前沿。
+
+### 8. 无标签稳定性诊断（E05）
+
+![无标签稳定性与真实 ARI 对比](results/figures/stability_vs_ari.png)
+
+> 加噪前后簇成员一致度（宏观 Jaccard）在三个数据集上选出的都是经典方法，而真实 ARI 最高的均为深度方法：无标签稳定性可用于排雷塌缩，但不能替代人工抽检。
+
+<details>
+<summary>展开更多消融与敏感性对比图（隐空间维度、簇数 K、训练离群点与长尾不平衡）</summary>
+
+![隐空间维度消融](results/figures/latent_dim.png)
+
+![簇数 K、训练离群点与类别不平衡敏感性](results/figures/sensitivity_k_outliers_imbalance.png)
+
+</details>
 
 ### 核心实证发现
 

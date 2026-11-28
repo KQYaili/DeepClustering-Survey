@@ -179,7 +179,7 @@ class Issue3And5CostAndHygieneTests(unittest.TestCase):
 
 
 class Issue1And4And5PptBindingTests(unittest.TestCase):
-    VERDICT, GUIDE, STABILITY = 26, 27, 25  # zero-based slide indices (29 main + 6 appendix)
+    VERDICT, GUIDE, STABILITY = 28, 29, 27  # zero-based slide indices (31 main + 6 appendix)
 
     def test_pptx_updates_dynamically_from_tables_and_handles_missing_selection(self):
         """Issue #1 & #4: mutating tables changes rendered PPT text; missing/null selection renders fallback."""
@@ -207,7 +207,7 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
             build_pptx.build(tables_dir=tables, out_path=out_pptx)
 
             prs = Presentation(out_pptx)
-            self.assertEqual(len(prs.slides), 35)
+            self.assertEqual(len(prs.slides), 37)
             for index in (self.VERDICT, self.GUIDE):
                 text = _extract_slide_text(prs, index)
                 self.assertIn("0.812", text)
@@ -239,11 +239,11 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 build_pptx.build(out_path=tmp_dir / "fail1.pptx", notes_path=bad_path)
 
-            # 2) Valid build embeds [SlideID] tag into all 35 slides' notes and resolves every {fact}
+            # 2) Valid build embeds [SlideID] tag into all 37 slides' notes and resolves every {fact}
             ok_pptx = tmp_dir / "ok.pptx"
             build_pptx.build(out_path=ok_pptx)
             prs = Presentation(ok_pptx)
-            self.assertEqual(len(prs.slides), 35)
+            self.assertEqual(len(prs.slides), 37)
             for idx, slide in enumerate(prs.slides):
                 note_txt = slide.notes_slide.notes_text_frame.text.strip()
                 self.assertTrue(note_txt.startswith("["), f"Slide {idx + 1} note missing [SlideID] header")

@@ -1,4 +1,4 @@
-"""Build the 29 + 6 slide deck from results/tables, results/figures and presentation/assets.
+"""Build the 31 + 6 slide deck from results/tables, results/figures and presentation/assets.
 
 One message per slide: the title states the finding, the body shows the evidence.
 Every number on a slide and in the speaker notes is read from results/tables at build
@@ -44,8 +44,9 @@ FONT = "Microsoft YaHei"
 DASH = "—"
 
 SLIDE_IDS = [
-    "S01_cover", "S02_question", "S03_statistics_roots", "S04_pixel_distance", "S05_core_idea",
-    "S06_paradigms", "S07_dec", "S08_idec", "S09_vade", "S10_contrastive", "S11_pretrained",
+    "S01_cover", "S05_core_idea", "S06_paradigms", "S06b_why_methods", "S06c_method_traits",
+    "S02_question", "S03_statistics_roots", "S04_pixel_distance",
+    "S07_dec", "S08_idec", "S09_vade", "S10_contrastive", "S11_pretrained",
     "S11b_architectures", "S11c_deriv_classical_dec", "S11d_deriv_vade_contrast",
     "S12a_datasets", "S12_setup", "S12b_metrics_rules",
     "S13_benchmark", "S14_geometry", "S15_representation_vs_clusterer",
@@ -587,8 +588,9 @@ class Deck:
 
 
 # =============================================================================== slides
-SECTION = {"intro": "引言", "stat": "统计基础", "method": "方法谱系", "deriv": "原始数学推导",
-           "design": "数据与实验设计", "exp": "实验结果对比", "end": "结论与选型", "app": "附录"}
+SECTION = {"concept": "概念与方法", "intro": "研究问题", "stat": "统计基础", "method": "模型架构",
+           "deriv": "原始数学推导", "design": "数据与实验设计", "exp": "实验结果对比",
+           "end": "结论与选型", "app": "附录"}
 
 
 def s01_cover(d: Deck):
@@ -617,8 +619,8 @@ def s01_cover(d: Deck):
 
 
 def s02_question(d: Deck):
-    s = d.slide("S02_question", SECTION["intro"], "先改表示，还是先换聚类器？",
-                lede="给无标签图像分组，两条路可选：换更好的特征坐标（表示），或换更复杂的分组算法（聚类器）。三个命题都用实验检验：")
+    s = d.slide("S02_question", SECTION["intro"], "核心研究问题：先改表示，还是先换聚类器？",
+                lede="看清 11 种方法的机制与特点后，我们把“如何选方法”提炼为三个可由对照实验直接检验的命题：")
     items = [
         ("表示比聚类器更重要",
          "固定聚类器换特征 vs 固定特征换聚类器，比较哪边带来的分组准确度（ARI）跨度更大。",
@@ -639,7 +641,7 @@ def s02_question(d: Deck):
         d.text(s, x, y0 + 1.95, col_w, 1.25, how, size=14.5, color=S.BODY, line=1.45)
         d.text(s, x, y0 + 3.25, col_w, 0.65, [[("怎么验：", {"color": S.SECONDARY}), (design, {"bold": True})]],
                size=13, color=S.INK, line=1.3)
-    steps = ["1 统计基础", "2 架构与推导", "3 数据与实验", "4 结果对比", "5 结论选型"]
+    steps = ["1 概念与方法", "2 统计与架构", "3 推导与实验", "4 结果对比", "5 结论选型"]
     y = 6.42
     for i, step in enumerate(steps):
         x = MX + i * 2.48
@@ -725,10 +727,11 @@ def s04_pixel_distance(d: Deck):
 
 
 def s05_core_idea(d: Deck):
-    s = d.slide("S05_core_idea", SECTION["stat"], "深度聚类：先学一个让距离有意义的表示")
-    y, h = 1.80, 1.22
+    s = d.slide("S05_core_idea", SECTION["concept"], "深度聚类是什么？先学语义表示，再做无标签分组",
+                lede="面对没有标签的高维图像，深度聚类用神经网络先学出一套“让距离反映语义”的特征坐标 z，再完成聚类。")
+    y, h = 1.92, 1.18
     xs = [MX, 3.25, 5.85, 8.45, 10.85]
-    labels = [("图像 x", "784 / 3072 维像素"), (["编码器 f", ("θ", {"sub": True})], "先“看懂”图的神经网络"),
+    labels = [("图像 x", "784 / 3072 维像素"), (["编码器 f", ("θ", {"sub": True})], "自动“看懂”图的网络"),
               ("表示 z", "浓缩特征（约 10 维）"), ("聚类器", "按新坐标划组"), ("簇 ĉ", "输出的类别编号")]
     fills = [S.PANEL, "#E3EEFB", S.PANEL, S.PANEL, S.PANEL]
     widths = [1.95, 1.95, 1.95, 1.95, 1.83]
@@ -736,13 +739,13 @@ def s05_core_idea(d: Deck):
         d.box(s, x, y, w, h, label, fill=fill, size=17, sub=sub, sub_size=11.5)
     for i in range(4):
         d.arrow(s, xs[i] + widths[i] + 0.05, y + h / 2, xs[i + 1] - 0.06, y + h / 2, color=S.SECONDARY)
-    d.equation(s, "pipeline", W / 2, 3.28, scale=0.88, align="c")
-    d.rect(s, MX, 3.98, CW, 0.50, fill=S.PANEL, radius=0.14)
-    d.text(s, MX + 0.25, 3.98, CW - 0.5, 0.50,
-           [[("直觉：", {"bold": True, "color": S.DEEP}),
-             ("像素里两件错位 T 恤相距很远；经过编码器压缩成特征 z 后，同类图像自然聚在一起。", {})]],
-           size=14, color=S.BODY, align="c", anchor="m")
-    qy = 4.78
+    d.equation(s, "pipeline", W / 2, 3.28, scale=0.86, align="c")
+    d.rect(s, MX, 3.96, CW, 0.50, fill=S.PANEL, radius=0.14)
+    d.text(s, MX + 0.25, 3.96, CW - 0.5, 0.50,
+           [[("为什么不直接用传统聚类？", {"bold": True, "color": S.DEEP}),
+             ("原始像素距离量的是位置和亮度而非语义（第 8 页实证）；编码器先把同类图拉近，聚类才有效。", {})]],
+           size=13.5, color=S.BODY, align="c", anchor="m")
+    qy = 4.74
     qs = [("没有标签，编码器靠什么信号训练？", "还原原图（重构） · 用高把握预测教自己 · 同图两张变形照对比 · 直接借用大模型"),
           ("编码器和聚类器怎么配合？", "先学后分 · 边学边分 · 交替迭代 · 用潜变量解释图像怎么生成")]
     for i, (q, a) in enumerate(qs):
@@ -750,7 +753,7 @@ def s05_core_idea(d: Deck):
         d.text(s, x, qy, 0.5, 0.5, "①②"[i], size=24, bold=True, color=S.DEEP)
         d.text(s, x + 0.55, qy + 0.02, 5.3, 0.45, q, size=17.5, bold=True, color=S.INK)
         d.text(s, x + 0.55, qy + 0.54, 5.3, 0.9, a, size=14, color=S.SECONDARY, line=1.4)
-    d.text(s, MX, 6.40, CW, 0.4, "后面所有深度聚类方法，本质上都是这两个问题的不同答案。", size=15, color=S.BODY)
+    d.text(s, MX, 6.38, CW, 0.4, "后面所有深度聚类方法，本质上都是对这两个问题的不同回答——下一页看全景谱系。", size=14.5, color=S.BODY)
 
 
 def _mini_node(d, s, x, y, w, h, label, fill, color=S.INK, size=12.5):
@@ -758,9 +761,9 @@ def _mini_node(d, s, x, y, w, h, label, fill, color=S.INK, size=12.5):
 
 
 def s06_paradigms(d: Deck):
-    s = d.slide("S06_paradigms", SECTION["method"], "表示与聚类的四种配合方式长期并存",
-                lede="按 Zhou 等（ACM Computing Surveys, 2025）的交互方式分类：不是新淘汰旧，而是四条路线并存。",
-                source="实心圆点：本项目实验中运行的方法；空心圆点：仅文献综述。")
+    s = d.slide("S06_paradigms", SECTION["concept"], "深度聚类有哪些方法？四类交互范式与外部预训练并存",
+                lede="按 Zhou 等（ACM Computing Surveys, 2025 Fig. 1）的交互方式分类：四条路线并存而非互斥，另加近年兴起的外部预训练。",
+                source="实心圆点：本课题入围实验的深度方法（另含 K-means / PCA+K-means / GMM 经典基线）；空心圆点：仅文献综述。")
     cols = [
         ("多阶段", "先画地图，再划区", "先训好特征并锁死，再独立分组",
          [("AE + K-means", S.DEEP, True), ("SimCLR + K-means", S.CONTRASTIVE, True)]),
@@ -820,6 +823,100 @@ def s06_paradigms(d: Deck):
            [[("外部预训练（直接借用现成“识图大脑”）：", {"bold": True, "color": S.INK}),
              ("用海量外部图预训练好特征（DINOv2、CLIP），冻结参数再接简单聚类器；TAC、VLM4Cluster 进一步引入文字语义。", {})]],
            size=14, color=S.BODY, anchor="m")
+
+
+def s06b_why_methods(d: Deck):
+    s = d.slide("S06b_why_methods", SECTION["concept"],
+                "为什么选这 5 大类 11 种方法？覆盖完整谱系且严格控制变量",
+                lede="不盲目堆砌新模型，而是以最小完备集合回答核心问题：同骨架拆机制、跨范式比上限、明边界保公平。",
+                source="详细分类与取舍说明见 docs/taxonomy.md 与 docs/experiment_protocol.md；迭代式与多模态大模型归文献综述。")
+
+    # Top row: 4 selection rationale cards
+    reasons = [
+        (S.DEEP, "01 · 谱系无盲区",
+         "覆盖五条演进主线：经典统计 3 法、自编码器系 3 法、生成式 1 法、对比学习 2 法与预训练 2 法，横跨 2016–2025。"),
+        (S.GENERATIVE, "02 · 同骨架控变量",
+         "AE+KM、DEC、IDEC、VaDE 共用同一编码器结构；SimCLR 与 CC 共用同一小 CNN，保证分数差异来自“目标与交互”而非换网络。"),
+        (S.PRETRAINED, "03 · 直指核心命题",
+         "覆盖“换表示”与“换聚类器”双向交叉对照（5 编码器 × 3 聚类器），并引入冻结 DINOv2 / CLIP 检验预训练是否改写上限。"),
+        (S.CLASSICAL_DARK, "04 · 算力边界坦诚取舍",
+         "DeepCluster / SwAV 依赖大集群多轮重训，TAC / VLM4Cluster 需额外文本/VLM 管线，单卡难以与从零训练公平同台，故作综述。"),
+    ]
+    ry, rw, rh, rgap = 1.78, 2.88, 2.12, 0.17
+    for i, (accent, head, body) in enumerate(reasons):
+        x = MX + i * (rw + rgap)
+        d.rect(s, x, ry, rw, rh, fill=S.SURFACE, line=S.HAIRLINE, radius=0.05, line_w=0.9)
+        d.rect(s, x, ry, rw, 0.08, fill=accent)
+        d.text(s, x + 0.16, ry + 0.18, rw - 0.32, 0.34, head, size=13.0, bold=True, color=accent)
+        d.text(s, x + 0.16, ry + 0.56, rw - 0.32, 1.44, body, size=11.0, color=S.BODY, line=1.34)
+
+    # Bottom half: 5-family roster of the 11 chosen methods + their exact control role
+    d.text(s, MX, 4.12, CW, 0.30,
+           "入围实验的 5 大家族 11 种方法（下方标明各家族在对照实验中的核心角色）",
+           size=12.5, bold=True, color=S.INK)
+    fams = [
+        (S.CLASSICAL_DARK, "#F2F2F4", "经典统计（3 法）", "K-means\nPCA + K-means\nGMM（对角）",
+         "角色：线性/像素下限、\n耗时与抗噪参照锚点"),
+        (S.DEEP, "#EAF2FC", "自编码器系（3 法）", "AE + K-means\nDEC\nIDEC",
+         "角色：多阶段 vs 联合优化、\n重构正则 λ 因果消融"),
+        (S.GENERATIVE, "#F8ECF7", "生成式（1 法）", "VaDE\n（变分 + 隐空间 GMM）",
+         "角色：显式概率密度建模、\n可生成样本的生成对照"),
+        (S.CONTRASTIVE, "#E8F6F1", "对比学习（2 法）", "SimCLR + K-means\nCC（双头对比）",
+         "角色：无重构增强不变性\n（检验课程小预算边界）"),
+        (S.PRETRAINED, "#FDF0EA", "外部预训练（2 法）", "DINOv2（ViT-S/14）\nCLIP（ViT-B/32）",
+         "角色：冻结大模型特征上限、\n检验领域匹配与简单聚类"),
+    ]
+    fy, fw, fh, fgap = 4.50, 2.28, 1.58, 0.158
+    for i, (color, tint, fam, models, role) in enumerate(fams):
+        x = MX + i * (fw + fgap)
+        d.rect(s, x, fy, fw, fh, fill=S.SURFACE, line=color, radius=0.06, line_w=1.0)
+        d.rect(s, x, fy, fw, 0.36, fill=tint)
+        d.text(s, x + 0.10, fy + 0.04, fw - 0.20, 0.28, fam, size=11.5, bold=True, color=color, align="c", anchor="m")
+        d.text(s, x + 0.12, fy + 0.43, fw - 0.24, 0.62, models, size=10.5, bold=True, color=S.INK, align="c", line=1.18)
+        d.line(s, x + 0.16, fy + 1.09, x + fw - 0.16, fy + 1.09, color=S.HAIRLINE, width=0.8)
+        d.text(s, x + 0.10, fy + 1.14, fw - 0.20, 0.40, role, size=9.4, color=S.SECONDARY, align="c", line=1.16)
+
+    # Bottom strip: literature-only methods
+    d.rect(s, MX, 6.26, CW, 0.48, fill=S.PANEL, line=S.HAIRLINE, radius=0.10, line_w=0.8)
+    d.text(s, MX + 0.18, 6.26, CW - 0.36, 0.48,
+           [[("仅作文献综述（未入实验）：", {"bold": True, "color": S.INK}),
+             ("迭代式 DeepCluster (2018)、SwAV (2020)；文本引导 TAC (ICML 2024)、VLM4Cluster (arXiv:2609.36648 预印本)。", {})]],
+           size=11.0, color=S.BODY, align="c", anchor="m")
+
+
+def s06c_method_traits(d: Deck):
+    s = d.slide("S06c_method_traits", SECTION["concept"],
+                "11 种入围方法各有什么特点？机制、优势与短板一览",
+                lede="先看清每种方法的“长板”与“暗礁”，后续基准、加噪、小样本与消融实验的胜负规律就能提前预判。",
+                source="表中标注的实现口径（GMM 标准化对角协方差、VaDE 每图 SSE、SimCLR/CC 128 维小 CNN）与实验严格一致。")
+
+    rows = [
+        ["家族", "方法", "核心做法（一句话）", "突出特点 / 优势", "主要短板 / 实现边界"],
+        ["经典统计", "K-means", "像素空间最小化簇内平方距离", "最简极快、天然抗各向同性噪声", "像素平移/背景即失效，假设球形等方差簇"],
+        ["经典统计", "PCA + K-means", "线性主成分降维后再跑 K-means", "速度极快、去噪稳健、强工程基线", "仅限线性投影，捉不到非线性视觉流形"],
+        ["经典统计", "GMM", "标准化像素上 EM 拟合高斯混合", "给出软归属概率与各向异性方差", "边缘零方差像素遇测试噪声极易全簇塌缩"],
+        ["自编码器", "AE + K-means", "重构预训练编码器后离线 K-means", "先学非线性语义再分，稳定不塌缩", "表示学习不感知聚类目标，簇边界偏松"],
+        ["自编码器", "DEC", "Student-t 软分配 + KL 平方锐化自训练", "端到端压紧高置信簇，干净大样本强", "丢弃解码器易拉坏几何，怕噪且怕极小样本"],
+        ["自编码器", "IDEC", "KL 聚类损失 + 解码器重构联合优化", "保留解码器作正则，保护局部结构", "需权衡重构权重 λ，λ 过大反压制聚类"],
+        ["生成式", "VaDE", "变分编码器 + 隐空间 GMM 先验（ELBO）", "具完整概率解释且可生成新样本", "变分初始化复杂；本实现用每图 SSE（非 BCE）"],
+        ["对比学习", "SimCLR + KM", "同图双增强视图 NT-Xent 对比 + K-means", "不依赖像素重构，学增强不变语义", "强依赖增强、大批量与深骨干；本实验用小 CNN"],
+        ["对比学习", "CC", "实例行对比 + 簇列对比双头端到端聚类", "直接输出软簇概率，无需二阶段聚类", "本实验用小 CNN 且缺簇熵 −H(Y)，易现空簇"],
+        ["外部预训练", "DINOv2（冻结）", "1.42 亿自然图自监督 ViT + L2 归一", "自然图语义极强，接 K-means 即高分", "依赖领域匹配（手写数字优势缩水），含外部数据"],
+        ["外部预训练", "CLIP（冻结）", "4 亿图文对对比 ViT + L2 归一", "跨模态语义通用，易接文本提示扩展", "纯视觉细粒度弱于 DINOv2，含外部预训练成本"],
+    ]
+    ty, rh = 1.78, 0.415
+    d.table(s, MX + 0.10, ty, CW - 0.10, rows, col_w=[1.00, 1.48, 3.04, 3.06, 3.35],
+            size=9.8, header_size=10.3, row_h=rh,
+            align=["c", "l", "l", "l", "l"],
+            bold_cells={(i, 1) for i in range(1, 12)}, header_fill=S.PANEL)
+
+    # Flush left-edge family color bars alongside the 5 method groups
+    groups = [(1, 3, S.CLASSICAL_DARK), (4, 6, S.DEEP), (7, 7, S.GENERATIVE),
+              (8, 9, S.CONTRASTIVE), (10, 11, S.PRETRAINED)]
+    for r_start, r_end, color in groups:
+        y_top = ty + r_start * rh + 0.02
+        h_grp = (r_end - r_start + 1) * rh - 0.04
+        d.rect(s, MX, y_top, 0.08, h_grp, fill=color)
 
 
 def _flow_row(d, s, items, y, h=0.78, x0=None, gap=0.42, size=14):
@@ -1944,8 +2041,9 @@ def a06_references(d: Deck, t: dict):
     d.text(s, MX, 1.6, CW, 5.3, refs, size=12.5, color=S.BODY, line=1.25, after=7)
 
 
-SLIDES = [s01_cover, s02_question, s03_statistics, s04_pixel_distance, s05_core_idea, s06_paradigms, s07_dec,
-          s08_idec, s09_vade, s10_contrastive, s11_pretrained, s11b_architectures,
+SLIDES = [s01_cover, s05_core_idea, s06_paradigms, s06b_why_methods, s06c_method_traits,
+          s02_question, s03_statistics, s04_pixel_distance,
+          s07_dec, s08_idec, s09_vade, s10_contrastive, s11_pretrained, s11b_architectures,
           s11c_deriv_classical_dec, s11d_deriv_vade_contrast, s12a_datasets, s12_setup, s12b_metrics_rules,
           s13_benchmark, s14_geometry, s15_repr_vs_clusterer, s16_pixels_vs_dinov2, s17_noise, s18_sample_size,
           s19_components, s20_cost, s21_stability, s22_verdict, s23_selection_guide, s24_limits]

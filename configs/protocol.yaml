@@ -81,16 +81,22 @@ gmm:
   max_iter: 100
   reg_covar: 1.0e-6
 
+# Seeds 1 and 2 of e02, e03 and e04, the MNIST and Fashion-MNIST rows of e04, and e02_fixed
+# were registered on 2026-11-27, before any of those runs existed. Seed 0 is the original run.
 e02:
   dataset: fashion_mnist
-  seed: 0
+  seeds: [0, 1, 2]
   lambdas: [0.0, 0.01, 0.1, 1.0, 10.0]
   latent_dims: [2, 10, 32, 64, 128]
 
 e03:
   dataset: fashion_mnist
-  seed: 0
+  seeds: [0, 1, 2]
   methods: [kmeans, ae_kmeans, dec, idec, cc]
+  # Seeds 1 and 2 repeat every E03 factor for these methods; CC stays single-seed (its per-image
+  # augmentation is CPU-bound and would take most of the available GPU time).
+  replicate_methods: [kmeans, ae_kmeans, dec, idec]
+  replicate_factors: [imbalance, sample_frac, k, outlier_frac]
   noise_std: [0.0, 0.1, 0.2, 0.3]
   imbalance: [1, 5, 10, 50]
   sample_frac: [0.01, 0.05, 0.1, 0.25, 1.0]
@@ -98,13 +104,21 @@ e03:
   outlier_frac: [0.0, 0.05, 0.1, 0.2]
 
 e04:
-  dataset: cifar10
-  seed: 0
+  datasets: [cifar10, mnist, fashion_mnist]
+  seeds: [0, 1, 2]
   encoders: [random_cnn, ae, simclr, dinov2, clip]
   clusterers: [kmeans, gmm, dec_head]
   dec_head_epochs: 20
   dec_head_lr: 0.001
   l2_normalize_encoders: [dinov2, clip]
+
+# The e02 lambda sweep with early stopping and the epoch extension switched off:
+# every lambda fine-tunes for exactly `epochs` epochs from the same pretrained AE.
+e02_fixed:
+  dataset: fashion_mnist
+  seeds: [0, 1, 2]
+  lambdas: [0.0, 0.01, 0.1, 1.0, 10.0]
+  epochs: 50
 
 selection:
   ari_margin: 0.02

@@ -22,7 +22,7 @@
 | --- | --- | --- | --- |
 | `results/tables/selection.json`（E05） | **否**（仅读 `results/raw/E05_train/*.npz`） | 拟合训练子集上干净 vs. `σ=0.1` 扰动预测的 `macro_cluster_jaccard` 与非空簇检查（`clean_nonempty == noisy_nonempty == k`）；**当前 `max_predict_sec=None`，预测耗时未参与选择** | **仅用于坍缩与退化风险筛查**（例如淘汰遇微噪退化为单簇的像素 GMM），**不可称为“最佳方法推荐器”** |
 | `results/tables/benchmark_interpretation.json` | **是**（E01/E03_noise/E04 测试集 ARI） | 按协议阈值事后总结已完成历史基准的域规律 | **仅作历史基准回顾性解读**，严禁作为新无标签数据的自动选型器 |
-| `results/tables/benchmark_cost_frontiers.csv` 与 `results/figures/fig_benchmark_pareto.png` | **是**（E01 测试集 ARI） | 端到端训练时间（DEC/IDEC 补回前置 AE 预训练）与测试集 ARI 的帕累托前沿 | **回顾性基准成本分析**，不属于无标签 E05 |
+| `results/tables/benchmark_cost_frontiers.csv` 与 `results/figures/cost_frontier.png` | **是**（E01 测试集 ARI） | 端到端训练时间（DEC/IDEC 补回前置 AE 预训练）与测试集 ARI 的帕累托前沿 | **回顾性基准成本分析**，不属于无标签 E05 |
 
 ### 关于预测耗时与硬件口径（Issue #3）
 

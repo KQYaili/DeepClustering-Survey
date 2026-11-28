@@ -1,0 +1,62 @@
+{
+  "status": "ok",
+  "job": {
+    "experiment": "E03",
+    "dataset": "fashion_mnist",
+    "method": "kmeans",
+    "seed": 1,
+    "k": 8,
+    "latent_dim": 10,
+    "lambda_recon": 1.0,
+    "pretrain": true,
+    "center_init": "kmeans",
+    "freeze_encoder": false,
+    "sample_frac": 1.0,
+    "imbalance": 1.0,
+    "outlier_frac": 0.0,
+    "required": true,
+    "priority": 62
+  },
+  "metrics": {
+    "acc": 0.5373,
+    "nmi": 0.49658747480387555,
+    "ari": 0.3636572015654673,
+    "silhouette": 0.14944759011268616,
+    "counts": [
+      591,
+      1453,
+      1482,
+      1332,
+      977,
+      1250,
+      1326,
+      1589
+    ],
+    "max_fraction": 0.1589,
+    "n_nonempty": 8,
+    "entropy": 2.0462705550410902,
+    "entropy_norm": 0.9840481273582959
+  },
+  "recon_sse": null,
+  "n_parameters": 6272,
+  "time_train_sec": 21.14530905894935,
+  "time_infer_sec": 0.030803415924310684,
+  "time_feature_sec": 0.0,
+  "peak_gpu_mb": 0.0,
+  "external_pretrain": false,
+  "external_data": "none",
+  "history": {
+    "epochs_ran": 0,
+    "extended": false,
+    "stopped_early": false,
+    "train_loss": [],
+    "pretrain_loss": [],
+    "ae_cache_hit": null,
+    "backbone_cache_hit": null
+  },
+  "device": "cpu",
+  "n_train": 20000,
+  "n_test": 10000,
+  "wall_sec": 21.36403852701187,
+  "attempts": 1
+}

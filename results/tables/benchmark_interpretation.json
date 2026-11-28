@@ -28,21 +28,26 @@
       "simclr_kmeans_time_sec": 194.3255960542398,
       "vade_ari": 0.6599418584749909,
       "vade_time_sec": 65.35546447709203,
-      "idec_retention": 0.49738784707410766
+      "idec_retention": 0.49738784707410766,
+      "best_pretrained_encoder": "clip",
+      "pretrained_kmeans_ari": 0.37616774174502315,
+      "pretrained_paired_kmeans_ari": 0.37616774174502315,
+      "pretrained_best_second_ari": 0.29195965942315816,
+      "pretrained_second_name": "clip_gmm"
     },
     "use": "Retrospective only. The IDEC noise gate applies to IDEC only."
   },
   "fashion_mnist": {
-    "choice": "pca_kmeans",
-    "reason": "classical_baseline",
+    "choice": "dinov2+kmeans",
+    "reason": "pretrained_embedding_kmeans",
     "evidence": {
-      "ari": 0.3565017134275336,
-      "time_sec": 1.5245587926668425
+      "pretrained_kmeans_ari": 0.5327672191687732,
+      "best_from_scratch": {
+        "method": "dec_ari",
+        "ari": 0.4348939358474733
+      }
     },
-    "notes": [
-      "idec_rejected_on_noise_retention",
-      "classical_tie_broken_by_time"
-    ],
+    "notes": [],
     "inputs": {
       "ae_kmeans_ari": 0.37309354255034877,
       "ae_kmeans_time_sec": 37.70267432772865,
@@ -62,7 +67,12 @@
       "simclr_kmeans_time_sec": 215.52113880589604,
       "vade_ari": 0.38723311906757624,
       "vade_time_sec": 61.37971503287554,
-      "idec_retention": 0.5059935585223262
+      "idec_retention": 0.5059935585223262,
+      "best_pretrained_encoder": "dinov2",
+      "pretrained_kmeans_ari": 0.5327672191687732,
+      "pretrained_paired_kmeans_ari": 0.5327672191687732,
+      "pretrained_best_second_ari": 0.49644040530868955,
+      "pretrained_second_name": "dinov2_gmm"
     },
     "use": "Retrospective only. The IDEC noise gate applies to IDEC only."
   },
@@ -99,8 +109,8 @@
       "idec_retention": 0.8917134954026071,
       "best_pretrained_encoder": "dinov2",
       "pretrained_kmeans_ari": 0.6219010333575266,
-      "pretrained_paired_kmeans_ari": 0.6360542388579097,
-      "pretrained_best_second_ari": 0.573850499813568,
+      "pretrained_paired_kmeans_ari": 0.6219010333575266,
+      "pretrained_best_second_ari": 0.554666020551413,
       "pretrained_second_name": "dinov2_gmm"
     },
     "use": "Retrospective only. The IDEC noise gate applies to IDEC only."

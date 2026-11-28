@@ -1,43 +1,47 @@
-# 深度聚类：范式演进与方法选型综述 — 汇报大纲（24 页正文 + 6 页技术附录）
+# 汇报结构
 
-正文严格控制在 **24 页、23–25 分钟**，预留 5 分钟答疑；全部额外实验图表、完整量化汇总与文献溯源置于 **6 页技术附录（A1–A6）**。每一页均分配唯一稳定 Slide ID，由 `scripts/build_pptx.py` 与 `presentation/speaker_notes.md` 构建时强制一一校验。
+正文 24 页，约 24 分钟；附录 6 页用于答疑。每页只讲一个结论：标题写结论，正文给证据。页面 ID 与 `presentation/speaker_notes.md` 一一对应，构建时校验。
 
-## 正文结构（第 1–24 页）
-
-| 页码 | Slide ID | 模块 | 时长 | 页标题 | 核心图表 / 视觉元素 |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `S01_cover` | 封面 | 0.5 min | 深度聚类：范式演进与方法选型综述 | 蓝白学术封面 + 四主线概览 |
-| 2 | `S02_core_questions` | 研究背景 | 1.0 min | 研究核心：不做算法排行榜，聚焦三个可证伪命题 | 三命题卡片 + 25 分钟节奏条 |
-| 3 | `S03_textbook_foundations` | 统计基础 | 1.0 min | 统计学起点：从多元统计教材到深度表征聚类 | 王学民教材第 2/3/6/7/8 章映射表 |
-| 4 | `S04_kmeans_failure` | 统计基础 | 1.0 min | K-means 数学目标与原始像素欧氏距离失效机制 | 可编辑 Cambria Math 公式 + 高维语义鸿沟剖析 |
-| 5 | `S05_paradigm_shift` | 统计基础 | 1.0 min | 深度聚类的核心跃迁：不仅学分组，更学表示 | 可编辑 Cambria Math 公式 + 四阶段信息流组件 |
-| 6 | `S06_paradigm_evolution` | 范式演进 | 1.5 min | 范式演进全景：Zhou (2025) 四类并存交互与前沿 | **Fig.1** 原生可编辑形状（PNG 预览保留） |
-| 7 | `S07_taxonomy_4d` | 范式演进 | 1.0 min | 四维方法分类框架：跨算法解构机制联系 | **Fig.2** 原生可编辑形状（PNG 预览保留） |
-| 8 | `S08_dec_math` | 原理推导 | 1.5 min | 联合优化代表（一）：DEC Student-t 软分配与 KL 自训练 | 可编辑 Cambria Math 公式 + 推导要点 |
-| 9 | `S09_idec_math` | 原理推导 | 1.5 min | 联合优化代表（二）：IDEC 重构约束与局部结构保护 | **Fig.3** 原生可编辑形状 + 可编辑公式 |
-| 10 | `S10_vade_arch` | 原理推导 | 1.0 min | 生成式深度聚类：VaDE 变分自编码与高斯混合先验 | **Fig.4** 原生可编辑形状 + 可编辑公式 |
-| 11 | `S11_contrastive_arch` | 原理推导 | 1.0 min | 自监督与对比聚类：SimCLR + K-means 与 CC 双视图机制 | **Fig.5** 原生可编辑形状 |
-| 12 | `S12_pretrained_frontier` | 前沿演进 | 1.5 min | 2024–2026 前沿：预训练视觉模型与外部语义引导 | **Fig.6** 原生可编辑形状 |
-| 13 | `S13_selection_hypotheses` | 选型假设 | 1.0 min | 实验前方法选型假设矩阵（待验证命题） | 7 场景方法选型先验对照表 |
-| 14 | `S14_protocol_isolation` | 实验设计 | 1.0 min | 统一实验协议、五组实验矩阵与标签隔离红线 | E01–E05 五组矩阵 + 809 条记录纪律 |
-| 15 | `S15_e01_benchmark` | 实验证据 | 1.5 min | E01 基准对比：9 种从零训练方法在三类图像上的 ARI | **Fig.7** `fig_e01_ari.png`（±SD、近似并列与 CC 偏斜） |
-| 16 | `S16_e01_embeddings` | 实验证据 | 1.0 min | E01 潜在空间几何演化与共享初始化对照 | **Fig.8** `fig_e01_embeddings.png`（预测簇 t-SNE） |
-| 17 | `S17_e02_lambda_ablation` | 实验证据 | 1.5 min | E02 重构权重 λ 消融：当前早停协议下 λ 与训练轮数共变 | **Fig.9** `fig_e02_lambda.png`（含 `epochs_ran` 与 `λ=0` 不可比注） |
-| 18 | `S18_e03_noise_robustness` | 实验证据 | 1.5 min | E03 鲁棒性测试：测试噪声反转与 GMM / VaDE 分化 | **Fig.11** `fig_e03_noise.png`（含 VaDE 与当前 GMM 对比） |
-| 19 | `S19_e04_pretrained_decouple` | 实验证据 | 1.5 min | E04 预训练解耦：表征跃升与冻结特征投影头对照 | **Fig.15** `fig_e04_paired.png`（n=1 配对）+ n=3 稳定性表 |
-| 20 | `S20_benchmark_pareto_e2e` | 历史成本基准 | 1.0 min | 回顾性历史基准：性能—端到端训练成本帕累托前沿 | **Fig.16** `fig_benchmark_pareto.png` + 可编辑公式（非 E05，4 点端到端前沿） |
-| 21 | `S21_selection_decision_tree` | 方法选型 | 1.5 min | 基于历史基准的分场景选型决策树与无标签警示 | **Fig.17** `diag_decision_tree.png` |
-| 22 | `S22_verdict_e05_negative` | 方法选型 | 1.0 min | 回到开篇三命题：实证检验结论与 E05 负面诊断（稳定 ≠ 正确） | 三命题结论卡 + E05 三数据集反例卡片 |
-| 23 | `S23_limitations_future` | 局限展望 | 1.0 min | 实验边界、实现局限与未来开放研究方向 | 四项硬边界 + 三大开放方向 |
-| 24 | `S24_closing_repro` | 总结答疑 | 0.5 min | 总结：先问表示与预算，再区分历史基准与无标签排雷 | 三准则卡片 + GitHub/Drive 可复现声明 |
-
-## 技术附录（第 25–30 页，答疑备查）
-
-| 页码 | Slide ID | 附录编号 | 内容 | 核心图表 |
+| 页 | 页面 ID | 部分 | 标题（结论） | 证据 |
 | --- | --- | --- | --- | --- |
-| 25 | `A01_e01_full_table` | A1 | E01 全指标汇总表（含 ±SD、端到端耗时与簇偏斜） | 动态读取 `e01_summary.csv` |
-| 26 | `A02_e02_latent_components` | A2 | E02 隐空间维度曲线与初始化组件消融（均 50 ep） | **Fig.10** `fig_e02_latent.png` + `fig_e02_components.png` |
-| 27 | `A03_e03_imbalance_samples` | A3 | E03 类别长尾不平衡（含实际 `n_train`）与样本规模效率 | **Fig.12** `fig_e03_imbalance.png` + **Fig.13** `fig_e03_sample_frac.png` |
-| 28 | `A04_e03_k_outliers` | A4 | E03 预设聚类数 K 错配与异常点污染敏感性 | **Fig.14** `fig_e03_k.png` + `fig_e03_outlier_frac.png` |
-| 29 | `A05_e05_stability_negative` | A5 | E05 负面诊断三数据集对照（训练稳定性 ≠ 语义正确） | **Fig.16b** `fig_e05_stability.png` |
-| 30 | `A06_refs_audit` | A6 | 核心文献核验索引与可复现审计清单 | `bibliography.bib` + `failures.csv` + CI |
+| 1 | `S01_cover` | 封面 | 深度聚类：范式演进、对照实验与方法选择 | CIFAR-10 测试图按 DINOv2 表示排列 |
+| 2 | `S02_question` | 引言 | 先改表示，还是先换聚类器？ | 三个可检验的命题 |
+| 3 | `S03_statistics_roots` | 统计基础 | 深度聚类建立在多元统计的几块基石上 | 教材第 2、3、6、7、8 章与深度聚类的对应 |
+| 4 | `S04_pixel_distance` | 统计基础 | K-means 在像素空间里量错了距离 | 平移 4 像素的 T 恤与另一类图像的像素距离 |
+| 5 | `S05_core_idea` | 统计基础 | 深度聚类：先学一个让距离有意义的表示 | 编码器—表示—聚类流程与两个设计问题 |
+| 6 | `S06_paradigms` | 方法谱系 | 表示与聚类的四种配合方式长期并存 | 多阶段、联合优化、生成式、迭代式与外部预训练 |
+| 7 | `S07_dec` | 方法谱系 | DEC：用自己的高置信预测训练自己 | 软分配、目标分布、KL 自训练 |
+| 8 | `S08_idec` | 方法谱系 | IDEC：保留解码器，防止表示被聚类目标拉坏 | 聚类损失 + λ × 重构损失 |
+| 9 | `S09_vade` | 方法谱系 | VaDE：把高斯混合模型搬进隐空间 | 生成过程与 ELBO |
+| 10 | `S10_contrastive` | 方法谱系 | 对比学习：同一张图的两个增强视图应当靠近 | SimCLR + K-means 与 CC |
+| 11 | `S11_pretrained` | 方法谱系 | 预训练模型把“学表示”交给了海量外部数据 | DINOv2、CLIP、TAC、VLM4Cluster |
+| 12 | `S12_setup` | 实验证据 | 实验设计：3 个数据集、11 种方法，标签只在评分时使用 | 数据集样例、方法家族、协议 |
+| 13 | `S13_benchmark` | 实验证据 | 从零训练：自编码器系方法领先，CIFAR-10 上全部失效 | `results/figures/benchmark_ari.png` |
+| 14 | `S14_geometry` | 实验证据 | 非线性表示先把类拉开，DEC 再把每个簇压紧 | `results/figures/embeddings_tsne.png` |
+| 15 | `S15_representation_vs_clusterer` | 实验证据 | 换表示与换聚类器带来的 ARI 变化（数值随结果表更新） | `results/figures/representation_vs_clusterer.png` |
+| 16 | `S16_pixels_vs_dinov2` | 实验证据 | 同一批 CIFAR-10 图像：像素空间按颜色排，DINOv2 空间按物体排 | `presentation/assets/mosaic_*.png` |
+| 17 | `S17_noise` | 实验证据 | 加噪后排名反转 | `results/figures/noise_robustness.png` |
+| 18 | `S18_sample_size` | 实验证据 | 训练样本很少时，联合优化不如 K-means | `results/figures/sample_size.png` |
+| 19 | `S19_components` | 实验证据 | IDEC 组件消融与重构权重 λ | `results/figures/components_lambda.png` |
+| 20 | `S20_cost` | 实验证据 | 精度与训练成本 | `results/figures/cost_frontier.png` |
+| 21 | `S21_stability` | 实验证据 | 没有标签时，“稳定”选不出“正确” | `results/figures/stability_vs_ari.png` |
+| 22 | `S22_verdict` | 结论与选型 | 三个命题的回答 | 关键数值 |
+| 23 | `S23_selection_guide` | 结论与选型 | 方法选择：先问表示从哪里来，再问数据和预算 | 选择流程 |
+| 24 | `S24_limits_and_close` | 结论与选型 | 局限与展望 | 仓库链接与二维码 |
+
+## 附录
+
+| 页 | 页面 ID | 内容 |
+| --- | --- | --- |
+| A01 | `A01_benchmark_table` | 从零训练基准：三个数据集的 ACC、NMI、ARI |
+| A02 | `A02_ablations` | IDEC 隐空间维度；λ 在早停与固定 50 轮下的对照 |
+| A03 | `A03_sensitivity` | 簇数设错、训练集混入噪声图、类别不平衡 |
+| A04 | `A04_encoder_clusterer_table` | 编码器 × 聚类器完整数值 |
+| A05 | `A05_stability_table` | 无标签稳定性诊断完整记录 |
+| A06 | `A06_references` | 参考文献 |
+
+## 视觉规则
+
+- 颜色只表示方法家族，全篇一致：灰色经典方法，蓝色自编码器系，紫色生成式，绿色对比学习，橙色外部预训练。文字一律中性色。
+- 字号：标题 27 pt，正文 14–20 pt，图中文字不小于 11 pt；图表按幻灯片上的实际尺寸绘制。
+- 所有数字在构建时从 `results/tables` 读取，讲稿中的 `{名称}` 占位符同样在构建时填入。

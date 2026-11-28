@@ -24,6 +24,12 @@ def load_protocol() -> dict:
     return yaml.safe_load((ROOT / "configs" / "protocol.yaml").read_text(encoding="utf-8"))
 
 
+def _device_name() -> str:
+    import torch
+
+    return torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"
+
+
 def execute(job: dict) -> dict:
     protocol = load_protocol()
     destination = result_path(job)
@@ -69,6 +75,7 @@ def execute(job: dict) -> dict:
             "ae_cache_hit": payload["history"].get("ae_cache_hit"),
             "backbone_cache_hit": payload["history"].get("backbone_cache_hit"),
         },
+        "device": _device_name(),
         "n_train": int(len(x_train)),
         "n_test": int(len(x_test)),
         "wall_sec": time.perf_counter() - started,

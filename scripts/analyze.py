@@ -17,11 +17,11 @@ sys.path.insert(0, str(ROOT / "src"))
 from evaluation.selection import choose, choose_train_candidate, stability_evidence
 from run_queue import build_jobs, load_protocol
 from runtime.paths import job_id, read_json, write_json
-from visualization.benchmark import render_figures
+from visualization.figures import render_figures
 
 RAW = ROOT / "results/raw"
 TABLES = ROOT / "results/tables"
-GROUPS = ("E01", "E02", "E03", "E03_noise", "E04")
+GROUPS = ("E01", "E02", "E02_fixed", "E03", "E03_noise", "E04")
 FACTORS = ("k", "latent_dim", "lambda_recon", "pretrain", "center_init", "freeze_encoder",
            "sample_frac", "imbalance", "outlier_frac")
 MEASURES = ("acc", "nmi", "ari", "silhouette", "n_nonempty", "max_fraction", "entropy_norm",
@@ -46,7 +46,8 @@ def expected_paths(jobs, protocol):
     for job in jobs:
         stem = job_id(job)
         yield RAW / job["experiment"] / f"{stem}.json"
-        if job["experiment"] in {"E01", "E03"}:
+        # Test-noise evaluation covers the E01 fits and the seed-0 E03 variants (the original run).
+        if job["experiment"] == "E01" or (job["experiment"] == "E03" and job["seed"] == protocol["e03"]["seeds"][0]):
             for std in protocol["e03"]["noise_std"]:
                 tag = str(std).replace(".", "p")
                 yield RAW / "E03_noise" / f"{stem}__std{tag}.json"
@@ -180,17 +181,23 @@ def single_factor(frame, defaults, factors):
     return pd.concat(parts, ignore_index=True)
 
 
+SUMMARY_METRICS = ["ari", "nmi", "acc", "recon_sse", "epochs_ran", "max_fraction", "n_train"]
+
+
 def experiment_tables(runs, protocol):
     e01 = runs[runs.experiment.eq("E01")]
     baseline = dict(latent_dim=protocol["ae"]["mlp_dims"][-1], lambda_recon=protocol["idec"]["lambda_recon"],
                     pretrain=True, center_init="kmeans", freeze_encoder=False)
     ablation = single_factor(runs[runs.experiment.eq("E02")], baseline, baseline)
+    ablation_summary = aggregate(ablation.astype({"value": str}), ["factor", "value"], SUMMARY_METRICS)
+    fixed = aggregate(runs[runs.experiment.eq("E02_fixed")], ["lambda_recon"], SUMMARY_METRICS)
     robust = protocol["e03"]
-    anchors = e01[e01.dataset.eq(robust["dataset"]) & e01.seed.eq(robust["seed"])
+    anchors = e01[e01.dataset.eq(robust["dataset"]) & e01.seed.isin(robust["seeds"])
                   & e01.method.isin(robust["methods"])]
     variants = pd.concat([anchors, runs[runs.experiment.eq("E03")]])
     defaults = dict(sample_frac=1.0, imbalance=1.0, outlier_frac=0.0, k=protocol["k_default"])
     sensitivity = single_factor(variants, defaults, defaults)
+    sensitivity_summary = aggregate(sensitivity, ["factor", "value", "method"], SUMMARY_METRICS)
 
     # Only compare noise added to standard E01 fits; noise on E03 variants remains in all_runs.
     noise = runs[runs.experiment.eq("E03_noise")]
@@ -199,21 +206,25 @@ def experiment_tables(runs, protocol):
     noise = aggregate(noise, ["dataset", "method", "noise_std"], ["ari", "nmi", "acc", "n_nonempty"])
     cfg = protocol["e04"]
     paired_rows = []
-    for encoder in cfg["encoders"]:
-        for clusterer in cfg["clusterers"]:
-            source = "E01" if encoder in {"ae", "simclr"} and clusterer == "kmeans" else "E04"
-            chosen = runs.loc[runs.experiment.eq(source) & runs.dataset.eq(cfg["dataset"])
-                              & runs.seed.eq(cfg["seed"]) & runs.method.eq(f"{encoder}_{clusterer}")].copy()
-            chosen["source_experiment"], chosen["encoder"], chosen["clusterer"] = source, encoder, clusterer
-            paired_rows.append(chosen)
+    for dataset in cfg["datasets"]:
+        for encoder in cfg["encoders"]:
+            for clusterer in cfg["clusterers"]:
+                source = "E01" if encoder in {"ae", "simclr"} and clusterer == "kmeans" else "E04"
+                chosen = runs.loc[runs.experiment.eq(source) & runs.dataset.eq(dataset)
+                                  & runs.seed.isin(cfg["seeds"]) & runs.method.eq(f"{encoder}_{clusterer}")].copy()
+                chosen["source_experiment"], chosen["encoder"], chosen["clusterer"] = source, encoder, clusterer
+                paired_rows.append(chosen)
     paired = pd.concat(paired_rows, ignore_index=True)
+    paired_summary = aggregate(paired, ["dataset", "encoder", "clusterer"], ["ari", "nmi", "acc", "max_fraction"])
     ext = runs[runs.experiment.eq("E04") & runs.external_pretrain.eq(True)
                & runs.method.isin(["clip_kmeans", "dinov2_kmeans"])].copy()
     ext["encoder"] = ext.method.str.removesuffix("_kmeans")
     ext["clusterer"] = "kmeans"
     pretrained = aggregate(ext, ["dataset", "encoder", "clusterer"],
                            ["ari", "acc", "nmi", "time_feature_sec", "time_train_sec", "time_infer_sec"])
-    return e01_summary(e01), ablation, sensitivity, noise, paired, pretrained
+    return dict(e01_summary=e01_summary(e01), e02_ablation=ablation, e02_summary=ablation_summary,
+                e02_fixed_epochs=fixed, e03_sensitivity=sensitivity, e03_sensitivity_summary=sensitivity_summary,
+                e03_noise=noise, e04_paired=paired, e04_summary=paired_summary, e04_pretrained=pretrained)
 
 
 def cost_frontiers(summary, noise, protocol):
@@ -299,13 +310,15 @@ def benchmark_interpretation(summary, noise, paired, pretrained, protocol):
         if len(ext):
             best = ext.loc[ext.ari_mean.idxmax()]
             inputs.update(best_pretrained_encoder=best.encoder, pretrained_kmeans_ari=best.ari_mean)
-            enc = paired[paired.dataset.eq(dataset) & paired.encoder.eq(best.encoder)]
+            enc = paired[paired.dataset.eq(dataset) & paired.encoder.eq(best.encoder)
+                         & paired.n.eq(len(protocol["seeds"]))]
             reference = enc[enc.clusterer.eq("kmeans")]
             heads = enc[~enc.clusterer.eq("kmeans")]
             if len(reference) == 1 and len(heads):
-                head = heads.loc[heads.ari.idxmax()]
-                inputs.update(pretrained_paired_kmeans_ari=reference.iloc[0].ari,
-                              pretrained_best_second_ari=head.ari, pretrained_second_name=head.method)
+                head = heads.loc[heads.ari_mean.idxmax()]
+                inputs.update(pretrained_paired_kmeans_ari=reference.iloc[0].ari_mean,
+                              pretrained_best_second_ari=head.ari_mean,
+                              pretrained_second_name=f"{head.encoder}_{head.clusterer}")
         decisions[dataset] = {**choose(inputs, protocol["selection"]), "inputs": inputs,
                               "use": "Retrospective only. The IDEC noise gate applies to IDEC only."}
     return decisions
@@ -315,24 +328,22 @@ def main():
     protocol = load_protocol()
     jobs = build_jobs(protocol)
     runs, coverage, failures = load_records(jobs, protocol)
-    summary, ablation, sensitivity, noise, paired, pretrained = experiment_tables(runs, protocol)
+    tables = experiment_tables(runs, protocol)
+    summary, noise = tables["e01_summary"], tables["e03_noise"]
     costs = cost_frontiers(summary, noise, protocol)
     TABLES.mkdir(parents=True, exist_ok=True)
     # Remove stale legacy E05-labeled Pareto table/figure to avoid confusion with label-free E05.
     (TABLES / "e05_cost_frontiers.csv").unlink(missing_ok=True)
     (ROOT / "results/figures/fig_e05_pareto.png").unlink(missing_ok=True)
 
-    outputs = dict(
-        all_runs=runs, coverage=coverage, failures=failures, e01_summary=summary,
-        e02_ablation=ablation, e03_sensitivity=sensitivity, e03_noise=noise,
-        e04_paired=paired, e04_pretrained=pretrained, benchmark_cost_frontiers=costs,
-    )
+    outputs = dict(all_runs=runs, coverage=coverage, failures=failures, **tables,
+                   benchmark_cost_frontiers=costs)
     for name, table in outputs.items():
         table.to_csv(TABLES / f"{name}.csv", index=False, lineterminator="\n")
     train_sel = training_selections(jobs, protocol)
     write_json(TABLES / "selection.json", train_sel)
     write_json(TABLES / "benchmark_interpretation.json",
-               benchmark_interpretation(summary, noise, paired, pretrained, protocol))
+               benchmark_interpretation(summary, noise, tables["e04_summary"], tables["e04_pretrained"], protocol))
     render_figures(ROOT, protocol, outputs, selection=train_sel)
     print(f"{len(runs)} successful records; {coverage.status.value_counts().to_dict()}", flush=True)
 

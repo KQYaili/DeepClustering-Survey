@@ -17,7 +17,7 @@ from runtime.paths import checkpoint_path, read_json
 def main() -> None:
     protocol = yaml.safe_load((ROOT / "configs/protocol.yaml").read_text(encoding="utf-8"))
     dataset = protocol["e02"]["dataset"]
-    seed = int(protocol["e02"]["seed"])
+    seed = int(protocol["e02"]["seeds"][0])
     images, sample_ids = evaluation_images(dataset, protocol, seed)
     raw = ROOT / "results/raw"
     output = raw / "embeddings"

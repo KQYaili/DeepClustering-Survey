@@ -34,6 +34,8 @@ def main() -> None:
             if record["status"] != "ok":
                 continue
             job = record["job"]
+            if experiment == "E03" and job["seed"] != protocol["e03"]["seeds"][0]:
+                continue  # noise on E03 variants is part of the seed-0 run only
             conditions = [noise_destination(job, std) for std in protocol["e03"]["noise_std"]]
             pending = [(spec, path) for spec, path in conditions if pending_result(path)]
             failed.extend(str(path) for spec, path in conditions if path.exists()

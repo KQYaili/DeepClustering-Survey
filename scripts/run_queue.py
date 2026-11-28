@@ -85,123 +85,50 @@ def build_jobs(protocol: dict) -> list[dict]:
                 )
             )
     fashion = protocol["e02"]
-    for value in fashion["lambdas"]:
-        jobs.append(
-            _base(
-                protocol,
-                experiment="E02",
-                dataset=fashion["dataset"],
-                method="idec",
-                seed=int(fashion["seed"]),
-                lambda_recon=float(value),
-                priority=30,
-            )
-        )
-    for dim in fashion["latent_dims"]:
-        jobs.append(
-            _base(
-                protocol,
-                experiment="E02",
-                dataset=fashion["dataset"],
-                method="idec",
-                seed=int(fashion["seed"]),
-                latent_dim=int(dim),
-                priority=30,
-            )
-        )
-    for name, extra in (
-        ("no_pretrain", {"pretrain": False}),
-        ("random_init", {"center_init": "random"}),
-        ("freeze", {"freeze_encoder": True}),
-    ):
-        jobs.append(
-            _base(
-                protocol,
-                experiment="E02",
-                dataset=fashion["dataset"],
-                method="idec",
-                seed=int(fashion["seed"]),
-                priority=32,
-                **extra,
-            )
-        )
+    for seed in fashion["seeds"]:
+        for value in fashion["lambdas"]:
+            jobs.append(_base(protocol, experiment="E02", dataset=fashion["dataset"], method="idec",
+                              seed=int(seed), lambda_recon=float(value), priority=30))
+        for dim in fashion["latent_dims"]:
+            jobs.append(_base(protocol, experiment="E02", dataset=fashion["dataset"], method="idec",
+                              seed=int(seed), latent_dim=int(dim), priority=30))
+        for extra in ({"pretrain": False}, {"center_init": "random"}, {"freeze_encoder": True}):
+            jobs.append(_base(protocol, experiment="E02", dataset=fashion["dataset"], method="idec",
+                              seed=int(seed), priority=32, **extra))
+    fixed = protocol["e02_fixed"]
+    for seed in fixed["seeds"]:
+        for value in fixed["lambdas"]:
+            jobs.append(_base(protocol, experiment="E02_fixed", dataset=fixed["dataset"], method="idec",
+                              seed=int(seed), lambda_recon=float(value), fixed_epochs=int(fixed["epochs"]),
+                              priority=31))
     robust = protocol["e03"]
-    for method in robust["methods"]:
-        for ratio in robust["imbalance"]:
-            if float(ratio) == 1:
-                continue
-            jobs.append(
-                _base(
-                    protocol,
-                    experiment="E03",
-                    dataset=robust["dataset"],
-                    method=method,
-                    seed=int(robust["seed"]),
-                    imbalance=float(ratio),
-                    priority=60,
-                )
+    k_default = int(protocol["k_default"])
+    for seed in robust["seeds"]:
+        first = int(seed) == int(robust["seeds"][0])
+        methods = robust["methods"] if first else robust["replicate_methods"]
+        for method in methods:
+            variants = (
+                [("imbalance", float(v), 60) for v in robust["imbalance"] if float(v) != 1]
+                + [("sample_frac", float(v), 61) for v in robust["sample_frac"] if float(v) != 1]
+                + [("k", int(v), 62) for v in robust["k_values"] if int(v) != k_default]
+                + [("outlier_frac", float(v), 63) for v in robust["outlier_frac"] if float(v) != 0]
             )
-        for frac in robust["sample_frac"]:
-            if float(frac) == 1:
-                continue
-            jobs.append(
-                _base(
-                    protocol,
-                    experiment="E03",
-                    dataset=robust["dataset"],
-                    method=method,
-                    seed=int(robust["seed"]),
-                    sample_frac=float(frac),
-                    priority=61,
-                )
-            )
-        for k in robust["k_values"]:
-            if int(k) == int(protocol["k_default"]):
-                continue
-            jobs.append(
-                _base(
-                    protocol,
-                    experiment="E03",
-                    dataset=robust["dataset"],
-                    method=method,
-                    seed=int(robust["seed"]),
-                    k=int(k),
-                    priority=62,
-                )
-            )
-        for frac in robust["outlier_frac"]:
-            if float(frac) == 0:
-                continue
-            jobs.append(
-                _base(
-                    protocol,
-                    experiment="E03",
-                    dataset=robust["dataset"],
-                    method=method,
-                    seed=int(robust["seed"]),
-                    outlier_frac=float(frac),
-                    priority=63,
-                )
-            )
+            if not first:
+                variants = [v for v in variants if v[0] in robust["replicate_factors"]]
+            for name, value, priority in variants:
+                jobs.append(_base(protocol, experiment="E03", dataset=robust["dataset"], method=method,
+                                  seed=int(seed), priority=priority, **{name: value}))
     e04 = protocol["e04"]
-    for encoder in e04["encoders"]:
-        for clusterer in e04["clusterers"]:
-            method = f"{encoder}_{clusterer}"
-            if method in {"ae_kmeans", "simclr_kmeans", "kmeans", "gmm", "pca_kmeans"}:
-                continue
-            seed_list = seeds if method in {"dinov2_kmeans", "clip_kmeans"} else [int(e04["seed"])]
-            for seed in seed_list:
-                priority = 25 if encoder in {"dinov2", "clip", "random_cnn"} else 45
-                jobs.append(
-                    _base(
-                        protocol,
-                        experiment="E04",
-                        dataset=e04["dataset"],
-                        method=method,
-                        seed=seed,
-                        priority=priority,
-                    )
-                )
+    for dataset in e04["datasets"]:
+        for encoder in e04["encoders"]:
+            for clusterer in e04["clusterers"]:
+                method = f"{encoder}_{clusterer}"
+                if method in {"ae_kmeans", "simclr_kmeans"}:
+                    continue  # the same fits as E01
+                for seed in e04["seeds"]:
+                    priority = 25 if encoder in {"dinov2", "clip", "random_cnn"} else 45
+                    jobs.append(_base(protocol, experiment="E04", dataset=dataset, method=method,
+                                      seed=int(seed), priority=priority))
     dedup = {}
     for job in jobs:
         dedup[job_id(job) + job["experiment"]] = job

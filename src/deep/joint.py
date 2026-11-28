@@ -218,7 +218,9 @@ def train_joint(job: dict, protocol: dict, images: np.ndarray, dev: torch.device
         parameters.extend(decoder_parameters(model))
     optimizer = torch.optim.Adam(parameters, lr=float(cfg["lr"]))
     alpha = float(protocol["dec"]["alpha"])
-    planned = int(cfg["epochs"])
+    # A job with `fixed_epochs` trains exactly that many epochs: no early stop, no extension.
+    fixed_epochs = job.get("fixed_epochs")
+    planned = int(fixed_epochs) if fixed_epochs else int(cfg["epochs"])
     losses: list[float] = []
     extended = False
     stopped_early = False
@@ -266,7 +268,8 @@ def train_joint(job: dict, protocol: dict, images: np.ndarray, dev: torch.device
         previous = labels
         epoch += 1
         if (
-            stop_rule["enabled"]
+            not fixed_epochs
+            and stop_rule["enabled"]
             and epoch >= int(stop_rule["min_epoch"])
             and delta is not None
             and delta < float(stop_rule["assignment_tol"])
@@ -274,7 +277,8 @@ def train_joint(job: dict, protocol: dict, images: np.ndarray, dev: torch.device
             stopped_early = True
             print(f"joint epoch {epoch}/{limit} loss {losses[-1]:.4f} delta {delta:.5f} stop", flush=True)
             break
-        limit, extended = _epoch_plan(planned, losses, extended, False, epoch, protocol)
+        if not fixed_epochs:
+            limit, extended = _epoch_plan(planned, losses, extended, False, epoch, protocol)
         delta_text = "na" if delta is None else f"{delta:.5f}"
         print(f"joint epoch {epoch}/{limit} loss {losses[-1]:.4f} delta {delta_text}", flush=True)
     fitted = JointModel(

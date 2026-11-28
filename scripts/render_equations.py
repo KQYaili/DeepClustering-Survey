@@ -1,37 +1,72 @@
-"""Render publication-grade equations at 300 DPI for the blue-white slide deck."""
+"""Typeset the deck's equations with LaTeX into transparent 600-dpi PNGs.
+
+All equations use the same font size, so placing a PNG at its natural size
+(pixels / 600 inches) keeps the type consistent from slide to slide.
+"""
 
 from __future__ import annotations
 
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
-OUT = Path(__file__).resolve().parents[1] / "presentation" / "assets"
-OUT.mkdir(parents=True, exist_ok=True)
+ROOT = Path(__file__).resolve().parents[1]
+ASSETS = ROOT / "presentation" / "assets"
+DPI = 600
+INK = "17171A"
 
 EQUATIONS = {
-    "eq_kmeans.png": r"$\min_{\{\mu_k\},\,\{c_i\}} \sum_{i=1}^{N} \|x_i - \mu_{c_i}\|_2^2$",
-    "eq_map.png": r"$x \;\longrightarrow\; z = f_\theta(x) \;\longrightarrow\; \hat{c}$",
-    "eq_dec.png": r"$q_{ij}=\frac{(1+\|z_i-\mu_j\|^2)^{-1}}{\sum_{j'}(1+\|z_i-\mu_{j'}\|^2)^{-1}},\qquad p_{ij}=\frac{q_{ij}^2 / f_j}{\sum_{j'} q_{ij'}^2 / f_{j'}}$",
-    "eq_kl.png": r"$\mathcal{L}_{\mathrm{DEC}} = \mathrm{KL}(P\,\|\,Q) = \frac{1}{B}\sum_{i=1}^{B}\sum_{j=1}^{K} p_{ij}\log\frac{p_{ij}}{q_{ij}}$",
-    "eq_idec.png": r"$\mathcal{L}_{\mathrm{IDEC}} = \mathcal{L}_{\mathrm{cluster}} + \lambda\,\frac{1}{B}\sum_{i=1}^{B}\sum_{d=1}^{D}(x_{id}-\hat{x}_{id})^2$",
-    "eq_vade.png": r"$p(x,z,c) = p(c)\,p(z\mid c)\,p(x\mid z),\qquad p(z\mid c)=\mathcal{N}(\mu_c,\sigma_c^2 I)$",
-    "eq_pareto.png": r"$\max_{m}\left(\mathrm{ARI}(m),\;\mathrm{Robustness}(m),\;-\mathrm{Time}(m),\;-\mathrm{Memory}(m)\right)$",
+    "kmeans": r"\min_{\{C_k\},\,\{\mu_k\}}\ \sum_{k=1}^{K}\ \sum_{x_i\in C_k}\ \lVert x_i-\mu_k\rVert_2^{2}",
+    "pipeline": r"z_i=f_\theta(x_i),\qquad \hat c_i=\arg\min_{k}\ \lVert z_i-\mu_k\rVert_2",
+    "dec_q": r"q_{ij}=\frac{\left(1+\lVert z_i-\mu_j\rVert^{2}\right)^{-1}}"
+             r"{\sum_{j'}\left(1+\lVert z_i-\mu_{j'}\rVert^{2}\right)^{-1}}",
+    "dec_p": r"p_{ij}=\frac{q_{ij}^{2}/f_j}{\sum_{j'}q_{ij'}^{2}/f_{j'}},\qquad f_j=\sum_i q_{ij}",
+    "dec_loss": r"L_{\mathrm{DEC}}=\mathrm{KL}(P\,\Vert\,Q)=\sum_i\sum_j p_{ij}\log\frac{p_{ij}}{q_{ij}}",
+    "idec_loss": r"L_{\mathrm{IDEC}}=\mathrm{KL}(P\,\Vert\,Q)"
+                 r"+\lambda\,\frac{1}{n}\sum_i\lVert x_i-g_\phi(z_i)\rVert_2^{2}",
+    "vade_gen": r"c\sim\mathrm{Cat}(\pi),\qquad z\mid c\sim\mathcal{N}\!\left(\mu_c,\ \sigma_c^{2}I\right),"
+                r"\qquad x\mid z\sim p_\phi(x\mid z)",
+    "vade_elbo": r"\log p(x)\ \ge\ \mathbb{E}_{q(z,c\mid x)}\!\left[\log p_\phi(x\mid z)\right]"
+                 r"-\mathrm{KL}\!\left(q(z,c\mid x)\,\Vert\,p(z,c)\right)",
+    "nt_xent": r"\ell_i=-\log\frac{\exp\!\left(\mathrm{sim}(h_i,h_i^{+})/\tau\right)}"
+               r"{\sum_{k\neq i}\exp\!\left(\mathrm{sim}(h_i,h_k)/\tau\right)}",
+    "jaccard": r"J=\frac{1}{K}\sum_{k=1}^{K}\frac{\lvert A_k\cap B_k\rvert}{\lvert A_k\cup B_k\rvert}",
 }
+
+TEMPLATE = r"""\documentclass[border=2pt]{standalone}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{exscale}
+\usepackage{xcolor}
+\definecolor{ink}{HTML}{%s}
+\begin{document}
+\fontsize{22}{26}\selectfont\color{ink}$\displaystyle %s$
+\end{document}
+"""
+
+
+def render(name: str, body: str, workdir: Path) -> None:
+    tex = workdir / f"{name}.tex"
+    tex.write_text(TEMPLATE % (INK, body), encoding="utf-8")
+    subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", tex.name], cwd=workdir,
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    out = ASSETS / f"eq_{name}"
+    subprocess.run(["pdftocairo", "-png", "-r", str(DPI), "-transp", "-singlefile",
+                    str(workdir / f"{name}.pdf"), str(out)], check=True)
 
 
 def main() -> None:
-    plt.rcParams.update({"mathtext.fontset": "stix"})
-    for name, equation in EQUATIONS.items():
-        fig = plt.figure(figsize=(11.0, 1.1), dpi=300)
-        fig.patch.set_alpha(0.0)
-        fig.text(0.5, 0.5, equation, fontsize=22, color="#073DA5", va="center", ha="center")
-        fig.savefig(OUT / name, bbox_inches="tight", transparent=True, pad_inches=0.08, dpi=300)
-        plt.close(fig)
-        print("rendered", name)
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    for old in ASSETS.glob("eq_*.png"):
+        old.unlink()
+    with tempfile.TemporaryDirectory() as tmp:
+        for name, body in EQUATIONS.items():
+            render(name, body, Path(tmp))
+    print(f"{len(EQUATIONS)} equations -> {ASSETS}")
 
 
 if __name__ == "__main__":
+    if shutil.which("pdflatex") is None:
+        raise SystemExit("pdflatex is required")
     main()

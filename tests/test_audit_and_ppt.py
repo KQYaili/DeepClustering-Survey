@@ -159,7 +159,7 @@ class Issue3And5CostAndHygieneTests(unittest.TestCase):
         """Issue #3 & #5 P1.5: benchmark_cost_frontiers replaces e05_cost_frontiers with E2E frontier."""
         self.assertFalse((ROOT / "results/tables/e05_cost_frontiers.csv").exists())
         self.assertFalse((ROOT / "results/figures/fig_e05_pareto.png").exists())
-        self.assertTrue((ROOT / "results/figures/fig_benchmark_pareto.png").exists())
+        self.assertTrue((ROOT / "results/figures/cost_frontier.png").exists())
 
         df = pd.read_csv(ROOT / "results/tables/benchmark_cost_frontiers.csv")
         self.assertTrue(df["uses_test_labels"].all())
@@ -179,6 +179,8 @@ class Issue3And5CostAndHygieneTests(unittest.TestCase):
 
 
 class Issue1And4And5PptBindingTests(unittest.TestCase):
+    VERDICT, GUIDE, STABILITY = 21, 22, 20  # zero-based slide indices
+
     def test_pptx_updates_dynamically_from_tables_and_handles_missing_selection(self):
         """Issue #1 & #4: mutating tables changes rendered PPT text; missing/null selection renders fallback."""
         with TemporaryDirectory() as tmp:
@@ -190,6 +192,7 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
             e01_path = tables / "e01_summary.csv"
             with e01_path.open(encoding="utf-8") as fh:
                 rows = list(csv.DictReader(fh))
+            original = next(r["ari_mean"] for r in rows if r["dataset"] == "mnist" and r["method"] == "dec")
             for r in rows:
                 if r["dataset"] == "mnist" and r["method"] == "dec":
                     r["ari_mean"] = "0.8120"
@@ -205,19 +208,13 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
 
             prs = Presentation(out_pptx)
             self.assertEqual(len(prs.slides), 30)
-
-            s15_text = _extract_slide_text(prs, 14)  # Slide 15 (E01)
-            self.assertIn("0.812", s15_text)
-            self.assertNotIn("0.669", s15_text)
-
-            s17_text = _extract_slide_text(prs, 16)  # Slide 17 (E02 λ-epoch covariation)
-            self.assertIn("20ep早停", s17_text)
-            self.assertIn("50ep", s17_text)
-            self.assertIn("不可比", s17_text)
-
-            s22_text = _extract_slide_text(prs, 21)  # Slide 22 (Verdicts + E05 fallback)
-            self.assertIn("0.812", s22_text)
-            self.assertIn("证据不足", s22_text)
+            for index in (self.VERDICT, self.GUIDE):
+                text = _extract_slide_text(prs, index)
+                self.assertIn("0.812", text)
+                self.assertNotIn(f"{float(original):.3f}", text)
+            self.assertIn("证据不足", _extract_slide_text(prs, self.STABILITY))
+            notes = prs.slides[self.VERDICT].notes_slide.notes_text_frame.text
+            self.assertIn("0.812", notes)
 
             # Also verify choice=null in selection.json renders fallback
             (tables / "selection.json").write_text(
@@ -227,7 +224,7 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
             out_null = tmp_dir / "null_sel.pptx"
             build_pptx.build(tables_dir=tables, out_path=out_null)
             prs_null = Presentation(out_null)
-            self.assertIn("证据不足", _extract_slide_text(prs_null, 21))
+            self.assertIn("证据不足", _extract_slide_text(prs_null, self.STABILITY))
 
     def test_speaker_notes_strict_slide_id_binding_fails_on_mismatch(self):
         """Issue #5 P0.2: missing or reordered slide IDs in speaker_notes.md must raise ValueError."""
@@ -236,13 +233,13 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
             orig_notes = (ROOT / "presentation/speaker_notes.md").read_text(encoding="utf-8")
 
             # 1) Missing one slide ID -> ValueError
-            bad_missing = orig_notes.replace("## [S17_e02_lambda_ablation]", "## [S17_WRONG_ID]")
+            bad_missing = orig_notes.replace("## [S17_noise]", "## [S17_WRONG_ID]")
             bad_path = tmp_dir / "bad_notes.md"
             bad_path.write_text(bad_missing, encoding="utf-8")
             with self.assertRaises(ValueError):
                 build_pptx.build(out_path=tmp_dir / "fail1.pptx", notes_path=bad_path)
 
-            # 2) Valid build embeds [SlideID] tag into all 30 slides' notes
+            # 2) Valid build embeds [SlideID] tag into all 30 slides' notes and resolves every {fact}
             ok_pptx = tmp_dir / "ok.pptx"
             build_pptx.build(out_path=ok_pptx)
             prs = Presentation(ok_pptx)
@@ -250,6 +247,7 @@ class Issue1And4And5PptBindingTests(unittest.TestCase):
             for idx, slide in enumerate(prs.slides):
                 note_txt = slide.notes_slide.notes_text_frame.text.strip()
                 self.assertTrue(note_txt.startswith("["), f"Slide {idx + 1} note missing [SlideID] header")
+                self.assertNotRegex(note_txt, r"\{[A-Za-z_][^}]*\}", f"Slide {idx + 1} has an unresolved fact")
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ def benchmark(e01: pd.DataFrame, path: Path) -> None:
         ypos[method] = -y
         y += 1.0 + gaps.get(method, 0.0)
     fig, axes = S.figure(12.03, 4.85, ncols=3, sharey=True)
-    fig.subplots_adjust(left=0.135, right=0.985, top=0.90, bottom=0.12, wspace=0.12)
+    fig.subplots_adjust(left=0.148, right=0.985, top=0.90, bottom=0.12, wspace=0.12)
     for ax, dataset in zip(axes, DATASETS):
         rows = e01[e01.dataset.eq(dataset)].set_index("method")
         best = rows.ari_mean.idxmax()
@@ -87,6 +87,11 @@ def benchmark(e01: pd.DataFrame, path: Path) -> None:
         ax.set_xticklabels(["0", "0.2", "0.4", "0.6"])
         _value_grid(ax, "x")
         _heading(ax, S.DATASET_LABEL[dataset], DATASET_NOTE[dataset])
+        if dataset == "cifar10" and len(rows):
+            hi = float(rows.ari_mean.max())
+            ax.text(0.45, -5.0, f"全部 ≤ {hi:.3f}\n（接近随机乱分）", ha="center", va="center",
+                    fontsize=12, color=S.SECONDARY,
+                    bbox=dict(boxstyle="round,pad=0.45", facecolor=S.PANEL, edgecolor="none"))
     axes[0].set_yticks([ypos[m] for m in FROM_SCRATCH])
     axes[0].set_yticklabels([S.LABEL[m] for m in FROM_SCRATCH], fontsize=12.5, color=S.BODY)
     axes[1].set_xlabel("ARI（3 个随机种子均值，误差线为标准差）", fontsize=12, color=S.SECONDARY, labelpad=8)
@@ -139,12 +144,20 @@ def representation_vs_clusterer(summary: pd.DataFrame, path: Path) -> None:
     datasets = [d for d in DATASETS if d in set(summary.dataset)]
     fig, axes = S.figure(12.03, 4.6, ncols=len(datasets), sharey=True)
     axes = np.atleast_1d(axes)
-    fig.subplots_adjust(left=0.115, right=0.985, top=0.86, bottom=0.13, wspace=0.10)
+    fig.subplots_adjust(left=0.145, right=0.985, top=0.86, bottom=0.13, wspace=0.10)
     ypos = {"random_cnn": 0.0, "ae": -1.0, "simclr": -2.0, "dinov2": -3.45, "clip": -4.45}
     dodge = {"kmeans": 0.24, "gmm": 0.0, "dec_head": -0.24}
     for ax, dataset in zip(axes, datasets):
         rows = summary[summary.dataset.eq(dataset)]
         ax.axhspan(-4.95, -2.95, color=S.PANEL, zorder=0, linewidth=0)
+        km_scores = {}
+        for encoder in ENCODERS:
+            sub = rows[rows.encoder.eq(encoder)].set_index("clusterer")
+            if "kmeans" in sub.index:
+                v = _num(sub.at["kmeans", "ari_mean"])
+                if v is not None:
+                    km_scores[encoder] = v
+        best_enc = max(km_scores, key=km_scores.get) if km_scores else None
         for encoder in ENCODERS:
             sub = rows[rows.encoder.eq(encoder)].set_index("clusterer")
             vals = {c: _num(sub.at[c, "ari_mean"]) for c in CLUSTERER_MARKER if c in sub.index}
@@ -157,7 +170,7 @@ def representation_vs_clusterer(summary: pd.DataFrame, path: Path) -> None:
                 ax.scatter(value, y0 + dodge[clusterer], marker=CLUSTERER_MARKER[clusterer], s=62,
                            color=ENCODER_COLOR[encoder], edgecolors="white", linewidths=1.3, zorder=3)
             km = vals.get("kmeans")
-            if km is not None and encoder in {"dinov2", "clip"}:
+            if km is not None and (encoder in {"dinov2", "clip"} or encoder == best_enc):
                 ax.text(hi + 0.035, y0, f"{km:.2f}", va="center", ha="left", fontsize=12,
                         color=S.INK, fontweight="bold")
         ax.set_xlim(-0.02, 0.92)
@@ -169,8 +182,8 @@ def representation_vs_clusterer(summary: pd.DataFrame, path: Path) -> None:
     axes[0].set_yticks([ypos[e] for e in ENCODERS])
     axes[0].set_yticklabels([S.ENCODER_LABEL[e] for e in ENCODERS], fontsize=12.5, color=S.BODY)
     for label, y in (("从零训练", -1.0), ("冻结预训练", -3.95)):
-        axes[0].text(-0.47, y, label, transform=axes[0].get_yaxis_transform(), rotation=90,
-                     ha="center", va="center", fontsize=11.5, color=S.SECONDARY)
+        axes[0].text(-0.42, y, label, transform=axes[0].get_yaxis_transform(), rotation=90,
+                     ha="center", va="center", fontsize=11.5, fontweight="bold", color=S.SECONDARY)
     handles = [Line2D([], [], marker=CLUSTERER_MARKER[c], linestyle="", markersize=8.5, color=S.BODY,
                       markeredgecolor="white", label=S.CLUSTERER_LABEL[c]) for c in ("kmeans", "gmm", "dec_head")]
     legend = fig.legend(handles=handles, loc="upper right", bbox_to_anchor=(0.985, 1.005), ncol=3, fontsize=12,
@@ -192,7 +205,7 @@ def noise(noise_table: pd.DataFrame, dataset: str, path: Path) -> None:
     methods = [m for m in FROM_SCRATCH if m in clean.index and m in noisy.index]
     methods.sort(key=lambda m: float(noisy[m]))
     fig, ax = S.figure(7.55, 4.85)
-    fig.subplots_adjust(left=0.215, right=0.86, top=0.90, bottom=0.12)
+    fig.subplots_adjust(left=0.232, right=0.865, top=0.90, bottom=0.12)
     for i, m in enumerate(methods):
         c0, c1 = float(clean[m]), float(noisy[m])
         color = S.FAMILY[m]
@@ -211,6 +224,8 @@ def noise(noise_table: pd.DataFrame, dataset: str, path: Path) -> None:
     ax.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
     _value_grid(ax, "x")
     ax.text(0.665, len(methods) - 0.35, "保留", ha="left", va="bottom", fontsize=11.5, color=S.SECONDARY)
+    ax.text(0.58, len(methods) - 0.35, "← 线段越短，越抗噪", ha="right", va="bottom", fontsize=10.5,
+            color=S.SECONDARY)
     handles = [Line2D([], [], marker="o", linestyle="", markersize=8, markerfacecolor="white",
                       markeredgecolor=S.BODY, markeredgewidth=1.8, label="干净测试图"),
                Line2D([], [], marker="o", linestyle="", markersize=8, color=S.BODY,
@@ -276,6 +291,16 @@ def sample_size(sens: pd.DataFrame, path: Path) -> None:
     _value_grid(ax, "y")
     ax.set_ylabel("ARI", fontsize=12, color=S.SECONDARY)
     ax.set_xlabel("训练集规模（Fashion-MNIST，占 2 万张训练图的比例）", fontsize=12, color=S.SECONDARY, labelpad=6)
+    km_sub = rows[rows.method.eq("kmeans")].assign(v=lambda d: d["value"].astype(float)).sort_values("v")
+    dec_sub = rows[rows.method.eq("dec")].assign(v=lambda d: d["value"].astype(float)).sort_values("v")
+    if len(km_sub) == len(dec_sub) and len(km_sub) >= 3:
+        diff = dec_sub.ari_mean.to_numpy(float) - km_sub.ari_mean.to_numpy(float)
+        if diff[0] < 0 and diff[-1] > 0:
+            cross_idx = int(np.argmax(diff > 0))
+            ax.annotate("样本够多后\nDEC 反超", xy=(cross_idx, float(dec_sub.ari_mean.iloc[cross_idx])),
+                        xytext=(cross_idx - 0.35, 0.455), ha="center", va="bottom", fontsize=10.5,
+                        color=S.DEEP, fontweight="bold",
+                        arrowprops=dict(arrowstyle="->", color=S.DEEP, lw=1.2, shrinkB=6))
     S.save(fig, path)
 
 
@@ -308,21 +333,27 @@ def components_and_lambda(e02: pd.DataFrame, fixed: pd.DataFrame, path: Path, ru
         row = e02[e02.factor.eq(factor) & e02["value"].astype(str).eq(value)]
         if len(row):
             vals.append((label, _num(row.ari_mean.iloc[0]), _num(row.ari_std.iloc[0])))
+    full_mean = next((m for lab, m, _ in vals if lab == "完整 IDEC"), None)
     for i, (label, mean, sd) in enumerate(vals):
         full = label == "完整 IDEC"
         color = S.DEEP if full else "#A9C9F2"
         left.barh(i, mean, height=0.58, color=color, linewidth=0)
         if sd:
             left.plot([mean - sd, mean + sd], [i, i], color=S.BODY, linewidth=1.1)
-        left.text(mean + (sd or 0) + 0.012, i, f"{mean:.3f}", va="center", fontsize=12,
+        if not full and full_mean is not None and mean is not None:
+            delta = mean - full_mean
+            txt = f"{mean:.3f} ({delta:+.2f})"
+        else:
+            txt = f"{mean:.3f}"
+        left.text(mean + (sd or 0) + 0.012, i, txt, va="center", fontsize=11.5,
                   color=S.INK if full else S.SECONDARY, fontweight="bold" if full else "normal")
     left.set_yticks(range(len(vals)))
     left.set_yticklabels([v[0] for v in vals], fontsize=12.5, color=S.BODY)
-    left.set_xlim(0, 0.56)
+    left.set_xlim(0, 0.62)
     left.set_xticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
     left.set_xticklabels(["0", "0.1", "0.2", "0.3", "0.4", "0.5"])
     _value_grid(left, "x")
-    _heading(left, "逐个去掉组件", y=1.04)
+    _heading(left, "逐个去掉组件（看谁功劳最大）", y=1.04)
     left.set_xlabel("ARI", fontsize=12, color=S.SECONDARY)
 
     # Right: the lambda effect as paired differences from lambda = 0 (same seed, same pretrained AE)
@@ -357,6 +388,8 @@ def components_and_lambda(e02: pd.DataFrame, fixed: pd.DataFrame, path: Path, ru
     right.set_ylim(-0.085, 0.025)
     right.set_yticks([-0.08, -0.06, -0.04, -0.02, 0, 0.02])
     right.set_yticklabels(["−0.08", "−0.06", "−0.04", "−0.02", "0", "+0.02"])
+    right.text(len(lambdas) - 0.65, 0.003, "↑ 高于 DEC", ha="right", va="bottom", fontsize=10.5, color=S.SECONDARY)
+    right.text(len(lambdas) - 0.65, -0.004, "↓ 低于 DEC", ha="right", va="top", fontsize=10.5, color=S.SECONDARY)
     _value_grid(right, "y")
     _heading(right, "重构权重 λ：相对 λ = 0（DEC）的 ARI 变化", y=1.04)
     right.set_xlabel("λ", fontsize=12, color=S.SECONDARY)
@@ -396,6 +429,8 @@ def cost_frontier(costs: pd.DataFrame, dataset: str, path: Path) -> None:
     ax.grid(True, axis="x", color=S.GRID, linewidth=1.0)
     ax.set_ylabel("ARI", fontsize=12, color=S.SECONDARY)
     ax.set_xlabel("端到端训练时间（对数刻度，含 AE 预训练）", fontsize=12, color=S.SECONDARY, labelpad=6)
+    ax.text(1.05, 0.468, "↖ 越往左上越划算（越快且越准）", ha="left", va="top", fontsize=11,
+            color=S.SECONDARY)
     S.save(fig, path)
 
 
@@ -432,8 +467,8 @@ def stability(selection: dict | None, e01: pd.DataFrame, path: Path) -> None:
                 fontsize=11.5, color=S.BODY, ha="left", va="bottom")
         ax.text(0.0, 1.025, f"虚线圈 最准确：{S.LABEL[accurate[0]]}（ARI {accurate[2]:.3f}）", transform=ax.transAxes,
                 fontsize=11.5, color=S.BODY, ha="left", va="bottom")
-    axes[0].set_ylabel("ARI（用测试标签事后核对）", fontsize=12, color=S.SECONDARY)
-    axes[1].set_xlabel("无标签稳定性（训练图加噪前后簇成员的 Jaccard 一致度）", fontsize=12, color=S.SECONDARY,
+    axes[0].set_ylabel("真实 ARI（越靠上 = 分得越准）", fontsize=12, color=S.SECONDARY)
+    axes[1].set_xlabel("无标签稳定性（越靠右 = 加噪前后分组越不易变）", fontsize=12, color=S.SECONDARY,
                        labelpad=6)
     S.save(fig, path)
 
@@ -482,6 +517,13 @@ def latent_dim(e02: pd.DataFrame, path: Path) -> None:
     ax.set_xticklabels([f"{int(d)}" for d in rows.d])
     ax.set_ylim(0.2, 0.52)
     _value_grid(ax, "y")
+    if len(y):
+        best_i = int(np.argmax(y))
+        best_d = int(rows.d.iloc[best_i])
+        ax.annotate(f"{best_d} 维最优（{y[best_i]:.3f}）", xy=(best_i, y[best_i]),
+                    xytext=(best_i + 0.55, min(y[best_i] + 0.065, 0.495)), ha="left", va="center",
+                    fontsize=11, fontweight="bold", color=S.DEEP,
+                    arrowprops=dict(arrowstyle="->", color=S.DEEP, lw=1.2, shrinkB=6))
     ax.set_xlabel("隐空间维度 d（IDEC，Fashion-MNIST）", fontsize=12, color=S.SECONDARY)
     ax.set_ylabel("ARI", fontsize=12, color=S.SECONDARY)
     S.save(fig, path)

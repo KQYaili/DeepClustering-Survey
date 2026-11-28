@@ -486,6 +486,18 @@ class Deck:
     def rule(self, slide, x, y, w, color=S.INK, width=2.0):
         return self.line(slide, x, y, x + w, y, color=color, width=width)
 
+    def family_legend(self, slide, x, y, include_pretrained: bool = False):
+        items = [(S.CLASSICAL, "经典方法"), (S.DEEP, "自编码器系"), (S.GENERATIVE, "生成式"),
+                 (S.CONTRASTIVE, "对比学习")]
+        if include_pretrained:
+            items.append((S.PRETRAINED, "外部预训练"))
+        cx = x
+        for color, label in items:
+            self.dot(slide, cx, y + 0.055, color, d=0.13)
+            w = 0.22 + len(label) * 0.165 + 0.28
+            self.text(slide, cx + 0.20, y, w - 0.20, 0.26, label, size=11, color=S.SECONDARY)
+            cx += w
+
     def table(self, slide, x, y, w, rows, col_w=None, size=11.5, header_size=11.5, row_h=0.36,
               align=None, bold_cells=None, header_fill=None):
         n_rows, n_cols = len(rows), len(rows[0])
@@ -563,130 +575,156 @@ def s01_cover(d: Deck):
             ratio = im.size[0] / im.size[1]
         mw = H * ratio
         d.image(s, mosaic, W - mw, 0, w=mw, h=H)
-    d.text(s, MX + 0.05, 1.55, 6.2, 0.4, "第九组 · 课程综述汇报", size=13, color="#A1A1AA", spacing=2)
-    d.text(s, MX, 2.05, 6.4, 1.0, "深度聚类", size=54, bold=True, color="#FFFFFF", line=1.0)
-    d.text(s, MX, 3.12, 6.4, 0.6, "范式演进、对照实验与方法选择", size=26, color="#E4E4E7", line=1.0)
-    d.rule(s, MX + 0.03, 4.02, 0.6, color=S.PRETRAINED, width=2.5)
-    d.text(s, MX, 4.25, 5.4, 1.0, "面对一批没有标签的图像，\n先改表示，还是先换聚类器？", size=18, color="#D4D4D8",
-           line=1.35)
-    d.text(s, MX, 6.62, 5.6, 0.5, "MNIST · Fashion-MNIST · CIFAR-10　|　11 种方法 · 3 个随机种子", size=11.5,
-           color="#8E8E93")
-    d.text(s, W - 5.6, 7.08, 5.35, 0.3, "右图：CIFAR-10 测试图按 DINOv2 表示的 t-SNE 位置排列", size=9.5,
-           color="#8E8E93", align="r")
+    d.text(s, MX + 0.05, 1.50, 6.2, 0.4, "第九组 · 课程综述汇报", size=13, color="#A1A1AA", spacing=2)
+    d.text(s, MX, 1.98, 6.4, 1.0, "深度聚类", size=54, bold=True, color="#FFFFFF", line=1.0)
+    d.text(s, MX, 3.05, 6.4, 0.6, "范式演进、对照实验与方法选择", size=26, color="#E4E4E7", line=1.0)
+    d.rule(s, MX + 0.03, 3.92, 0.6, color=S.PRETRAINED, width=2.5)
+    d.text(s, MX, 4.16, 5.7, 1.35,
+           "面对一批没有标签的图像，\n先改“看图的方式（表示）”，\n还是先换“分组规则（聚类器）”？",
+           size=18, color="#E4E4E7", line=1.38)
+    d.text(s, MX, 6.62, 5.8, 0.45, "MNIST · Fashion-MNIST · CIFAR-10　|　11 种方法 · 3 个随机种子", size=11.5,
+           color="#A1A1AA")
+    # Dark scrim pill behind the right caption so text stays crisp over the bright CIFAR-10 mosaic.
+    d.rect(s, W - 6.38, 6.96, 6.10, 0.36, fill=S.NIGHT, line="#2C2F38", radius=0.45, line_w=0.75)
+    d.text(s, W - 6.25, 6.96, 5.84, 0.36, "右图：没给任何标签，预训练模型已把鸟、车、马、飞机自动排成了片",
+           size=10, color="#D4D4D8", align="c", anchor="m")
 
 
 def s02_question(d: Deck):
     s = d.slide("S02_question", SECTION["intro"], "先改表示，还是先换聚类器？",
-                lede="同一批图像，可以换一个更好的“坐标系”，也可以换一个更复杂的分组规则。下面三个命题都能用实验检验。")
+                lede="给无标签图像分组，两条路可选：换更好的特征坐标（表示），或换更复杂的分组算法（聚类器）。三个命题都用实验检验：")
     items = [
-        ("表示比聚类器更重要", "固定聚类器换编码器，与固定编码器换聚类器，比较哪一边带来的 ARI 变化更大。",
-         "5 种编码器 × 3 种聚类器 × 3 个数据集"),
-        ("联合优化有条件地有效", "边学表示边聚类（DEC、IDEC）在干净、充足的数据上占优，但在噪声和小样本下未必。",
-         "测试噪声、训练样本量、组件消融"),
-        ("有了预训练表示，简单聚类器就够了", "在冻结的 DINOv2、CLIP 特征上，K-means 不弱于更复杂的聚类头。",
-         "K-means vs GMM vs DEC 头"),
+        ("表示比聚类器更重要",
+         "固定聚类器换特征，与固定特征换聚类器，比哪边带来的分组准确度（ARI）差距更大。",
+         "5 种编码器 × 3 种聚类器 × 3 数据集"),
+        ("联合优化有条件地有效",
+         "边学特征边分组（DEC、IDEC）在干净大样本下占优，但有噪声或小样本时未必。",
+         "测试加噪 · 缩减样本量 · 组件拆解"),
+        ("有了预训练表示，简单聚类就够了",
+         "用现成视觉大模型（DINOv2、CLIP）提取特征后，最基础的 K-means 就够用。",
+         "K-means vs 高斯混合(GMM) vs DEC 聚类头"),
     ]
-    col_w, gap, y0 = 3.75, 0.39, 2.2
+    col_w, gap, y0 = 3.75, 0.39, 2.15
     for i, (claim, how, design) in enumerate(items):
         x = MX + i * (col_w + gap)
         d.rule(s, x, y0, col_w, color=S.INK, width=2)
-        d.text(s, x, y0 + 0.2, 1.0, 0.8, str(i + 1), size=40, bold=True, color="#D4D4D8", line=1.0)
-        d.text(s, x, y0 + 0.98, col_w, 0.85, claim, size=20, bold=True, color=S.INK, line=1.15, anchor="b")
-        d.text(s, x, y0 + 2.0, col_w, 1.3, how, size=15, color=S.BODY, line=1.4)
-        d.text(s, x, y0 + 3.3, col_w, 0.6, [[("检验：", {"color": S.SECONDARY}), (design, {"bold": True})]],
-               size=13.5, color=S.INK, line=1.3)
-    steps = ["统计基础", "方法谱系", "实验证据", "结论与选型"]
-    y = 6.45
+        d.text(s, x, y0 + 0.18, 1.0, 0.75, str(i + 1), size=38, bold=True, color="#D4D4D8", line=1.0)
+        d.text(s, x, y0 + 0.92, col_w, 0.85, claim, size=19.5, bold=True, color=S.INK, line=1.15, anchor="b")
+        d.text(s, x, y0 + 1.95, col_w, 1.25, how, size=14.5, color=S.BODY, line=1.45)
+        d.text(s, x, y0 + 3.25, col_w, 0.65, [[("怎么验：", {"color": S.SECONDARY}), (design, {"bold": True})]],
+               size=13, color=S.INK, line=1.3)
+    steps = ["1 统计基础", "2 方法谱系", "3 实验证据", "4 结论与选型"]
+    y = 6.42
     for i, step in enumerate(steps):
-        x = MX + i * 3.0
-        d.dot(s, x, y + 0.07, S.INK if i == 0 else "#D4D4D8", d=0.13)
-        d.text(s, x + 0.25, y, 2.5, 0.3, step, size=12.5, color=S.SECONDARY)
+        x = MX + i * 3.05
+        d.dot(s, x, y + 0.08, S.INK if i == 0 else "#D4D4D8", d=0.13)
+        d.text(s, x + 0.24, y, 2.5, 0.3, step, size=12.5, bold=(i == 0), color=S.INK if i == 0 else S.SECONDARY)
         if i < len(steps) - 1:
-            d.line(s, x + 1.35, y + 0.135, x + 2.85, y + 0.135, color=S.HAIRLINE, width=1.25)
+            d.line(s, x + 1.55, y + 0.145, x + 2.92, y + 0.145, color=S.HAIRLINE, width=1.25)
 
 
 def s03_statistics(d: Deck):
     s = d.slide("S03_statistics_roots", SECTION["stat"], "深度聚类建立在多元统计的几块基石上",
                 source="王学民《应用多元统计分析》第六版，第 2、3、6、7、8 章")
     cols = [
-        ("第 2 章", "距离与协方差", "隐空间中的距离", "相似性在学到的坐标里度量"),
-        ("第 3 章", "多元正态分布", "高斯混合先验", "VaDE 让每个簇是一团正态云"),
-        ("第 6 章", "聚类分析", "K-means 与簇中心", "DEC 用簇中心定义软分配"),
-        ("第 7 章", "主成分分析", "自编码器", "非线性的降维与重构"),
-        ("第 8 章", "因子分析", "潜变量生成模型", "VAE / VaDE：潜变量生成观测"),
+        ("第 2 章", "距离与协方差", "隐空间里的距离", "在学到的坐标里算远近"),
+        ("第 3 章", "多元正态分布", "高斯混合先验", "VaDE 让每类成一团正态云"),
+        ("第 6 章", "聚类分析", "K-means 与中心", "DEC 用簇中心算归属概率"),
+        ("第 7 章", "主成分分析", "自编码器", "神经网络版的非线性降维"),
+        ("第 8 章", "因子分析", "潜变量生成模型", "用隐变量反向还原原图"),
     ]
     cw, gap, x0 = 2.2, 0.258, MX
-    top, mid = 1.85, 4.2
+    d.text(s, MX, 1.48, CW, 0.28, "多元统计教材（人工给定或线性坐标）", size=12, color=S.SECONDARY)
+    d.text(s, MX, 3.86, CW, 0.28, "深度聚类（让神经网络自动学新坐标）", size=12, bold=True, color=S.DEEP)
+    top, mid = 1.82, 4.22
     for i, (chap, concept, deep, note) in enumerate(cols):
         x = x0 + i * (cw + gap)
-        d.rect(s, x, top, cw, 1.3, fill=S.PANEL, radius=0.06)
-        d.text(s, x + 0.2, top + 0.2, cw - 0.4, 0.3, chap, size=12, color=S.SECONDARY)
-        d.text(s, x + 0.2, top + 0.55, cw - 0.4, 0.6, concept, size=19, bold=True, color=S.INK)
-        d.arrow(s, x + cw / 2, top + 1.42, x + cw / 2, mid - 0.12, color=S.MUTED, width=1.5)
+        d.rect(s, x, top, cw, 1.28, fill=S.PANEL, radius=0.06)
+        d.text(s, x + 0.18, top + 0.18, cw - 0.36, 0.28, chap, size=12, color=S.SECONDARY)
+        d.text(s, x + 0.18, top + 0.52, cw - 0.36, 0.6, concept, size=18.5, bold=True, color=S.INK)
+        d.arrow(s, x + cw / 2, top + 1.38, x + cw / 2, 3.74, color=S.MUTED, width=1.5)
         d.rule(s, x, mid, cw, color=S.DEEP, width=2.5)
-        d.text(s, x, mid + 0.2, cw, 0.5, deep, size=18, bold=True, color=S.INK)
-        d.text(s, x, mid + 0.67, cw, 0.8, note, size=13.5, color=S.SECONDARY, line=1.3)
-    d.text(s, MX, 6.2, CW, 0.5, [[("教材里的坐标是给定的或线性的；", {}),
-                                    ("深度聚类把坐标本身变成了可学习的。", {"bold": True, "color": S.INK})]],
-           size=17, color=S.BODY)
+        d.text(s, x, mid + 0.18, cw, 0.48, deep, size=17.5, bold=True, color=S.INK)
+        d.text(s, x, mid + 0.66, cw, 0.8, note, size=13.5, color=S.SECONDARY, line=1.35)
+    d.rect(s, MX, 6.08, CW, 0.64, fill=S.PANEL, radius=0.12)
+    d.text(s, MX + 0.28, 6.08, CW - 0.56, 0.64,
+           [[("核心跨越：", {"bold": True, "color": S.INK}),
+             ("教材里的坐标是固定的或线性的；", {}),
+             ("深度聚类把坐标本身变成了可学习的。", {"bold": True, "color": S.DEEP})]],
+           size=16, color=S.BODY, anchor="m")
 
 
 def s04_pixel_distance(d: Deck):
     f = d.facts
     s = d.slide("S04_pixel_distance", SECTION["stat"], "K-means 在像素空间里量错了距离",
                 source=f"Fashion-MNIST 训练集，像素归一化到 [0, 1]；随机抽取 {f.get('pix_n_shirts', 1000):,} 张 T 恤统计")
-    d.text(s, MX, 1.75, 5.0, 0.3, "K-means 的目标", size=13, color=S.SECONDARY)
-    d.equation(s, "kmeans", MX, 2.12, scale=0.92)
-    d.text(s, MX, 3.15, 4.9, 1.6,
-           "把每个点分给最近的中心。它默认：**欧氏距离近，就是同一类。**\n"
-           "图像被拉成 784 维像素向量后，这个距离主要反映位置、亮度和背景，而不是“这是什么”。",
-           size=16, color=S.BODY, line=1.45, after=8)
+    d.text(s, MX, 1.72, 5.0, 0.3, "K-means 的目标函数", size=13, color=S.SECONDARY)
+    d.equation(s, "kmeans", MX, 2.06, scale=0.88)
+    d.text(s, MX, 3.04, 5.1, 0.35,
+           [[("x", {"italic": True, "font": "Cambria Math"}), ("i", {"sub": True, "italic": True}),
+             ("：第 i 张图（784 个像素值）　", {}),
+             ("μ", {"italic": True, "font": "Cambria Math"}), ("k", {"sub": True, "italic": True}),
+             ("：第 k 组中心", {})]],
+           size=12.5, color=S.SECONDARY)
+    d.text(s, MX, 3.56, 4.95, 1.9,
+           "把每张图分给最近的中心。它默认：**欧氏距离近 = 同一类。**\n"
+           "但图像拉成 784 维像素向量后，这个距离主要量的是物体位置、亮度和背景，而不是“这是什么”。",
+           size=15.5, color=S.BODY, line=1.48, after=10)
     # image triplet
-    x0, y0, side = 6.15, 1.85, 1.75
-    names = [("pixel_anchor", "T 恤 A"), ("pixel_moved", f"A 右移 {f.get('pix_shift', 4)} 像素"),
+    x0, y0, side = 6.15, 1.78, 1.72
+    names = [("pixel_anchor", "原图：T 恤 A"), ("pixel_moved", f"同件右移 {f.get('pix_shift', 4)} 像素"),
              ("pixel_other", f"另一类：{f.get('pix_other_class', '衬衫')} B")]
     xs = [x0, x0 + 2.25, x0 + 4.5]
     for (name, label), x in zip(names, xs):
         d.image(s, ASSETS / f"{name}.png", x, y0, w=side, h=side)
-        d.text(s, x - 0.2, y0 + side + 0.1, side + 0.4, 0.35, label, size=13.5, color=S.BODY, align="c")
-    # dimension lines: A to A' and A to B
-    def dim(xa, xb, y, label, value):
-        d.line(s, xa, y, xb, y, color=S.BODY, width=1.25)
-        d.line(s, xa, y - 0.08, xa, y + 0.08, color=S.BODY, width=1.25)
-        d.line(s, xb, y - 0.08, xb, y + 0.08, color=S.BODY, width=1.25)
-        d.text(s, (xa + xb) / 2 - 1.2, y - 0.4, 2.4, 0.34, [[(label, {"color": S.SECONDARY}), (value, {"bold": True})]],
-               size=15, color=S.INK, align="c", anchor="b")
-    yb = y0 + side + 0.95
-    dim(xs[0] + side / 2, xs[1] + side / 2, yb, "像素距离 ", _f(f.get("pix_d_moved"), 1))
-    dim(xs[0] + side / 2, xs[2] + side / 2, yb + 0.68, "像素距离 ", _f(f.get("pix_d_other"), 1))
+        d.text(s, x - 0.25, y0 + side + 0.08, side + 0.5, 0.35, label, size=13, color=S.BODY, align="c")
+    # color-contrasted dimension lines so 11.3 > 4.8 hits immediately
+    def dim(xa, xb, y, label, value, suffix, accent):
+        d.line(s, xa, y, xb, y, color=accent, width=1.8)
+        d.line(s, xa, y - 0.08, xa, y + 0.08, color=accent, width=1.8)
+        d.line(s, xb, y - 0.08, xb, y + 0.08, color=accent, width=1.8)
+        d.text(s, (xa + xb) / 2 - 2.0, y - 0.45, 4.0, 0.34,
+               [[(label, {"color": S.SECONDARY}), (value, {"bold": True, "color": accent}),
+                 (suffix, {"bold": True, "color": accent})]],
+               size=14, color=S.INK, align="c", anchor="b")
+    yb = y0 + side + 1.00
+    dim(xs[0] + side / 2, xs[1] + side / 2, yb, "同类错位距离 ", _f(f.get("pix_d_moved"), 1), "（反而更远！）",
+        S.PRETRAINED)
+    dim(xs[0] + side / 2, xs[2] + side / 2, yb + 0.68, "不同类距离 ", _f(f.get("pix_d_other"), 1), "（反而更近！）",
+        S.DEEP)
     frac = f.get("pix_fraction_farther")
-    d.stat(s, x0, 5.55, 6.5, DASH if frac is None else f"{frac:.1%}",
+    d.stat(s, x0, 5.50, 6.5, DASH if frac is None else f"{frac:.1%}",
            f"随机抽取的 T 恤右移 {f.get('pix_shift', 4)} 像素后，离原图比离最近的“非 T 恤”图像还远",
            value_size=34, label_size=14)
 
 
 def s05_core_idea(d: Deck):
     s = d.slide("S05_core_idea", SECTION["stat"], "深度聚类：先学一个让距离有意义的表示")
-    y, h = 2.05, 1.25
+    y, h = 1.80, 1.22
     xs = [MX, 3.25, 5.85, 8.45, 10.85]
-    labels = [("图像 x", "784 / 3072 维像素"), (["编码器 f", ("θ", {"sub": True})], "神经网络"), ("表示 z", "10 维左右"),
-              ("聚类", "K-means、软分配、混合模型"), ("簇 ĉ", "每张图的类别编号")]
+    labels = [("图像 x", "784 / 3072 维像素"), (["编码器 f", ("θ", {"sub": True})], "先“看懂”图的神经网络"),
+              ("表示 z", "浓缩特征（约 10 维）"), ("聚类器", "按新坐标划组"), ("簇 ĉ", "输出的类别编号")]
     fills = [S.PANEL, "#E3EEFB", S.PANEL, S.PANEL, S.PANEL]
     widths = [1.95, 1.95, 1.95, 1.95, 1.83]
     for (label, sub), x, fill, w in zip(labels, xs, fills, widths):
-        d.box(s, x, y, w, h, label, fill=fill, size=17, sub=sub, sub_size=12)
+        d.box(s, x, y, w, h, label, fill=fill, size=17, sub=sub, sub_size=11.5)
     for i in range(4):
         d.arrow(s, xs[i] + widths[i] + 0.05, y + h / 2, xs[i + 1] - 0.06, y + h / 2, color=S.SECONDARY)
-    d.equation(s, "pipeline", W / 2, 3.7, scale=0.9, align="c")
-    qy = 4.65
-    qs = [("没有标签，编码器靠什么信号训练？", "重构输入 · 用自己的预测自训练 · 同一张图的两个增强视图 · 外部数据预训练"),
-          ("编码器和聚类器怎么配合？", "先学后分 · 边学边分 · 交替迭代 · 用潜变量解释生成过程")]
+    d.equation(s, "pipeline", W / 2, 3.28, scale=0.88, align="c")
+    d.rect(s, MX, 3.98, CW, 0.50, fill=S.PANEL, radius=0.14)
+    d.text(s, MX + 0.25, 3.98, CW - 0.5, 0.50,
+           [[("直觉：", {"bold": True, "color": S.DEEP}),
+             ("像素里两件错位 T 恤相距很远；经过编码器压缩成特征 z 后，同类图像自然聚在一起。", {})]],
+           size=14, color=S.BODY, align="c", anchor="m")
+    qy = 4.78
+    qs = [("没有标签，编码器靠什么信号训练？", "还原原图（重构） · 用高把握预测教自己 · 同图两张变形照对比 · 直接借用大模型"),
+          ("编码器和聚类器怎么配合？", "先学后分 · 边学边分 · 交替迭代 · 用潜变量解释图像怎么生成")]
     for i, (q, a) in enumerate(qs):
         x = MX + i * 6.1
         d.text(s, x, qy, 0.5, 0.5, "①②"[i], size=24, bold=True, color=S.DEEP)
-        d.text(s, x + 0.55, qy + 0.02, 5.3, 0.5, q, size=18, bold=True, color=S.INK)
-        d.text(s, x + 0.55, qy + 0.55, 5.3, 1.0, a, size=14.5, color=S.SECONDARY, line=1.4)
-    d.text(s, MX, 6.35, CW, 0.4, "后面所有方法，都是这两个问题的不同答案。", size=15, color=S.BODY)
+        d.text(s, x + 0.55, qy + 0.02, 5.3, 0.45, q, size=17.5, bold=True, color=S.INK)
+        d.text(s, x + 0.55, qy + 0.54, 5.3, 0.9, a, size=14, color=S.SECONDARY, line=1.4)
+    d.text(s, MX, 6.40, CW, 0.4, "后面所有深度聚类方法，本质上都是这两个问题的不同答案。", size=15, color=S.BODY)
 
 
 def _mini_node(d, s, x, y, w, h, label, fill, color=S.INK, size=12.5):
@@ -695,61 +733,67 @@ def _mini_node(d, s, x, y, w, h, label, fill, color=S.INK, size=12.5):
 
 def s06_paradigms(d: Deck):
     s = d.slide("S06_paradigms", SECTION["method"], "表示与聚类的四种配合方式长期并存",
-                lede="按 Zhou 等（ACM Computing Surveys, 2025）的交互方式分类：年份不决定方法属于哪一类。",
+                lede="按 Zhou 等（ACM Computing Surveys, 2025）的交互方式分类：不是新淘汰旧，而是四条路线并存。",
                 source="实心圆点：本项目实验中运行的方法；空心圆点：仅文献综述。")
     cols = [
-        ("多阶段", "先学特征，再固定特征分组", [("AE + K-means", S.DEEP, True), ("SimCLR + K-means", S.CONTRASTIVE, True)]),
-        ("联合优化", "同一个目标同时更新表示和簇", [("DEC、IDEC", S.DEEP, True), ("CC", S.CONTRASTIVE, True)]),
-        ("生成式", "用潜在簇解释图像如何生成", [("VaDE", S.GENERATIVE, True)]),
-        ("迭代式", "本轮簇编号监督下一轮特征", [("DeepCluster", S.MUTED, False), ("SwAV", S.MUTED, False)]),
+        ("多阶段", "先画地图，再划区", "先训好特征并锁死，再独立分组",
+         [("AE + K-means", S.DEEP, True), ("SimCLR + K-means", S.CONTRASTIVE, True)]),
+        ("联合优化", "边画地图，边划区", "同一个损失同时更新特征与簇中心",
+         [("DEC、IDEC", S.DEEP, True), ("CC", S.CONTRASTIVE, True)]),
+        ("生成式", "给每类画概率云", "假设每类是一团正态分布再画成图",
+         [("VaDE", S.GENERATIVE, True)]),
+        ("迭代式", "边猜边教自己", "用本轮分组当伪标签训下一轮特征",
+         [("DeepCluster", S.MUTED, False), ("SwAV", S.MUTED, False)]),
     ]
-    cw, gap, y0 = 2.85, 0.21, 1.92
+    cw, gap, y0 = 2.85, 0.21, 1.88
     rep, clu = "#E3EEFB", "#ECECEE"
-    for i, (name, desc, methods) in enumerate(cols):
+    for i, (name, metaphor, desc, methods) in enumerate(cols):
         x = MX + i * (cw + gap)
-        d.rect(s, x, y0, cw, 2.0, fill=S.PANEL, radius=0.05)
-        bx, by, bw, bh = x + 0.35, y0 + 0.62, 0.95, 0.5
+        d.rect(s, x, y0, cw, 1.84, fill=S.PANEL, radius=0.05)
+        bx, by, bw, bh = x + 0.35, y0 + 0.50, 0.95, 0.48
         if i == 0:
             _mini_node(d, s, bx, by, bw, bh, "表示", rep)
             _mini_node(d, s, bx + 1.25, by, bw, bh, "聚类", clu)
             d.arrow(s, bx + bw + 0.04, by + bh / 2, bx + 1.21, by + bh / 2)
+            d.text(s, x, by + bh + 0.14, cw, 0.3, "单向传递，互不干扰", size=11, color=S.SECONDARY, align="c")
         elif i == 1:
             _mini_node(d, s, bx, by, bw, bh, "表示", rep)
             _mini_node(d, s, bx + 1.25, by, bw, bh, "聚类", clu)
             d.arrow(s, bx + bw + 0.04, by + bh / 2 - 0.1, bx + 1.21, by + bh / 2 - 0.1)
             d.arrow(s, bx + 1.21, by + bh / 2 + 0.1, bx + bw + 0.04, by + bh / 2 + 0.1)
-            d.text(s, x, by + bh + 0.12, cw, 0.3, "共享一个损失", size=11, color=S.SECONDARY, align="c")
+            d.text(s, x, by + bh + 0.14, cw, 0.3, "共享一个总损失", size=11, color=S.SECONDARY, align="c")
         elif i == 2:
             for j, lab in enumerate(["c", "z", "x"]):
-                d.oval(s, bx + 0.05 + j * 0.8, by, 0.5, rep if lab == "z" else clu)
-                d.text(s, bx + 0.05 + j * 0.8, by, 0.5, 0.5, lab, size=14, bold=True, color=S.INK, align="c",
+                d.oval(s, bx + 0.05 + j * 0.8, by, 0.48, rep if lab == "z" else clu)
+                d.text(s, bx + 0.05 + j * 0.8, by, 0.48, 0.48, lab, size=14, bold=True, color=S.INK, align="c",
                        anchor="m", italic=True, font="Cambria Math")
                 if j < 2:
-                    d.arrow(s, bx + 0.58 + j * 0.8, by + 0.25, bx + 0.82 + j * 0.8, by + 0.25)
-            d.text(s, x, by + bh + 0.12, cw, 0.3, "簇 → 隐变量 → 图像", size=11, color=S.SECONDARY, align="c")
+                    d.arrow(s, bx + 0.56 + j * 0.8, by + 0.24, bx + 0.82 + j * 0.8, by + 0.24)
+            d.text(s, x, by + bh + 0.14, cw, 0.3, "类别 c → 特征 z → 图像 x", size=11, color=S.SECONDARY, align="c")
         else:
             _mini_node(d, s, bx, by, bw, bh, "表示", rep)
             _mini_node(d, s, bx + 1.25, by, bw, bh, "聚类", clu)
             d.arrow(s, bx + bw + 0.04, by + 0.14, bx + 1.21, by + 0.14)
-            d.path(s, [(bx + 1.72, by + bh + 0.02), (bx + 1.72, by + bh + 0.25), (bx + 0.48, by + bh + 0.25),
+            d.path(s, [(bx + 1.72, by + bh + 0.02), (bx + 1.72, by + bh + 0.24), (bx + 0.48, by + bh + 0.24),
                        (bx + 0.48, by + bh + 0.04)])
-            d.text(s, x, by + bh + 0.3, cw, 0.3, "伪标签", size=11, color=S.SECONDARY, align="c")
-        d.text(s, x, y0 + 2.2, cw, 0.45, name, size=20, bold=True, color=S.INK)
-        d.text(s, x, y0 + 2.68, cw, 0.6, desc, size=14, color=S.BODY, line=1.3)
+            d.text(s, x, by + bh + 0.30, cw, 0.3, "猜的伪标签回传", size=11, color=S.SECONDARY, align="c")
+        d.text(s, x, y0 + 1.98, cw, 0.40, name, size=19.5, bold=True, color=S.INK)
+        d.text(s, x, y0 + 2.40, cw, 0.30, metaphor, size=12.5, bold=True, color=S.DEEP)
+        d.text(s, x, y0 + 2.74, cw, 0.58, desc, size=13.5, color=S.BODY, line=1.3)
         for j, (mname, color, ran) in enumerate(methods):
-            yy = y0 + 3.3 + j * 0.38
+            yy = y0 + 3.36 + j * 0.36
             if ran:
-                d.dot(s, x, yy + 0.08, color, d=0.15)
+                d.dot(s, x, yy + 0.08, color, d=0.14)
             else:
-                d.oval(s, x, yy + 0.08, 0.15, S.SURFACE, line=S.MUTED)
-            d.text(s, x + 0.27, yy, cw - 0.3, 0.35, mname, size=14, color=S.INK if ran else S.SECONDARY)
+                d.oval(s, x, yy + 0.08, 0.14, S.SURFACE, line=S.MUTED)
+            d.text(s, x + 0.25, yy, cw - 0.28, 0.34, mname, size=13.5, color=S.INK if ran else S.SECONDARY)
     by = 6.12
     d.rect(s, MX, by, CW, 0.66, fill="#FDF0EA", radius=0.12)
-    d.dot(s, MX + 0.3, by + 0.255, S.PRETRAINED, d=0.15)
-    d.text(s, MX + 0.6, by + 0.01, CW - 0.8, 0.64,
-           [[("外部预训练：", {"bold": True, "color": S.INK}),
-             ("表示来自课程数据之外（DINOv2、CLIP），再接简单聚类器；TAC、VLM4Cluster 进一步引入文本语义。", {})]],
-           size=15, color=S.BODY, anchor="m")
+    d.dot(s, MX + 0.28, by + 0.255, S.PRETRAINED, d=0.15)
+    d.text(s, MX + 0.56, by + 0.01, CW - 0.76, 0.64,
+           [[("外部预训练（直接借用现成“识图大脑”）：", {"bold": True, "color": S.INK}),
+             ("用海量外部图预训练好特征（DINOv2、CLIP），冻结参数再接简单聚类器；TAC、VLM4Cluster 进一步引入文字语义。", {})]],
+           size=14, color=S.BODY, anchor="m")
 
 
 def _flow_row(d, s, items, y, h=0.78, x0=None, gap=0.42, size=14):
@@ -766,155 +810,178 @@ def _flow_row(d, s, items, y, h=0.78, x0=None, gap=0.42, size=14):
 
 
 def s07_dec(d: Deck):
-    s = d.slide("S07_dec", SECTION["method"], "DEC：用自己的高置信预测训练自己",
+    s = d.slide("S07_dec", SECTION["method"], "DEC：用自己最有把握的预测训练自己",
                 source="Xie, Girshick & Farhadi, Unsupervised Deep Embedding for Clustering Analysis, ICML 2016")
-    steps = [("① 软分配", "Student-t 核：离簇中心越近，归属概率越高", "dec_q"),
-             ("② 目标分布", "平方后按簇大小归一：放大高置信样本，防止大簇吞并小簇", "dec_p"),
-             ("③ 自训练", "最小化 KL，同时更新编码器参数和簇中心", "dec_loss")]
-    y = 1.72
+    steps = [("① 算归属概率", "Student-t 核：图特征 z 离簇中心 μ 越近，归属概率 q 越高", "dec_q"),
+             ("② 造锐化目标", "把 q 平方放大把握；除簇大小 f 防止大簇吞掉小簇", "dec_p"),
+             ("③ 自己教自己", "最小化 KL(P‖Q)，逼当前预测 Q 向更笃定的 P 靠拢", "dec_loss")]
+    y = 1.62
     for title, desc, eq in steps:
-        d.text(s, MX, y, 1.5, 0.4, title, size=17, bold=True, color=S.INK)
-        d.text(s, MX + 1.55, y + 0.03, 5.6, 0.4, desc, size=14, color=S.SECONDARY)
-        _, eh = d.equation(s, eq, MX + 1.55, y + 0.48, scale=0.78)
-        y += 0.48 + eh + 0.42
+        d.text(s, MX, y, 1.75, 0.36, title, size=16, bold=True, color=S.INK)
+        d.text(s, MX + 1.80, y + 0.02, 5.45, 0.36, desc, size=13.5, color=S.SECONDARY)
+        _, eh = d.equation(s, eq, MX + 1.80, y + 0.42, scale=0.70)
+        y += 0.42 + eh + 0.24
+    # Concrete intuitive numeric illustration of squaring/sharpening
+    d.rect(s, MX, 5.42, 7.25, 1.32, fill=S.PANEL, radius=0.08)
+    d.text(s, MX + 0.24, 5.54, 6.8, 0.32, "直觉小例子：为什么“平方”有效？（数学示意，设两簇等大）",
+           size=13, bold=True, color=S.DEEP)
+    d.text(s, MX + 0.24, 5.90, 6.8, 0.78,
+           "原归属概率 q = [0.70, 0.30]  →  平方再归一得目标 p = [0.84, 0.16]\n"
+           "本来较像第 1 类，就被推得更笃定——像“强者愈强”，把松散的簇往中心压紧。",
+           size=12.5, color=S.BODY, line=1.42)
     # diagram on the right
-    x0, y0 = 8.25, 1.95
-    d.box(s, x0, y0, 1.25, 0.62, "图像 x", fill=S.PANEL, size=14)
-    d.box(s, x0 + 1.75, y0, 1.45, 0.62, "编码器", fill="#E3EEFB", size=14)
-    d.box(s, x0 + 1.95, y0 + 1.25, 1.05, 0.62, "z", fill=S.PANEL, size=15)
-    d.box(s, x0 + 1.55, y0 + 2.5, 1.85, 0.62, "软分配 Q", fill=S.PANEL, size=14)
-    d.box(s, x0 + 1.55, y0 + 3.75, 1.85, 0.62, "目标分布 P", fill=S.PANEL, size=14)
-    d.arrow(s, x0 + 1.29, y0 + 0.31, x0 + 1.71, y0 + 0.31)
-    d.arrow(s, x0 + 2.475, y0 + 0.66, x0 + 2.475, y0 + 1.21)
-    d.arrow(s, x0 + 2.475, y0 + 1.91, x0 + 2.475, y0 + 2.46)
-    d.arrow(s, x0 + 2.475, y0 + 3.16, x0 + 2.475, y0 + 3.71)
-    d.text(s, x0 + 2.6, y0 + 3.25, 1.6, 0.35, "平方、归一", size=11, color=S.SECONDARY)
+    x0, y0 = 8.35, 1.82
+    d.box(s, x0, y0, 1.25, 0.60, "图像 x", fill=S.PANEL, size=14)
+    d.box(s, x0 + 1.75, y0, 1.45, 0.60, "编码器", fill="#E3EEFB", size=14)
+    d.box(s, x0 + 1.88, y0 + 1.18, 1.20, 0.60, "特征 z", fill=S.PANEL, size=14)
+    d.box(s, x0 + 1.50, y0 + 2.36, 1.95, 0.60, "当前概率 Q", fill=S.PANEL, size=13.5)
+    d.box(s, x0 + 1.50, y0 + 3.54, 1.95, 0.60, "锐化目标 P", fill=S.PANEL, size=13.5)
+    d.arrow(s, x0 + 1.29, y0 + 0.30, x0 + 1.71, y0 + 0.30)
+    d.arrow(s, x0 + 2.475, y0 + 0.64, x0 + 2.475, y0 + 1.14)
+    d.arrow(s, x0 + 2.475, y0 + 1.82, x0 + 2.475, y0 + 2.32)
+    d.arrow(s, x0 + 2.475, y0 + 3.00, x0 + 2.475, y0 + 3.50)
+    d.text(s, x0 + 2.60, y0 + 3.08, 1.65, 0.32, "平方、按簇归一", size=11, color=S.SECONDARY)
     # feedback
-    d.path(s, [(x0 + 3.44, y0 + 4.06), (x0 + 4.25, y0 + 4.06), (x0 + 4.25, y0 + 0.31), (x0 + 3.24, y0 + 0.31)],
+    d.path(s, [(x0 + 3.49, y0 + 3.84), (x0 + 4.25, y0 + 3.84), (x0 + 4.25, y0 + 0.30), (x0 + 3.24, y0 + 0.30)],
            color=S.DEEP, width=2)
-    d.text(s, x0 + 3.05, y0 + 1.25, 1.1, 0.8, "KL(P‖Q)\n反向更新", size=12.5, bold=True, color=S.DEEP, align="r")
-    d.text(s, x0 - 0.05, y0 + 4.6, 4.4, 0.6, "训练全程不读标签；簇分配变化 < 0.1% 时早停。", size=12.5,
-           color=S.SECONDARY)
+    d.text(s, x0 + 3.05, y0 + 1.15, 1.12, 0.85, "拉近 Q 与 P\nKL 反向更新", size=12, bold=True, color=S.DEEP, align="r")
+    d.text(s, x0, y0 + 4.42, 4.35, 0.55, "训练全程不读标签；簇分配变化 < 0.1% 时早停。", size=12.5,
+           color=S.SECONDARY, line=1.35)
 
 
 def s08_idec(d: Deck):
     s = d.slide("S08_idec", SECTION["method"], "IDEC：保留解码器，防止表示被聚类目标拉坏",
                 source="Guo et al., Improved Deep Embedded Clustering with Local Structure Preservation, IJCAI 2017")
-    d.equation(s, "idec_loss", MX, 1.85, scale=0.95)
-    d.text(s, MX, 2.75, 5.9, 2.6,
-           "只用 KL 时，早期分错的样本会被不断强化，隐空间的局部结构可能被扭曲。\n"
-           "**重构项要求 z 仍能还原输入**，λ 控制“压紧簇”与“保留信息”之间的权衡。",
-           size=16, color=S.BODY, line=1.5, after=10)
-    d.text(s, MX, 4.65, 5.9, 1.2,
-           "实现说明：本项目的 λ 乘在每张图的平方重构误差（对像素求和）上；原文把 γ 乘在聚类项上、重构误差对像素取平均，"
-           "两者的换算是 λ = 1/(γD)，D 为像素数。",
-           size=12.5, color=S.SECONDARY, line=1.4)
-    x0, y0 = 6.55, 1.95
-    d.box(s, x0, y0 + 1.05, 1.15, 0.62, "图像 x", fill=S.PANEL, size=14)
-    d.box(s, x0 + 1.55, y0 + 1.05, 1.25, 0.62, "编码器", fill="#E3EEFB", size=14)
-    d.box(s, x0 + 3.2, y0 + 1.05, 0.85, 0.62, "z", fill=S.PANEL, size=15)
-    d.box(s, x0 + 4.45, y0, 1.6, 0.62, "软分配 Q", fill=S.PANEL, size=13.5)
-    d.box(s, x0 + 4.45, y0 + 2.1, 1.6, 0.62, ["解码器 g", ("φ", {"sub": True})], fill="#E3EEFB", size=13.5)
-    d.arrow(s, x0 + 1.19, y0 + 1.36, x0 + 1.51, y0 + 1.36)
-    d.arrow(s, x0 + 2.84, y0 + 1.36, x0 + 3.16, y0 + 1.36)
-    d.path(s, [(x0 + 4.09, y0 + 1.2), (x0 + 4.25, y0 + 1.2), (x0 + 4.25, y0 + 0.31), (x0 + 4.41, y0 + 0.31)])
-    d.path(s, [(x0 + 4.09, y0 + 1.52), (x0 + 4.25, y0 + 1.52), (x0 + 4.25, y0 + 2.41), (x0 + 4.41, y0 + 2.41)])
-    d.text(s, x0 + 4.45, y0 + 0.7, 1.9, 0.35, "聚类损失 KL", size=12, color=S.DEEP, bold=True)
-    d.text(s, x0 + 4.45, y0 + 2.8, 1.9, 0.35, "重构损失 × λ", size=12, color=S.DEEP, bold=True)
-    d.text(s, x0, y0 + 3.6, 5.7, 0.9, "DEC 是 λ = 0 的特例：解码器只用于预训练，之后被丢弃。",
-           size=14.5, color=S.BODY, line=1.35)
+    d.equation(s, "idec_loss", MX, 1.78, scale=0.90)
+    d.text(s, MX, 2.62, 5.75, 2.1,
+           "只用 KL 自训练时，早期分错的样本会被越拉越偏，隐空间容易被扭曲。\n"
+           "**可以想成一场拔河：**聚类项 KL 拼命把同类往中心压紧；**重构项拉住编码器，要求 z 仍能画回原图**，系数 λ 控制两者的比重。",
+           size=15.5, color=S.BODY, line=1.5, after=10)
+    d.rect(s, MX, 4.82, 5.75, 1.28, fill=S.PANEL, radius=0.08)
+    d.text(s, MX + 0.22, 4.92, 5.32, 1.08,
+           "实现口径说明：本项目的 λ 乘在每张图的平方重构误差（对像素求和）上；原论文把 γ 乘在聚类项上、重构误差按像素取平均，两者换算为 λ = 1/(γD)，D 为像素数。",
+           size=12, color=S.SECONDARY, line=1.42, anchor="m")
+    x0, y0 = 6.62, 1.88
+    d.box(s, x0, y0 + 1.05, 1.10, 0.62, "图像 x", fill=S.PANEL, size=13.5)
+    d.box(s, x0 + 1.48, y0 + 1.05, 1.22, 0.62, "编码器", fill="#E3EEFB", size=13.5)
+    d.box(s, x0 + 3.06, y0 + 1.05, 0.92, 0.62, "特征 z", fill=S.PANEL, size=13.5)
+    d.box(s, x0 + 4.38, y0, 1.65, 0.66, "软分配 Q", fill=S.PANEL, size=13.5)
+    d.box(s, x0 + 4.38, y0 + 2.08, 1.65, 0.66, ["解码器 g", ("φ", {"sub": True})], fill="#E3EEFB", size=13.5,
+          sub="还原原图 x̂", sub_size=10.5)
+    d.arrow(s, x0 + 1.14, y0 + 1.36, x0 + 1.44, y0 + 1.36)
+    d.arrow(s, x0 + 2.74, y0 + 1.36, x0 + 3.02, y0 + 1.36)
+    d.path(s, [(x0 + 4.02, y0 + 1.20), (x0 + 4.19, y0 + 1.20), (x0 + 4.19, y0 + 0.33), (x0 + 4.34, y0 + 0.33)])
+    d.path(s, [(x0 + 4.02, y0 + 1.52), (x0 + 4.19, y0 + 1.52), (x0 + 4.19, y0 + 2.41), (x0 + 4.34, y0 + 2.41)])
+    d.text(s, x0 + 4.34, y0 + 0.72, 2.0, 0.34, "聚类损失 KL（压紧簇）", size=11.5, color=S.DEEP, bold=True)
+    d.text(s, x0 + 4.34, y0 + 2.82, 2.0, 0.34, "重构损失 × λ（保细节）", size=11.5, color=S.DEEP, bold=True)
+    d.text(s, x0, y0 + 3.62, 5.9, 0.9, "DEC 就是 λ = 0 的特例：解码器只在预训练阶段用一次，之后直接丢弃。",
+           size=14.5, color=S.BODY, line=1.38)
 
 
 def s09_vade(d: Deck):
     s = d.slide("S09_vade", SECTION["method"], "VaDE：把高斯混合模型搬进隐空间",
-                source="Jiang et al., Variational Deep Embedding, IJCAI 2017")
-    d.text(s, MX, 1.75, 6, 0.3, "生成过程", size=13, color=S.SECONDARY)
-    d.equation(s, "vade_gen", MX, 2.1, scale=0.85)
-    d.text(s, MX, 2.75, 6, 0.3, "训练目标（证据下界 ELBO）", size=13, color=S.SECONDARY)
-    d.equation(s, "vade_elbo", MX, 3.1, scale=0.85)
+                source="Jiang et al., Variational Deep Embedding, IJCAI 2017 · 本项目实现中重构项采用每图平方误差（SSE），非 Bernoulli 交叉熵。")
+    d.text(s, MX, 1.58, 6.4, 0.28, "生成过程（模型怎么“想象”出一张图）", size=13, color=S.SECONDARY)
+    d.equation(s, "vade_gen", MX, 1.90, scale=0.80)
+    d.text(s, MX, 2.45, 6.6, 0.32, "① 按比例 π 抽类别 c  →  ② 在该类正态云抽特征 z  →  ③ 解码画成图 x",
+           size=12, bold=True, color=S.GENERATIVE)
+    d.text(s, MX, 2.92, 6.4, 0.28, "训练目标（证据下界 ELBO）", size=13, color=S.SECONDARY)
+    d.equation(s, "vade_elbo", MX, 3.22, scale=0.80)
+    d.text(s, MX, 3.80, 6.6, 0.34, "直觉：既要“还原得像原图”（前项重构），又要“特征贴合高斯混合云”（后项 KL）。",
+           size=12, color=S.BODY)
     # diagram
-    y = 4.15
-    nodes = [("c", "簇类别", S.PANEL), ("z", "隐变量", "#F3E6F1"), ("x", "图像", S.PANEL)]
+    y = 4.68
+    nodes = [("c", "类别 c", S.PANEL), ("z", "特征 z", "#F3E6F1"), ("x", "图像 x", S.PANEL)]
     for i, (sym, lab, fill) in enumerate(nodes):
-        x = MX + 0.2 + i * 2.1
-        d.oval(s, x, y, 0.85, fill)
-        d.text(s, x, y, 0.85, 0.85, sym, size=22, bold=True, color=S.INK, align="c", anchor="m", italic=True,
+        x = MX + 0.25 + i * 2.1
+        d.oval(s, x, y, 0.80, fill)
+        d.text(s, x, y, 0.80, 0.80, sym, size=21, bold=True, color=S.INK, align="c", anchor="m", italic=True,
                font="Cambria Math")
-        d.text(s, x - 0.3, y + 0.95, 1.45, 0.3, lab, size=12.5, color=S.SECONDARY, align="c")
+        d.text(s, x - 0.3, y + 0.86, 1.4, 0.28, lab, size=12, color=S.SECONDARY, align="c")
         if i < 2:
-            d.arrow(s, x + 0.9, y + 0.42, x + 2.05, y + 0.42, color=S.GENERATIVE, width=2)
-    d.text(s, MX + 0.95, y - 0.45, 3.8, 0.3, [["生成：π → N(μ", ("c", {"sub": True}), ", σ", ("c", {"sub": True}),
-                                               "²) → 解码器"]], size=11.5, color=S.GENERATIVE)
-    d.path(s, [(MX + 4.62, y + 1.35), (MX + 4.62, y + 1.6), (MX + 2.62, y + 1.6), (MX + 2.62, y + 1.33)],
+            d.arrow(s, x + 0.85, y + 0.40, x + 2.05, y + 0.40, color=S.GENERATIVE, width=2)
+    d.text(s, MX + 0.95, y - 0.36, 4.2, 0.28,
+           [["生成方向：π → N(μ", ("c", {"sub": True}), ", σ", ("c", {"sub": True}), "²) → 解码器"]],
+           size=11.5, color=S.GENERATIVE)
+    d.path(s, [(MX + 4.65, y + 1.24), (MX + 4.65, y + 1.50), (MX + 2.65, y + 1.50), (MX + 2.65, y + 1.22)],
            color=S.SECONDARY)
-    d.text(s, MX + 2.75, y + 1.62, 2.8, 0.3, "推断：编码器 q(z, c | x)", size=11.5, color=S.SECONDARY)
+    d.text(s, MX + 2.55, y + 1.54, 3.2, 0.28, "推断方向：编码器由图反推 q(z, c | x)", size=11.5, color=S.SECONDARY)
     # comparison on the right
     x0 = 7.55
-    rows = [("与 K-means 相比", "每个簇有自己的方差和先验比例 π，是“概率云”而不是一个点。"),
-            ("与像素空间的 GMM 相比", "先降到 10 维再建模，避开 784 维协方差难以估计的问题。"),
-            ("与教材的联系", "第 3 章多元正态 + 第 8 章潜变量模型，用神经网络把两者连起来。")]
+    rows = [("与 K-means 相比", "每个簇有自己的方差和先验比例 π，是一团“概率云”，而不只是一个孤立中心点。"),
+            ("与像素空间 GMM 相比", "先降到 10 维再建模，避开 784 维像素协方差难以估计的难题。"),
+            ("与统计教材的联系", "第 3 章多元正态 + 第 8 章潜变量模型，用神经网络把两者连起来。")]
     for i, (head, body) in enumerate(rows):
-        y0 = 1.85 + i * 1.5
+        y0 = 1.82 + i * 1.52
         d.rule(s, x0, y0, 5.1, color=S.GENERATIVE if i == 0 else S.HAIRLINE, width=2 if i == 0 else 1)
-        d.text(s, x0, y0 + 0.15, 5.1, 0.4, head, size=16, bold=True, color=S.INK)
-        d.text(s, x0, y0 + 0.58, 5.1, 0.85, body, size=14.5, color=S.BODY, line=1.4)
+        d.text(s, x0, y0 + 0.15, 5.1, 0.38, head, size=16, bold=True, color=S.INK)
+        d.text(s, x0, y0 + 0.58, 5.1, 0.88, body, size=14.5, color=S.BODY, line=1.42)
 
 
 def s10_contrastive(d: Deck):
-    s = d.slide("S10_contrastive", SECTION["method"], "对比学习：同一张图的两个增强视图应当靠近",
+    s = d.slide("S10_contrastive", SECTION["method"], "对比学习：同一张图的两张变形照应当靠近",
                 source="Chen et al., SimCLR, ICML 2020 · Li et al., Contrastive Clustering, AAAI 2021")
-    x0, y0 = MX, 2.0
-    d.box(s, x0, y0 + 0.95, 1.2, 0.7, "图像 x", fill=S.PANEL, size=14)
-    d.box(s, x0 + 1.75, y0, 1.6, 0.62, "增强视图 1", fill=S.PANEL, size=13.5, sub="裁剪、翻转、亮度", sub_size=10.5)
-    d.box(s, x0 + 1.75, y0 + 1.98, 1.6, 0.62, "增强视图 2", fill=S.PANEL, size=13.5, sub="裁剪、翻转、亮度", sub_size=10.5)
-    d.path(s, [(x0 + 1.24, y0 + 1.15), (x0 + 1.5, y0 + 1.15), (x0 + 1.5, y0 + 0.31), (x0 + 1.71, y0 + 0.31)])
-    d.path(s, [(x0 + 1.24, y0 + 1.45), (x0 + 1.5, y0 + 1.45), (x0 + 1.5, y0 + 2.29), (x0 + 1.71, y0 + 2.29)])
-    d.box(s, x0 + 3.85, y0 + 0.85, 1.55, 0.9, "共享编码器", fill="#E2F3EE", size=14)
-    d.arrow(s, x0 + 3.39, y0 + 0.31, x0 + 3.81, y0 + 1.0)
-    d.arrow(s, x0 + 3.39, y0 + 2.29, x0 + 3.81, y0 + 1.6)
-    d.box(s, x0 + 5.9, y0, 2.35, 0.75, "实例头：行对比", fill=S.PANEL, size=13.5, sub="同一张图的两视图互为正样本", sub_size=10.5)
-    d.box(s, x0 + 5.9, y0 + 1.85, 2.35, 0.75, "簇头：列对比（CC）", fill=S.PANEL, size=13.5, sub="同一个簇在两视图中一致", sub_size=10.5)
-    d.path(s, [(x0 + 5.44, y0 + 1.1), (x0 + 5.66, y0 + 1.1), (x0 + 5.66, y0 + 0.375), (x0 + 5.86, y0 + 0.375)])
-    d.path(s, [(x0 + 5.44, y0 + 1.5), (x0 + 5.66, y0 + 1.5), (x0 + 5.66, y0 + 2.225), (x0 + 5.86, y0 + 2.225)])
-    d.equation(s, "nt_xent", x0 + 0.05, 5.0, scale=0.82)
-    d.text(s, x0 + 4.2, 5.15, 4.3, 0.6, "NT-Xent：把正样本对拉近，把其余样本推远", size=13, color=S.SECONDARY)
+    x0, y0 = MX, 1.95
+    d.box(s, x0, y0 + 0.90, 1.32, 0.78, "图像 x", fill=S.PANEL, size=14, sub="例：同一张猫图", sub_size=10)
+    d.box(s, x0 + 1.82, y0, 1.65, 0.68, "变形视图 1", fill=S.PANEL, size=13.5, sub="随机裁剪 + 变亮", sub_size=10.5)
+    d.box(s, x0 + 1.82, y0 + 1.92, 1.65, 0.68, "变形视图 2", fill=S.PANEL, size=13.5, sub="水平翻转 + 调色", sub_size=10.5)
+    d.path(s, [(x0 + 1.36, y0 + 1.15), (x0 + 1.58, y0 + 1.15), (x0 + 1.58, y0 + 0.34), (x0 + 1.78, y0 + 0.34)])
+    d.path(s, [(x0 + 1.36, y0 + 1.45), (x0 + 1.58, y0 + 1.45), (x0 + 1.58, y0 + 2.26), (x0 + 1.78, y0 + 2.26)])
+    d.box(s, x0 + 3.92, y0 + 0.84, 1.50, 0.92, "共享编码器", fill="#E2F3EE", size=14)
+    d.arrow(s, x0 + 3.51, y0 + 0.34, x0 + 3.88, y0 + 1.00)
+    d.arrow(s, x0 + 3.51, y0 + 2.26, x0 + 3.88, y0 + 1.60)
+    d.box(s, x0 + 5.88, y0, 2.42, 0.78, "样本对比（行）", fill=S.PANEL, size=13.5, sub="同图两视图拉近，异图推远", sub_size=10.5)
+    d.box(s, x0 + 5.88, y0 + 1.82, 2.42, 0.78, "簇对比（列 · CC）", fill=S.PANEL, size=13.5, sub="同簇在两视图成员应一致", sub_size=10.5)
+    d.path(s, [(x0 + 5.46, y0 + 1.10), (x0 + 5.66, y0 + 1.10), (x0 + 5.66, y0 + 0.39), (x0 + 5.84, y0 + 0.39)])
+    d.path(s, [(x0 + 5.46, y0 + 1.50), (x0 + 5.66, y0 + 1.50), (x0 + 5.66, y0 + 2.21), (x0 + 5.84, y0 + 2.21)])
+    d.equation(s, "nt_xent", x0 + 0.05, 5.02, scale=0.80)
+    d.text(s, x0 + 4.10, 5.05, 4.35, 1.05,
+           [[("NT-Xent 直觉：", {"bold": True, "color": S.INK}),
+             ("分子为同图两视图相似度（拉大），分母为与其他所有图的相似度（压小）。", {})]],
+           size=13, color=S.SECONDARY, line=1.42)
     xr = 9.55
-    rows = [("SimCLR + K-means", S.CONTRASTIVE, "多阶段：只训练实例头学特征，再离线做 K-means。"),
-            ("CC", S.CONTRASTIVE, "联合优化：实例级与簇级对比同时训练，簇头直接给出分配。")]
+    rows = [("SimCLR + K-means", S.CONTRASTIVE, "多阶段：只用行对比学好特征，最后离线做 K-means。"),
+            ("CC（对比聚类）", S.CONTRASTIVE, "联合优化：同时做样本级与簇级对比，簇头直接输出分组。")]
     for i, (name, color, body) in enumerate(rows):
-        y = 2.0 + i * 1.55
-        d.dot(s, xr, y + 0.1, color, d=0.16)
-        d.text(s, xr + 0.3, y, 3.0, 0.4, name, size=16, bold=True, color=S.INK)
-        d.text(s, xr + 0.3, y + 0.45, 3.1, 1.0, body, size=13.5, color=S.BODY, line=1.35)
-    d.rect(s, xr, 5.05, 3.13, 1.45, fill=S.PANEL, radius=0.06)
-    d.text(s, xr + 0.2, 5.15, 2.75, 1.25, "本项目受课程算力限制：两者都用 128 维小型 CNN、训练 100 轮；CC 未加原文的簇熵正则。",
-           size=12, color=S.SECONDARY, line=1.4, anchor="m")
+        y = 1.95 + i * 1.52
+        d.dot(s, xr, y + 0.10, color, d=0.16)
+        d.text(s, xr + 0.28, y, 2.9, 0.38, name, size=15.5, bold=True, color=S.INK)
+        d.text(s, xr + 0.28, y + 0.44, 2.9, 0.96, body, size=13.5, color=S.BODY, line=1.38)
+    d.rect(s, xr, 5.02, 3.13, 1.50, fill=S.PANEL, radius=0.06)
+    d.text(s, xr + 0.18, 5.10, 2.78, 1.34,
+           "实验算力限制：两者均用 128 维小型 CNN、训练 100 轮（非原论文 ResNet）；CC 未加簇熵正则，因此对比路线被低估。",
+           size=11.8, color=S.SECONDARY, line=1.4, anchor="m")
 
 
 def s11_pretrained(d: Deck):
     s = d.slide("S11_pretrained", SECTION["method"], "预训练模型把“学表示”交给了海量外部数据",
                 source="Oquab et al., TMLR 2024 · Radford et al., ICML 2021 · Li et al., ICML 2024 · Hu et al., 2026（预印本）")
-    y = 2.0
-    items = [("CIFAR-10 图像", None, S.PANEL, 1.85), ("冻结编码器", "DINOv2 ViT-S/14 · CLIP ViT-B/32", "#FDF0EA", 2.6),
-             ("特征向量", "384 / 512 维，L2 归一化", S.PANEL, 2.15), ("聚类器", "K-means · GMM · DEC 头", S.PANEL, 2.3)]
-    _flow_row(d, s, items, y, h=0.95, gap=0.48, size=15)
-    d.text(s, MX + 2.33, y + 1.05, 2.6, 0.3, "参数不更新", size=11.5, color=S.PRETRAINED, align="c")
-    cards = [("DINOv2", "约 1.42 亿张无标签图像自监督预训练；只用图像。"),
-             ("CLIP", "4 亿对图文配对，用对比学习对齐图像和文本。"),
-             ("TAC", "用 WordNet 名词给图像聚类提供外部语义引导。"),
-             ("VLM4Cluster", "在 20 个数据集上比较 17 种方法的效果、鲁棒性与成本（2026 预印本）。")]
+    y = 1.92
+    items = [("输入图像", "MNIST / Fashion / CIFAR-10", S.PANEL, 2.25),
+             ("冻结编码器", "DINOv2 ViT-S/14 · CLIP ViT-B/32", "#FDF0EA", 2.75),
+             ("特征向量", "384 / 512 维，L2 归一化", S.PANEL, 2.15),
+             ("简单聚类器", "K-means · GMM · DEC 头", S.PANEL, 2.25)]
+    _flow_row(d, s, items, y, h=0.95, gap=0.42, size=15)
+    d.text(s, MX + 2.67, y + 1.02, 2.75, 0.30, "参数锁死不重训，直接借用现成识图能力", size=11,
+           color=S.PRETRAINED, align="c")
+    cards = [("DINOv2", "纯视觉自监督", "约 1.42 亿张无标签图像自监督训练，只看图像学物体语义。"),
+             ("CLIP", "图文对比对齐", "4 亿对图文配对训练，让视觉特征与自然语言对齐。"),
+             ("TAC", "外部名词引导", "ICML 2024：引入 WordNet 名词语义，辅助图像聚类。"),
+             ("VLM4Cluster", "2026 预印本基准", "在 20 个数据集上系统比较 17 种方法的效果、鲁棒性与成本。")]
     cw, gap = 2.85, 0.21
-    for i, (name, body) in enumerate(cards):
+    for i, (name, role, body) in enumerate(cards):
         x = MX + i * (cw + gap)
-        d.rule(s, x, 3.75, cw, color=S.PRETRAINED if i < 2 else S.HAIRLINE, width=2 if i < 2 else 1)
-        d.text(s, x, 3.92, cw, 0.4, name, size=17, bold=True, color=S.INK)
-        d.text(s, x, 4.38, cw, 1.2, body, size=13.5, color=S.BODY, line=1.4)
-    d.text(s, MX, 3.42, 4.0, 0.3, "本项目实验中使用", size=11.5, color=S.PRETRAINED)
-    d.text(s, MX + 2 * (cw + gap), 3.42, 4.0, 0.3, "文献前沿", size=11.5, color=S.SECONDARY)
-    d.rect(s, MX, 6.0, CW, 0.7, fill=S.PANEL, radius=0.12)
-    d.text(s, MX + 0.3, 6.0, CW - 0.6, 0.7,
-           "这些模型在课程开始前就见过大量外部数据，训练成本不可与从零训练直接比较，实验中单独报告。",
-           size=14.5, color=S.BODY, anchor="m")
+        d.rule(s, x, 3.74, cw, color=S.PRETRAINED if i < 2 else S.HAIRLINE, width=2 if i < 2 else 1)
+        d.text(s, x, 3.90, cw, 0.38, name, size=17, bold=True, color=S.INK)
+        d.text(s, x, 4.28, cw, 0.28, role, size=11.5, bold=True, color=S.PRETRAINED if i < 2 else S.SECONDARY)
+        d.text(s, x, 4.62, cw, 1.15, body, size=13.5, color=S.BODY, line=1.38)
+    d.text(s, MX, 3.42, 4.0, 0.28, "本项目实验中使用（冻结提特征）", size=11.5, bold=True, color=S.PRETRAINED)
+    d.text(s, MX + 2 * (cw + gap), 3.42, 4.0, 0.28, "文献前沿方向", size=11.5, color=S.SECONDARY)
+    d.rect(s, MX, 5.98, CW, 0.72, fill=S.PANEL, radius=0.12)
+    d.text(s, MX + 0.30, 5.98, CW - 0.60, 0.72,
+           [[("公平口径：", {"bold": True, "color": S.INK}),
+             ("预训练模型在实验前已见过海量外部图像，训练成本不可与从零训练直接比较，因此单独分组报告。", {})]],
+           size=14, color=S.BODY, anchor="m")
 
 
 def s12_setup(d: Deck):
@@ -923,50 +990,65 @@ def s12_setup(d: Deck):
     rows = [("mnist", "MNIST", "手写数字 · 28×28 灰度", "训练 2 万 / 测试 1 万"),
             ("fashion_mnist", "Fashion-MNIST", "服饰 · 28×28 灰度", "训练 2 万 / 测试 1 万"),
             ("cifar10", "CIFAR-10", "自然图像 · 32×32 彩色", "训练 1 万 / 测试 2 千")]
-    y = 1.8
+    y = 1.78
     for key, name, desc, size in rows:
-        d.text(s, MX, y, 2.3, 0.35, name, size=16, bold=True, color=S.INK)
-        d.text(s, MX, y + 0.38, 2.3, 0.3, desc, size=11.5, color=S.SECONDARY)
-        d.text(s, MX, y + 0.66, 2.3, 0.3, size, size=11.5, color=S.SECONDARY)
-        d.image(s, ASSETS / f"strip_{key}.png", MX + 2.35, y + 0.05, w=4.9)
-        y += 1.22
+        d.text(s, MX, y, 2.3, 0.34, name, size=16, bold=True, color=S.INK)
+        d.text(s, MX, y + 0.36, 2.3, 0.28, desc, size=11.5, color=S.SECONDARY)
+        d.text(s, MX, y + 0.64, 2.3, 0.28, size, size=11.5, color=S.SECONDARY)
+        d.image(s, ASSETS / f"strip_{key}.png", MX + 2.35, y + 0.04, w=4.9)
+        y += 1.20
     x0 = 8.25
-    d.text(s, x0, 1.8, 4.4, 0.35, "方法（按家族着色，全篇一致）", size=13, color=S.SECONDARY)
-    fams = [(S.CLASSICAL, "经典", "K-means · PCA + K-means · GMM"),
+    d.text(s, x0, 1.78, 4.4, 0.32, "方法（按家族着色，全篇一致）", size=13, color=S.SECONDARY)
+    fams = [(S.CLASSICAL, "经典方法", "K-means · PCA + K-means · GMM"),
             (S.DEEP, "自编码器系", "AE + K-means · DEC · IDEC"),
             (S.GENERATIVE, "生成式", "VaDE"),
             (S.CONTRASTIVE, "对比学习", "SimCLR + K-means · CC"),
             (S.PRETRAINED, "外部预训练", "DINOv2 · CLIP（冻结）")]
     for i, (color, fam, names) in enumerate(fams):
-        yy = 2.25 + i * 0.66
-        d.dot(s, x0, yy + 0.09, color, d=0.17)
-        d.text(s, x0 + 0.3, yy, 1.4, 0.35, fam, size=14, bold=True, color=S.INK)
-        d.text(s, x0 + 1.62, yy + 0.01, 2.81, 0.6, names, size=12.5, color=S.BODY, line=1.2)
-    py = 5.6
+        yy = 2.22 + i * 0.64
+        d.dot(s, x0, yy + 0.08, color, d=0.16)
+        d.text(s, x0 + 0.28, yy, 1.45, 0.34, fam, size=14, bold=True, color=S.INK)
+        d.text(s, x0 + 1.66, yy + 0.01, 2.78, 0.56, names, size=12.5, color=S.BODY, line=1.2)
+    py = 5.50
     d.rule(s, MX, py, CW, color=S.HAIRLINE, width=1)
-    rules = [("训练不读标签", "fit 接口只接收图像；测试标签只在最后计算 ACC、NMI、ARI 时读取"),
-             ("预先固定的协议", "超参数、早停（簇分配变化 < 0.1%）在看到测试结果前写入配置"),
-             ("3 个随机种子", "主要对比报告 3 个种子的均值 ± 标准差；稳定性诊断用种子 0"
-              + (f"。共 {f['n_fits']:,} 次训练" if isinstance(f.get("n_fits"), int) else ""))]
+    rules = [
+        ("训练绝不读标签",
+         "fit 接口只输入图像；真实标签仅在最后评分（ACC / NMI / ARI）时读取。"),
+        ("怎么看核心指标 ARI",
+         "0 = 随机乱分，0.5 = 明显分出大类，1.0 = 与真实分类完全一致（后续图表主看 ARI）。"),
+        ("先锁协议 · 3 种子均值",
+         "超参数与早停规则事先写入配置；主实验跑 3 个随机种子报均值±标准差"
+         + (f"（共 {f['n_fits']:,} 次训练）。" if isinstance(f.get("n_fits"), int) else "。")),
+    ]
     for i, (head, body) in enumerate(rules):
         x = MX + i * 4.05
-        d.text(s, x, py + 0.2, 3.85, 0.35, head, size=15, bold=True, color=S.INK)
-        d.text(s, x, py + 0.6, 3.85, 0.8, body, size=12.5, color=S.SECONDARY, line=1.35)
+        d.text(s, x, py + 0.18, 3.85, 0.34, head, size=14.5, bold=True, color=S.DEEP if i == 1 else S.INK)
+        d.text(s, x, py + 0.56, 3.85, 0.88, body, size=12.5, color=S.SECONDARY, line=1.38)
 
 
 def s13_benchmark(d: Deck):
+    f = d.facts
     s = d.slide("S13_benchmark", SECTION["exp"], "从零训练：DEC 与 VaDE 领先，CIFAR-10 上全部失效",
-                source="ARI（调整兰德指数）：0 相当于随机分组，1 与真实类别完全一致。完整 ACC / NMI / ARI 见附录 A01。")
-    d.figure(s, "benchmark_ari", MX, 1.75, CW)
+                source="ARI（调整兰德指数）：0 ≈ 随机乱分，1 = 与真实类别完全一致。完整 ACC / NMI / ARI 见附录 A01。")
+    d.family_legend(s, MX, 1.26)
+    d.figure(s, "benchmark_ari", MX + 0.16, 1.56, 11.70)
+    d.text(s, MX, 6.36, CW, 0.50,
+           [[("读图总结：", {"bold": True, "color": S.INK}),
+             ("左→右图像变复杂。灰度图上自编码器/生成式明显领先；彩色自然图 CIFAR-10 上从零训练全部 ≤ ", {}),
+             (f.f("max_scratch_cifar10"), {"bold": True, "color": S.INK}),
+             ("（近乎随机）。", {})]],
+           size=14, color=S.BODY)
 
 
 def s14_geometry(d: Deck):
     s = d.slide("S14_geometry", SECTION["exp"], "非线性表示先把类拉开，DEC 再把每个簇压紧",
-                source="Fashion-MNIST 测试集 2,000 张图（种子 0）在各方法表示空间中的 t-SNE；颜色是该方法自己的预测簇，不使用真实标签。")
-    d.figure(s, "embeddings_tsne", MX, 1.75, CW)
-    d.text(s, MX, 6.05, CW, 0.7,
-           "AE + K-means、DEC、IDEC 共用同一个预训练自编码器，差别只来自第二阶段：DEC 的自训练把簇压成紧凑的“岛”，IDEC 的重构项让它们保持更松散的形状。",
-           size=14, color=S.BODY, line=1.4)
+                lede="用 t-SNE 把高维特征压到二维平面观察：每个点是一张服饰图，颜色是模型自己分出的组（不读真实标签）。",
+                source="Fashion-MNIST 测试集 2,000 张图（种子 0）；AE + K-means、DEC、IDEC 共用同一个预训练自编码器。")
+    d.figure(s, "embeddings_tsne", MX + 0.12, 1.82, 11.80)
+    d.text(s, MX, 6.02, CW, 0.72,
+           [[("从左到右：", {"bold": True, "color": S.INK}),
+             ("① PCA 线性降维各簇粘连 → ② 自编码器拉开大类 → ③ DEC 压成紧凑“孤岛” → ④ IDEC 为保留原图，簇更松散。", {})]],
+           size=14, color=S.BODY, line=1.42)
 
 
 def s15_repr_vs_clusterer(d: Deck):
@@ -983,49 +1065,54 @@ def s15_repr_vs_clusterer(d: Deck):
     s = d.slide("S15_representation_vs_clusterer", SECTION["exp"], title, lede=lede,
                 source="每行是一种编码器，三个标记是在同一表示上换用的三种聚类器；自编码器、SimCLR 与 K-means 的组合即基准实验中的同一批模型。")
     d.figure(s, "representation_vs_clusterer", MX, 1.72, CW)
-    d.text(s, MX, 6.42, CW, 0.4,
-           [[("读图：", {"color": S.SECONDARY}), ("行与行之间的距离是换表示的影响，", {"bold": True, "color": S.INK}),
-             ("同一行三个标记之间的距离是换聚类器的影响。", {"bold": True, "color": S.INK})]],
-           size=14.5, color=S.BODY)
+    d.text(s, MX, 6.42, CW, 0.44,
+           [[("读图诀窍：", {"bold": True, "color": S.DEEP}),
+             ("上下跨行比（换“看图方式”）跨度极大，", {"bold": True, "color": S.INK}),
+             ("左右同行比（换“分组算法”）挤在一起——选对特征远比换聚类器重要。", {})]],
+           size=14, color=S.BODY)
 
 
 def s16_pixels_vs_dinov2(d: Deck):
     f = d.facts
     s = d.slide("S16_pixels_vs_dinov2", SECTION["exp"], "同一批 CIFAR-10 图像：像素空间按颜色排，DINOv2 空间按物体排",
-                source="300 张测试图（种子 0）按各自表示的 t-SNE 坐标放进 20 × 15 网格；排列只用表示，不用标签。")
+                source="300 张测试图（种子 0）按各自表示的 t-SNE 坐标放进 20 × 15 网格；排列只用特征，不用任何标签。")
     pw = 5.85
-    for i, (name, head, ari) in enumerate([("mosaic_pixels", "像素空间", f.f("ari_cifar10_kmeans", 2)),
-                                           ("mosaic_dinov2", "DINOv2 表示空间", f.f("e04_cifar10_dinov2_kmeans", 2))]):
+    panels = [
+        ("mosaic_pixels", "像素空间", "按颜色与明暗排：蓝天飞机和蓝海轮船混成一团", f.f("ari_cifar10_kmeans", 2)),
+        ("mosaic_dinov2", "DINOv2 表示空间", "按物体语义排：猫狗、飞机船、车、马鹿各自成片",
+         f.f("e04_cifar10_dinov2_kmeans", 2)),
+    ]
+    for i, (name, head, hint, ari) in enumerate(panels):
         x = MX + i * (pw + CW - 2 * pw)
-        d.image(s, ASSETS / f"{name}.png", x, 1.75, w=pw)
-        d.text(s, x, 6.2, pw - 2.2, 0.4, head, size=17, bold=True, color=S.INK)
-        d.text(s, x + pw - 2.6, 6.2, 2.6, 0.4, [[("K-means ARI ", {"color": S.SECONDARY}), (ari, {"bold": True})]],
+        d.image(s, ASSETS / f"{name}.png", x, 1.66, w=pw)
+        d.text(s, x, 6.12, pw - 2.4, 0.36, head, size=17, bold=True, color=S.INK)
+        d.text(s, x + pw - 2.6, 6.12, 2.6, 0.36, [[("K-means ARI ", {"color": S.SECONDARY}), (ari, {"bold": True})]],
                size=17, color=S.INK, align="r")
+        d.text(s, x, 6.50, pw, 0.34, hint, size=12.5, color=S.SECONDARY)
 
 
 def s17_noise(d: Deck):
     f = d.facts
-    sigma = f.get("noise_max", 0.3)
     title = f"加噪后排名反转：K-means 保留 {f.p('keep_kmeans')}，DEC 只剩 {f.p('keep_dec')}"
     s = d.slide("S17_noise", SECTION["exp"], title,
                 source="噪声只加在测试图上（截断到 [0, 1]），模型不重新训练；Fashion-MNIST，3 个随机种子均值。")
     d.figure(s, "noise_robustness", MX - 0.1, 1.62, 7.55)
     x0 = 8.35
-    d.text(s, x0, 1.8, 4.3, 0.3, "同一张测试图在不同噪声强度下", size=12.5, color=S.SECONDARY)
+    d.text(s, x0, 1.75, 4.3, 0.3, "同一张测试图在不同雪花噪声强度下", size=12.5, color=S.SECONDARY)
     for i, std in enumerate([0.0, 0.1, 0.2, 0.3]):
         x = x0 + i * 1.07
-        d.image(s, ASSETS / f"noise_{str(std).replace('.', 'p')}.png", x, 2.2, w=0.92, h=0.92)
-        d.text(s, x, 3.17, 0.92, 0.3, f"σ = {std:g}", size=11.5, color=S.SECONDARY, align="c")
-    d.text(s, x0, 3.85, 4.35, 1.3,
-           [[("干净图上越强的深度方法，加噪后掉得越多：", {"bold": True, "color": S.INK}),
-             ("学到的特征对像素扰动敏感；而各向同性噪声让像素到每个中心的距离增加大致相同的量，K-means 的最近中心基本不变。", {})]],
-           size=14, color=S.BODY, line=1.45)
+        d.image(s, ASSETS / f"noise_{str(std).replace('.', 'p')}.png", x, 2.14, w=0.92, h=0.92)
+        d.text(s, x, 3.10, 0.92, 0.28, f"σ = {std:g}", size=11.5, color=S.SECONDARY, align="c")
+    d.text(s, x0, 3.68, 4.35, 1.48,
+           [[("深度特征更怕噪点：", {"bold": True, "color": S.INK}),
+             ("干净图上越强的深度方法，加噪后掉得越惨；而均匀随机噪点对所有像素一视同仁，到各簇中心的距离同增，所以 K-means 挑出的“最近中心”基本不变。", {})]],
+           size=13.5, color=S.BODY, line=1.44)
     gmm_k = f.get("gmm_clusters_at_01")
-    d.text(s, x0, 5.35, 4.35, 1.3,
-           [[("像素 GMM 一碰噪声就塌缩：", {"bold": True, "color": S.INK}),
-             (f"边缘背景像素在训练集上几乎不变，标准化后微小噪声被放大，σ = 0.1 时全部测试图落进 {gmm_k:.0f} 个簇。"
-              if gmm_k else "边缘背景像素在训练集上几乎不变，标准化后微小噪声被放大，全部测试图落进同一个簇。", {})]],
-           size=14, color=S.BODY, line=1.45)
+    d.text(s, x0, 5.26, 4.35, 1.45,
+           [[("像素 GMM 一碰噪就全挤进 1 簇：", {"bold": True, "color": S.INK}),
+             (f"边缘黑背景在训练集里几乎不变（方差近 0），标准化后微小噪点被急剧放大，σ = 0.1 时全部测试图落进 {gmm_k:.0f} 个簇。"
+              if gmm_k else "边缘黑背景在训练集里几乎不变（方差近 0），标准化后微小噪点被急剧放大，全部测试图落进同一个簇。", {})]],
+           size=13.5, color=S.BODY, line=1.44)
 
 
 def s18_sample_size(d: Deck):
@@ -1039,14 +1126,33 @@ def s18_sample_size(d: Deck):
     s = d.slide("S18_sample_size", SECTION["exp"], title,
                 source="从 2 万张训练图中无放回抽样；训练轮数上限不变；测试集固定为 1 万张。3 个随机种子均值 ± 标准差。")
     d.figure(s, "sample_size", MX - 0.1, 1.62, 7.55)
-    x0 = 8.4
-    d.stat(s, x0, 1.85, 4.2, f"{f.f('sf_kmeans_0.01')} vs {f.f('sf_dec_0.01')}",
-           f"{n:,.0f} 张训练图时，K-means 与 DEC 的 ARI" if n else "1% 训练图时，K-means 与 DEC 的 ARI",
-           value_size=30, label_size=13.5)
-    d.stat(s, x0, 3.35, 4.2, f"{f.f('sf_dec_1.0')} vs {f.f('sf_kmeans_1.0')}", "全部 2 万张训练图时，DEC 与 K-means 的 ARI",
-           value_size=30, label_size=13.5)
-    d.text(s, x0, 4.95, 4.25, 1.5,
-           "DEC 依赖自编码器先学出好的表示；样本太少时预训练学不充分，自训练又会放大初始错误。",
+    x0, cw = 8.35, 4.33
+    # Card 1: small sample (K-means leads)
+    d.rect(s, x0, 1.78, cw, 1.38, fill=S.PANEL, radius=0.08)
+    d.text(s, x0 + 0.22, 1.90, cw - 0.44, 0.30,
+           f"{n:,.0f} 张训练图（1% 样本）· K-means 占优" if n else "1% 样本 · K-means 占优",
+           size=12.5, bold=True, color=S.CLASSICAL_DARK)
+    d.text(s, x0 + 0.22, 2.28, cw - 0.44, 0.72,
+           [[("K-means ", {"size": 14, "color": S.CLASSICAL_DARK}),
+             (f.f("sf_kmeans_0.01"), {"size": 27, "bold": True, "color": S.CLASSICAL_DARK}),
+             ("   vs   ", {"size": 13, "color": S.MUTED}),
+             ("DEC ", {"size": 14, "color": S.DEEP}),
+             (f.f("sf_dec_0.01"), {"size": 27, "bold": True, "color": S.DEEP})]],
+           line=1.0, anchor="m")
+    # Card 2: full sample (DEC leads)
+    d.rect(s, x0, 3.36, cw, 1.38, fill="#EEF5FD", radius=0.08)
+    d.text(s, x0 + 0.22, 3.48, cw - 0.44, 0.30, "全部 2 万张训练图（100% 样本）· DEC 反超",
+           size=12.5, bold=True, color=S.DEEP)
+    d.text(s, x0 + 0.22, 3.86, cw - 0.44, 0.72,
+           [[("DEC ", {"size": 14, "color": S.DEEP}),
+             (f.f("sf_dec_1.0"), {"size": 27, "bold": True, "color": S.DEEP}),
+             ("   vs   ", {"size": 13, "color": S.MUTED}),
+             ("K-means ", {"size": 14, "color": S.CLASSICAL_DARK}),
+             (f.f("sf_kmeans_1.0"), {"size": 27, "bold": True, "color": S.CLASSICAL_DARK})]],
+           line=1.0, anchor="m")
+    d.text(s, x0, 5.02, cw, 1.50,
+           [[("原因直觉：", {"bold": True, "color": S.INK}),
+             ("DEC 依赖自编码器先把“看图方式”学好；样本太少时预训练没学透，后续自训练反而会把初始错误越放越大。", {})]],
            size=14, color=S.BODY, line=1.45)
 
 
@@ -1064,20 +1170,22 @@ def s19_components(d: Deck):
         title = "IDEC 组件消融：预训练、初始化与联合微调"
     s = d.slide("S19_components", SECTION["exp"], title,
                 source="Fashion-MNIST，IDEC（λ = 1，隐空间 10 维），3 个随机种子；右图误差线为同一种子上差值的标准差，“固定 50 轮”关闭早停与追加轮次后重跑。")
-    d.figure(s, "components_lambda", MX, 1.6, CW)
+    d.figure(s, "components_lambda", MX, 1.56, CW)
     lines = []
     if None not in (full, frozen, nopre, rnd):
-        lines.append([("左：去掉 AE 预训练 −", {}), (f"{full - nopre:.2f}", {"bold": True, "color": S.INK}),
-                      ("，簇中心随机初始化 −", {}), (f"{full - rnd:.2f}", {"bold": True, "color": S.INK}),
-                      ("，冻结编码器只学簇中心 −", {}), (f"{full - frozen:.2f}", {"bold": True, "color": S.INK}),
-                      ("。", {})])
+        lines.append([("左（谁功劳最大）：", {"bold": True, "color": S.INK}),
+                      ("去掉 AE 预训练 −", {}), (f"{full - nopre:.2f}", {"bold": True, "color": S.INK}),
+                      ("，随机初始化 −", {}), (f"{full - rnd:.2f}", {"bold": True, "color": S.INK}),
+                      ("，锁死编码器仅 −", {}), (f"{full - frozen:.2f}", {"bold": True, "color": S.INK}),
+                      (" → 好起点比联合微调更关键。", {"bold": True, "color": S.DEEP})])
     if f.get("lam_fx_gap_1") is not None and f.get("lam_fx_gap_10") is not None:
-        lines.append([("右：固定 50 轮时，λ ≤ 0.1 与 DEC 几乎相同；λ = 1、10 平均低 ", {}),
+        lines.append([("右（重构项有帮倒忙吗）：", {"bold": True, "color": S.INK}),
+                      ("固定 50 轮后，λ ≤ 0.1 与 DEC 持平；λ = 1、10 平均低 ", {}),
                       (f"{f['lam_fx_gap_1']:.2f}", {"bold": True, "color": S.INK}), ("、", {}),
                       (f"{f['lam_fx_gap_10']:.2f}", {"bold": True, "color": S.INK}),
-                      (f"，{f.get('lam_fx_seeds', 3)} 个种子上都更低。" if recon_hurts else "。", {})])
+                      (f"（{f.get('lam_fx_seeds', 3)} 种子全降）→ 过强重构阻碍聚拢。" if recon_hurts else "。", {})])
     if lines:
-        d.text(s, MX, 6.12, CW, 0.8, lines, size=14, color=S.BODY, line=1.35)
+        d.text(s, MX, 6.10, CW, 0.85, lines, size=13.5, color=S.BODY, line=1.42)
 
 
 def s20_cost(d: Deck):
@@ -1089,18 +1197,21 @@ def s20_cost(d: Deck):
                 source="Fashion-MNIST，3 个随机种子均值；时间为同一台笔记本 GPU 上的端到端训练时间，DEC/IDEC 计入自编码器预训练。")
     d.figure(s, "cost_frontier", MX - 0.1, 1.62, 7.55)
     x0 = 8.4
-    d.text(s, x0, 1.85, 4.25, 1.2,
-           [[("黑线是帕累托前沿：", {"bold": True, "color": S.INK}),
-             ("在不多花时间的前提下，没有别的方法能得到更高的 ARI。", {})]], size=14, color=S.BODY, line=1.45)
-    y = 3.15
+    d.text(s, x0, 1.78, 4.25, 1.08,
+           [[("黑线 = 性价比最优线（帕累托前沿）：", {"bold": True, "color": S.INK}),
+             ("想比线上方法更准，就必须多花训练时间。", {})]], size=14, color=S.BODY, line=1.45)
+    d.text(s, x0, 2.86, 4.25, 0.28, "最优线上的选择（耗时 · ARI）", size=12, color=S.SECONDARY)
+    y = 3.22
     for m in f.get("front_methods") or []:
-        d.dot(s, x0, y + 0.1, S.FAMILY.get(m, S.MUTED), d=0.15)
-        d.text(s, x0 + 0.28, y, 2.3, 0.35, S.LABEL.get(m, m), size=14, bold=True, color=S.INK)
-        d.text(s, x0 + 2.5, y, 1.75, 0.35, f"{f.f('time_' + m, 1)} 秒 · {f.f('cost_ari_' + m)}", size=13,
+        d.dot(s, x0, y + 0.10, S.FAMILY.get(m, S.MUTED), d=0.15)
+        d.text(s, x0 + 0.28, y, 2.25, 0.34, S.LABEL.get(m, m), size=14, bold=True, color=S.INK)
+        d.text(s, x0 + 2.45, y, 1.80, 0.34, f"{f.f('time_' + m, 1)} 秒 · {f.f('cost_ari_' + m)}", size=13,
                color=S.SECONDARY, align="r")
-        y += 0.46
-    d.text(s, x0, y + 0.3, 4.25, 1.3, "对比学习路线训练最久、分数最低：小网络、100 轮不足以学出语义特征。",
-           size=14, color=S.BODY, line=1.45)
+        y += 0.45
+    d.rect(s, x0, y + 0.22, 4.25, 1.08, fill=S.PANEL, radius=0.08)
+    d.text(s, x0 + 0.20, y + 0.30, 3.85, 0.92,
+           "对比学习路线耗时最长、分数最低：课程算力下用小 CNN 训 100 轮，不足以学出语义特征。",
+           size=12.5, color=S.SECONDARY, line=1.4, anchor="m")
 
 
 def s21_stability(d: Deck):
@@ -1109,10 +1220,13 @@ def s21_stability(d: Deck):
     s = d.slide("S21_stability", SECTION["exp"], "没有标签时，“稳定”选不出“正确”",
                 source="稳定性：训练图加 σ = 0.1 噪声前后，簇成员的平均 Jaccard 一致度（种子 0，不读任何标签）。ARI 用测试标签事后核对。")
     if sel_ok:
-        d.figure(s, "stability_vs_ari", MX, 1.55, CW)
-        d.text(s, MX, 6.2, CW, 0.6,
-               [[("三个数据集上，最稳定的都是经典方法，最准确的都是深度方法。", {"bold": True, "color": S.INK}),
-                 ("稳定性能排除塌缩的方法，但不能代替少量标注样本的检验。", {})]], size=15, color=S.BODY)
+        d.family_legend(s, MX, 1.24)
+        d.figure(s, "stability_vs_ari", MX + 0.08, 1.54, 11.88)
+        d.text(s, MX, 6.08, CW, 0.78,
+               [[("反例结论：", {"bold": True, "color": S.DEEP}),
+                 ("三个数据集上，最“稳”（实线圈）的都是经典方法，最“准”（虚线圈）的都是深度方法。", {"bold": True, "color": S.INK}),
+                 ("“每次分得一样” ≠ “分得对”：稳定性只能筛掉崩塌模型，不能代替少量人工抽检。", {})]],
+               size=14, color=S.BODY, line=1.42)
     else:
         d.rect(s, MX, 2.2, CW, 3.0, fill=S.PANEL, radius=0.04)
         d.text(s, MX, 2.2, CW, 3.0, "稳定性诊断证据不足：缺少完整的无标签稳定性记录。", size=18, color=S.SECONDARY,
@@ -1127,85 +1241,92 @@ def _pretrained_heads_text(f: Facts) -> str:
     gmm = f"GMM 平均比 K-means {'低' if g < 0 else '高'} {abs(g):.2f}（单组最多高 {max(gmax, 0):.2f}）"
     head = (f"DEC 聚类头 {n} 组全部更低，平均低 {abs(h):.2f}" if hmax < 0
             else f"DEC 聚类头平均{'低' if h < 0 else '高'} {abs(h):.2f}")
-    return f"冻结的 DINOv2 / CLIP 特征上（3 个数据集 × 2 个模型），{gmm}；{head}。"
+    return f"在冻结 DINOv2 / CLIP 特征上（共 {n} 组），{gmm}；{head}。"
 
 
 def s22_verdict(d: Deck):
     f = d.facts
     s = d.slide("S22_verdict", SECTION["end"], "三个命题的回答")
     rows = [
-        ("表示比聚类器更重要", "成立", S.INK,
-         f"换表示让 ARI 最多变化 {f.f('encoder_range_max', 2)}，同一表示上换聚类器平均只变化约 "
-         f"{f.f('clusterer_range_mean_max', 2)}。最好的表示取决于领域：DINOv2 在 CIFAR-10 上 "
-         f"{f.f('e04_cifar10_dinov2_kmeans')}，在 MNIST 上只有 {f.f('e04_mnist_dinov2_kmeans')}"
-         f"（自编码器 {f.f('ari_mnist_ae_kmeans')}）。"),
-        ("联合优化有条件地有效", "有条件", S.SECONDARY,
-         f"干净、充足的数据上 DEC 最好（MNIST {f.f('ari_mnist_dec')}）；但测试噪声 σ = {f.get('noise_max', 0.3):g} 时只保留 "
-         f"{f.p('keep_dec')}（K-means {f.p('keep_kmeans')}），只有 1% 训练图时不如 K-means。"),
-        ("有了预训练表示，简单聚类器就够了", "成立", S.INK,
-         _pretrained_heads_text(f)),
+        ("表示比聚类器更重要", "成立",
+         [("特征影响远超聚类器：", {"bold": True, "color": S.INK}),
+          (f"换表示让 ARI 最多差 {f.f('encoder_range_max', 2)}，换聚类器平均仅差约 {f.f('clusterer_range_mean_max', 2)}。"
+           f"但要选对领域：DINOv2 在自然图 CIFAR-10 达 {f.f('e04_cifar10_dinov2_kmeans')}，"
+           f"在手写数字 MNIST 仅 {f.f('e04_mnist_dinov2_kmeans')}（低于本域自编码器 {f.f('ari_mnist_ae_kmeans')}）。", {})]),
+        ("联合优化有条件地有效", "有条件",
+         [("仅在干净大样本下占优：", {"bold": True, "color": S.INK}),
+          (f"干净充足数据上 DEC 最好（MNIST {f.f('ari_mnist_dec')}）；"
+           f"但加噪 σ = {f.get('noise_max', 0.3):g} 时仅保留 {f.p('keep_dec')}（K-means 留 {f.p('keep_kmeans')}），"
+           f"仅 1% 训练图时反被 K-means 反超。", {})]),
+        ("有了预训练表示，简单聚类就够了", "成立",
+         [("无需堆复杂聚类头：", {"bold": True, "color": S.INK}),
+          (_pretrained_heads_text(f), {})]),
     ]
     y = 1.75
-    for i, (claim, verdict, vcolor, evidence) in enumerate(rows):
+    for i, (claim, verdict, runs) in enumerate(rows):
         d.rule(s, MX, y, CW, color=S.INK if i == 0 else S.HAIRLINE, width=2 if i == 0 else 1)
         d.text(s, MX, y + 0.28, 0.6, 0.6, str(i + 1), size=30, bold=True, color="#D4D4D8", line=1.0)
         d.text(s, MX + 0.65, y + 0.32, 3.6, 0.9, claim, size=19, bold=True, color=S.INK, line=1.2)
-        pill = d.rect(s, MX + 4.45, y + 0.36, 1.05, 0.42, fill=S.INK if verdict == "成立" else S.SURFACE,
-                      line=None if verdict == "成立" else S.INK, radius=0.5)
+        d.rect(s, MX + 4.45, y + 0.36, 1.05, 0.42, fill=S.INK if verdict == "成立" else S.SURFACE,
+               line=None if verdict == "成立" else S.INK, radius=0.5)
         d.text(s, MX + 4.45, y + 0.36, 1.05, 0.42, verdict, size=13, bold=True,
                color="#FFFFFF" if verdict == "成立" else S.INK, align="c", anchor="m")
-        d.text(s, MX + 5.8, y + 0.3, CW - 5.8, 1.2, evidence, size=14.5, color=S.BODY, line=1.45)
-        y += 1.55
+        d.text(s, MX + 5.75, y + 0.28, CW - 5.75, 1.25, [runs], size=14.2, color=S.BODY, line=1.46)
+        y += 1.56
 
 
 def s23_selection_guide(d: Deck):
     f = d.facts
     s = d.slide("S23_selection_guide", SECTION["end"], "方法选择：先问表示从哪里来，再问数据和预算",
                 source="建议来自本项目三个数据集上的带标签基准；在新数据上使用前，需要少量人工标注样本核对。")
-    qx, qw, qh = MX, 4.5, 0.82
-    ax, aw = 7.9, 4.78
-    qs = [(1.7, "有与数据领域匹配的预训练模型吗？", "冻结特征 + K-means", S.PRETRAINED,
-           f"CIFAR-10：DINOv2 + K-means {f.f('e04_cifar10_dinov2_kmeans')}，从零训练 ≤ {f.f('max_scratch_cifar10')}；"
-           f"但在手写数字上只有 {f.f('e04_mnist_dinov2_kmeans')}"),
-          (3.05, "样本很少、噪声大，或预算很紧？", "PCA + K-means / 像素 K-means", S.CLASSICAL,
-           f"加噪保留 {f.p('keep_pca_kmeans')}；训练 {f.f('time_pca_kmeans', 1)} 秒"),
-          (4.4, "需要概率解释或生成样本？", "VaDE", S.GENERATIVE,
-           f"MNIST {f.f('ari_mnist_vade')}，与 DEC 相当，并给出每簇的方差和先验"),
-          (5.75, "以上都不是", "DEC（自编码器预训练 + 自训练）", S.DEEP,
-           f"干净数据上最高：MNIST {f.f('ari_mnist_dec')} · Fashion {f.f('ari_fashion_mnist_dec')}")]
+    qx, qw, qh = MX, 4.70, 0.84
+    ax, aw = 7.82, 4.86
+    qs = [(1.68, "① 有与数据领域匹配的预训练模型吗？", "冻结预训练特征 + K-means", S.PRETRAINED,
+           f"自然图 CIFAR-10 达 {f.f('e04_cifar10_dinov2_kmeans')}（从零训练 ≤ {f.f('max_scratch_cifar10')}）；手写数字仅 {f.f('e04_mnist_dinov2_kmeans')}，需看领域是否匹配"),
+          (3.04, "② 样本很少、噪声大，或算力预算紧？", "PCA + K-means / 像素 K-means", S.CLASSICAL,
+           f"抗噪最强（加噪保留 {f.p('keep_pca_kmeans')}），训练仅 {f.f('time_pca_kmeans', 1)} 秒，小样本下最稳妥"),
+          (4.40, "③ 需要概率解释，或想生成新样本？", "VaDE（隐空间高斯混合）", S.GENERATIVE,
+           f"MNIST 达 {f.f('ari_mnist_vade')}（逼近 DEC），可输出每簇概率分布与先验"),
+          (5.76, "④ 以上都不是（干净、样本充足）", "DEC（自编码器预训练 + 自训练）", S.DEEP,
+           f"从零训练干净数据最高：MNIST {f.f('ari_mnist_dec')} · Fashion {f.f('ari_fashion_mnist_dec')}")]
     for i, (y, q, a, color, ev) in enumerate(qs):
         last = i == len(qs) - 1
-        d.box(s, qx, y, qw, qh, q, fill=S.PANEL if not last else S.SURFACE, size=15.5, bold=not last,
+        d.box(s, qx, y, qw, qh, q, fill=S.PANEL if not last else S.SURFACE, size=14.8, bold=not last,
               color=S.INK if not last else S.SECONDARY, line=S.HAIRLINE if last else None)
-        d.arrow(s, qx + qw + 0.08, y + qh / 2, ax - 0.1, y + qh / 2, color=S.SECONDARY)
+        d.arrow(s, qx + qw + 0.08, y + qh / 2, ax - 0.12, y + qh / 2, color=S.SECONDARY)
         if not last:
-            d.text(s, qx + qw + 0.25, y + qh / 2 - 0.33, 1.0, 0.3, "是", size=12, color=S.SECONDARY)
-            d.arrow(s, qx + 0.45, y + qh + 0.03, qx + 0.45, y + 1.35 - 0.04, color=S.MUTED)
-            d.text(s, qx + 0.6, y + qh + 0.08, 0.6, 0.3, "否", size=12, color=S.SECONDARY)
+            d.text(s, qx + qw + 0.24, y + qh / 2 - 0.33, 1.0, 0.3, "是", size=12, color=S.SECONDARY)
+            d.arrow(s, qx + 0.45, y + qh + 0.03, qx + 0.45, y + 1.36 - 0.04, color=S.MUTED)
+            d.text(s, qx + 0.60, y + qh + 0.08, 0.6, 0.3, "否", size=12, color=S.SECONDARY)
         d.rect(s, ax, y, 0.09, qh, fill=color)
-        d.text(s, ax + 0.28, y + 0.04, aw - 0.3, 0.4, a, size=16, bold=True, color=S.INK)
-        d.text(s, ax + 0.28, y + 0.45, aw - 0.3, 0.35, ev, size=12, color=S.SECONDARY)
+        d.text(s, ax + 0.26, y + 0.02, aw - 0.28, 0.36, a, size=15.5, bold=True, color=S.INK)
+        d.text(s, ax + 0.26, y + 0.39, aw - 0.28, 0.46, ev, size=11.8, color=S.SECONDARY, line=1.28)
 
 
 def s24_limits(d: Deck):
     s = d.slide("S24_limits_and_close", SECTION["end"], "局限与展望")
-    lim = ["簇数 K 已知（= 10）；K 未知时需要另行估计，估错会明显拉低 ARI（附录 A03）。",
-           "课程算力：SimCLR、CC 用 128 维小 CNN、训练 100 轮，CC 未加簇熵正则；对比学习路线被低估。",
-           "只有 3 个小规模图像数据集；结论未覆盖文本、表格和高分辨率图像。",
-           "预训练模型含外部数据，成本不可与从零训练直接比较。"]
-    fut = ["未知 K 的自适应聚类：让模型自己决定分几类。",
-           "无标签模型选择：超越扰动稳定性，找到与语义一致的选择准则。",
-           "文本引导的聚类：沿 TAC、VLM4Cluster 方向，检验语言先验的鲁棒性。"]
+    lim = [
+        ("假设已知簇数 K：", "实验固定 K = 10；未知 K 时需另行估计，估错会明显拉低 ARI（见附录 A03）。"),
+        ("算力限制对比学习：", "SimCLR、CC 仅用 128 维小 CNN 训 100 轮，CC 未加簇熵正则，对比路线被低估。"),
+        ("数据规模与模态有限：", "只测试了 3 个小尺寸图像集，结论尚未涵盖文本、表格与高分辨率图像。"),
+        ("预训练成本不可直比：", "DINOv2 / CLIP 依赖海量外部数据，训练成本不可与从零训练直接对比。"),
+    ]
+    fut = [
+        ("未知 K 的自适应聚类：", "让模型自己发现数据该分几类，而非人工事先指定簇数。"),
+        ("更可靠的无标签选型：", "超越加噪稳定性，寻找能反映真实语义的无标签评估准则。"),
+        ("文字引导的多模态聚类：", "沿 TAC、VLM4Cluster 方向，用语言先验提升语义分组并检验鲁棒性。"),
+    ]
     for col, (head, items, color) in enumerate([("局限", lim, S.SECONDARY), ("展望", fut, S.DEEP)]):
         x = MX + col * 6.25
         w = 5.8
-        d.rule(s, x, 1.75, w, color=S.INK, width=2)
-        d.text(s, x, 1.92, w, 0.45, head, size=19, bold=True, color=S.INK)
-        y = 2.55
-        for item in items:
-            d.dot(s, x, y + 0.12, color, d=0.12)
-            d.text(s, x + 0.3, y, w - 0.3, 0.9, item, size=14.5, color=S.BODY, line=1.4)
-            y += 0.82
+        d.rule(s, x, 1.72, w, color=S.INK, width=2)
+        d.text(s, x, 1.88, w, 0.42, head, size=19, bold=True, color=S.INK)
+        y = 2.50
+        for lead, rest in items:
+            d.dot(s, x, y + 0.11, color, d=0.12)
+            d.text(s, x + 0.28, y, w - 0.28, 0.85, [[(lead, {"bold": True, "color": S.INK}), (rest, {})]],
+                   size=14, color=S.BODY, line=1.42)
+            y += 0.84
     d.rect(s, 0, 6.05, W, 1.45, fill=S.NIGHT)
     d.text(s, MX, 6.05, 7.5, 1.45, [[("谢谢，欢迎提问", {"bold": True, "size": 24, "color": "#FFFFFF"})],
                                    [(REPO_URL.replace("https://", ""), {"size": 12.5, "color": "#A1A1AA"})]],
@@ -1257,25 +1378,32 @@ def a02_ablations(d: Deck, t: dict):
         fx, sd = f.get(f"lam_fx_{lam}"), f.get(f"lam_fx_sd_{lam}")
         rows.append([f"{lam:g}", f.f(f"lam_es_{lam}"), DASH if ep is None else f"{ep:.0f}",
                      DASH if fx is None else (f"{fx:.3f}±{sd:.3f}" if sd is not None else f"{fx:.3f}")])
-    d.table(s, 6.75, 2.0, 5.9, rows, col_w=[0.9, 1.5, 1.6, 1.9], size=13, header_size=12, row_h=0.5)
-    d.text(s, 6.75, 5.25, 5.9, 1.3,
-           "早停只看训练集簇分配是否稳定，λ 越大，簇分配越晚稳定、训练轮数越多；固定轮数后，λ 的作用不再与训练时长混在一起。",
-           size=13, color=S.SECONDARY, line=1.45)
+    d.table(s, 6.75, 1.92, 5.9, rows, col_w=[0.9, 1.5, 1.6, 1.9], size=13, header_size=12, row_h=0.48)
+    d.text(s, 6.75, 5.05, 5.9, 1.55,
+           "左图：2 维压丢信息、128 维距离被稀释，10 维附近效果最好。\n"
+           "右表：早停时 λ 越大训练越久；固定 50 轮后，λ 的作用不再与训练时长混在一起。",
+           size=13, color=S.SECONDARY, line=1.45, after=6)
 
 
 def a03_sensitivity(d: Deck, t: dict):
     s = d.slide("A03_sensitivity", SECTION["app"], "A03　簇数设错、训练集混入噪声图、类别不平衡",
-                source="Fashion-MNIST；K-means、AE + K-means、DEC、IDEC 为 3 个随机种子均值 ± 标准差，CC 为单种子。不平衡设置按训练集标签构造比例，评价在均衡的测试集上。")
+                source="Fashion-MNIST；K-means / AE+KM / DEC / IDEC 为 3 种子均值±标准差，CC 为单种子。不平衡按训练集构造，均衡测试集评分。")
     d.figure(s, "sensitivity_k_outliers_imbalance", MX, 1.75, CW)
 
 
 def a04_encoder_table(d: Deck, t: dict):
     s = d.slide("A04_encoder_clusterer_table", SECTION["app"], "A04　编码器 × 聚类器：完整 ARI",
-                source="均值 ± 标准差（3 个随机种子）；自编码器 / SimCLR + K-means 与基准实验为同一批模型。")
+                source="均值 ± 标准差（3 个随机种子）；加粗为各数据集最高。自编码器 / SimCLR + K-means 与基准实验同源。")
     e04 = t["e04_summary"]
     head = ["编码器"] + [f"{S.DATASET_LABEL[ds]}\n{S.CLUSTERER_LABEL[c]}" for ds in ("mnist", "fashion_mnist", "cifar10")
                          for c in ("kmeans", "gmm", "dec_head")]
     rows, bold = [head], set()
+    best_by_ds = {}
+    for ds in ("mnist", "fashion_mnist", "cifar10"):
+        sub = e04[e04.dataset.eq(ds)] if not e04.empty else e04
+        if len(sub):
+            top = sub.loc[sub.ari_mean.idxmax()]
+            best_by_ds[ds] = (str(top.encoder), str(top.clusterer))
     for i, enc in enumerate(("random_cnn", "ae", "simclr", "dinov2", "clip"), start=1):
         row = [S.ENCODER_LABEL[enc]]
         for j, (ds, c) in enumerate([(ds, c) for ds in ("mnist", "fashion_mnist", "cifar10")
@@ -1283,8 +1411,11 @@ def a04_encoder_table(d: Deck, t: dict):
             mean = _lookup(e04, "ari_mean", dataset=ds, encoder=enc, clusterer=c)
             sd = _lookup(e04, "ari_std", dataset=ds, encoder=enc, clusterer=c)
             row.append(DASH if mean is None else f"{mean:.3f}±{sd:.3f}" if sd is not None else f"{mean:.3f}")
+            if best_by_ds.get(ds) == (enc, c):
+                bold.add((i, j))
         rows.append(row)
-    d.table(s, MX, 1.8, CW, rows, col_w=[1.5] + [1.17] * 9, size=11, header_size=10.5, row_h=0.55)
+    d.table(s, MX, 1.8, CW, rows, col_w=[1.5] + [1.17] * 9, size=11, header_size=10.5, row_h=0.55,
+            bold_cells=bold)
 
 
 def a05_stability_table(d: Deck, t: dict):
@@ -1307,12 +1438,13 @@ def a05_stability_table(d: Deck, t: dict):
         rows.append(row)
     d.table(s, MX, 1.8, 8.3, rows, col_w=[1.7] + [1.1] * 6, size=11.5, header_size=10.5, row_h=0.43,
             bold_cells=bold)
-    d.equation(s, "jaccard", 9.45, 2.0, scale=0.75)
-    d.text(s, 9.3, 3.0, 3.4, 3.0,
-           [["A", ("k", {"sub": True}), "、B", ("k", {"sub": True}),
-             "：同一个模型在加噪前、后分到第 k 个簇的训练图集合。"],
-            "加粗：每个数据集上稳定性最高的方法，它们都不是 ARI 最高的方法。"], size=12.5, color=S.SECONDARY,
-           line=1.45, after=6)
+    d.equation(s, "jaccard", 9.45, 1.95, scale=0.75)
+    d.text(s, 9.3, 2.92, 3.4, 3.3,
+           [["直觉：交集 ÷ 并集；越接近 1，说明加噪前后每组里的人几乎没变。"],
+            ["A", ("k", {"sub": True}), "、B", ("k", {"sub": True}),
+             "：同一模型在加噪前、后分到第 k 个簇的训练图集合。"],
+            "加粗：各数据集上稳定性最高的方法，它们都不是 ARI 最高的方法。"], size=12.5, color=S.SECONDARY,
+           line=1.45, after=8)
 
 
 def a06_references(d: Deck, t: dict):

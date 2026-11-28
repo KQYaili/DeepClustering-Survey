@@ -1,4 +1,4 @@
-"""Build the 25 + 6 slide deck from results/tables, results/figures and presentation/assets.
+"""Build the 29 + 6 slide deck from results/tables, results/figures and presentation/assets.
 
 One message per slide: the title states the finding, the body shows the evidence.
 Every number on a slide and in the speaker notes is read from results/tables at build
@@ -46,8 +46,9 @@ DASH = "—"
 SLIDE_IDS = [
     "S01_cover", "S02_question", "S03_statistics_roots", "S04_pixel_distance", "S05_core_idea",
     "S06_paradigms", "S07_dec", "S08_idec", "S09_vade", "S10_contrastive", "S11_pretrained",
-    "S11b_architectures",
-    "S12_setup", "S13_benchmark", "S14_geometry", "S15_representation_vs_clusterer",
+    "S11b_architectures", "S11c_deriv_classical_dec", "S11d_deriv_vade_contrast",
+    "S12a_datasets", "S12_setup", "S12b_metrics_rules",
+    "S13_benchmark", "S14_geometry", "S15_representation_vs_clusterer",
     "S16_pixels_vs_dinov2", "S17_noise", "S18_sample_size", "S19_components", "S20_cost",
     "S21_stability", "S22_verdict", "S23_selection_guide", "S24_limits_and_close",
     "A01_benchmark_table", "A02_ablations", "A03_sensitivity", "A04_encoder_clusterer_table",
@@ -252,6 +253,12 @@ def compute_facts(t: dict) -> dict:
         facts["n_records"] = int(len(ok))
         facts["n_fits"] = int((~ok.experiment.eq("E03_noise")).sum())
         facts["n_noise"] = int(ok.experiment.eq("E03_noise").sum())
+        for exp in ("E01", "E02", "E02_fixed", "E03", "E03_noise", "E04"):
+            facts[f"n_exp_{exp}"] = int(ok.experiment.eq(exp).sum())
+    e05_dir = ROOT / "results" / "raw" / "E05_train"
+    facts["n_exp_E05"] = len(list(e05_dir.glob("*.npz"))) if e05_dir.exists() else None
+    for ratio in (5, 10, 50):
+        facts[f"imb_n_{ratio}"] = _lookup(sens, "n_train_mean", factor="imbalance", value=float(ratio), method="kmeans")
     pix = ASSETS / "pixel_distance.yaml"
     if pix.exists():
         info = yaml.safe_load(pix.read_text(encoding="utf-8"))
@@ -580,8 +587,8 @@ class Deck:
 
 
 # =============================================================================== slides
-SECTION = {"intro": "引言", "stat": "统计基础", "method": "方法谱系", "exp": "实验证据", "end": "结论与选型",
-           "app": "附录"}
+SECTION = {"intro": "引言", "stat": "统计基础", "method": "方法谱系", "deriv": "原始数学推导",
+           "design": "数据与实验设计", "exp": "实验结果对比", "end": "结论与选型", "app": "附录"}
 
 
 def s01_cover(d: Deck):
@@ -614,7 +621,7 @@ def s02_question(d: Deck):
                 lede="给无标签图像分组，两条路可选：换更好的特征坐标（表示），或换更复杂的分组算法（聚类器）。三个命题都用实验检验：")
     items = [
         ("表示比聚类器更重要",
-         "固定聚类器换特征，与固定特征换聚类器，比哪边带来的分组准确度（ARI）差距更大。",
+         "固定聚类器换特征 vs 固定特征换聚类器，比较哪边带来的分组准确度（ARI）跨度更大。",
          "5 种编码器 × 3 种聚类器 × 3 数据集"),
         ("联合优化有条件地有效",
          "边学特征边分组（DEC、IDEC）在干净大样本下占优，但有噪声或小样本时未必。",
@@ -632,14 +639,14 @@ def s02_question(d: Deck):
         d.text(s, x, y0 + 1.95, col_w, 1.25, how, size=14.5, color=S.BODY, line=1.45)
         d.text(s, x, y0 + 3.25, col_w, 0.65, [[("怎么验：", {"color": S.SECONDARY}), (design, {"bold": True})]],
                size=13, color=S.INK, line=1.3)
-    steps = ["1 统计基础", "2 方法谱系", "3 实验证据", "4 结论与选型"]
+    steps = ["1 统计基础", "2 架构与推导", "3 数据与实验", "4 结果对比", "5 结论选型"]
     y = 6.42
     for i, step in enumerate(steps):
-        x = MX + i * 3.05
+        x = MX + i * 2.48
         d.dot(s, x, y + 0.08, S.INK if i == 0 else "#D4D4D8", d=0.13)
-        d.text(s, x + 0.24, y, 2.5, 0.3, step, size=12.5, bold=(i == 0), color=S.INK if i == 0 else S.SECONDARY)
+        d.text(s, x + 0.22, y, 2.0, 0.3, step, size=12, bold=(i == 0), color=S.INK if i == 0 else S.SECONDARY)
         if i < len(steps) - 1:
-            d.line(s, x + 1.55, y + 0.145, x + 2.92, y + 0.145, color=S.HAIRLINE, width=1.25)
+            d.line(s, x + 1.48, y + 0.145, x + 2.36, y + 0.145, color=S.HAIRLINE, width=1.25)
 
 
 def s03_statistics(d: Deck):
@@ -1203,46 +1210,297 @@ def s11b_architectures(d: Deck):
               sub=param_sub, sub_size=8.8, sub_color=color, line=color, line_w=0.9)
 
 
+def s11c_deriv_classical_dec(d: Deck):
+    s = d.slide("S11c_deriv_classical_dec", SECTION["deriv"],
+                "原始数学推导（一）：经典统计基础与 DEC / IDEC 梯度",
+                lede="从损失与似然出发直接导出四条关键结论：K-means 抗噪、像素 GMM 塌缩、DEC 梯度拉紧与 IDEC 权重换算。",
+                source="完整逐步证明见 docs/mathematical_foundations.md §1–§4；DEC 梯度为 Xie et al. (2016) Eq. (4)–(5)。")
+
+    def card(x, y, w, h, accent, title):
+        d.rect(s, x, y, w, h, fill=S.SURFACE, line=S.HAIRLINE, radius=0.04, line_w=0.9)
+        d.rect(s, x, y, 0.08, h, fill=accent)
+        d.text(s, x + 0.20, y + 0.09, w - 0.30, 0.30, title, size=12.5, bold=True, color=S.INK)
+
+    lx, lw = MX, 5.84
+    rx, rw = MX + lw + 0.35, 5.84
+
+    # Left 1: K-means isotropic noise invariance
+    card(lx, 1.74, lw, 1.56, S.CLASSICAL_DARK, "1. K-means：各向同性高斯噪声为何不偏转簇中心？")
+    d.equation(s, "kmeans_noise", lx + 0.22, 2.12, scale=0.86, max_w=lw - 0.42)
+    d.text(s, lx + 0.22, 2.58, lw - 0.38, 0.66,
+           "每个簇到加噪样本的期望平方距离只平移同一常数 Dσ²；最近中心排序不变，故 K-means 天然耐受测试加性噪声。",
+           size=10.5, color=S.BODY, line=1.28)
+
+    # Left 2: PCA linear reconstruction equivalence
+    card(lx, 3.42, lw, 1.62, S.CLASSICAL_DARK, "2. PCA：最大方差投影 ⇔ 最小 L2 线性重构")
+    d.equation(s, "pca_equiv", lx + 0.22, 3.78, scale=0.84, max_w=lw - 0.42)
+    d.text(s, lx + 0.22, 4.44, lw - 0.38, 0.54,
+           "Eckart–Young 定理表明无非线性激活的自编码器与 PCA 同解；深度聚类的本质突破来自非线性编码器 φ_θ。",
+           size=10.5, color=S.BODY, line=1.26)
+
+    # Left 3: GMM EM & diagonal variance collapse under noise
+    card(lx, 5.16, lw, 1.68, S.CLASSICAL_DARK, "3. GMM EM 与像素对角协方差的噪声塌缩机理")
+    d.equation(s, "gmm_em", lx + 0.22, 5.52, scale=0.78, max_w=lw - 0.60)
+    d.text(s, lx + 0.22, 6.20, lw - 0.38, 0.58,
+           "对标准化像素拟合对角 GMM 时，图像边缘近常数像素方差 σ_kd² 极小；测试加噪令 (x−μ)²/σ² 爆炸，样本全部塌入极少数簇。",
+           size=10.5, color=S.BODY, line=1.26)
+
+    # Right 1: DEC exact gradient (Xie et al. Eq. 4-5)
+    card(rx, 1.74, rw, 2.66, S.DEEP, "4. DEC：KL(P‖Q) 对嵌入 z_i 与中心 μ_j 的精确梯度")
+    d.equation(s, "dec_grad", rx + 0.22, 2.12, scale=0.84, max_w=rw - 0.42)
+    d.text(s, rx + 0.22, 2.94, rw - 0.38, 1.38,
+           [["• ", ("推导：固定目标分布 P，对 Student-t (α=1) 与 KL 链式求导", {"bold": True}),
+             "，得力系数 (p_ij − q_ij)(1 + ‖z_i − μ_j‖²)⁻¹。"],
+            ["• ", ("物理含义：", {"bold": True}),
+             "高置信样本 p_ij > q_ij，梯度把 z_i 拉向 μ_j；远样本因分母变大被自动抑权，呈鲁棒自训练。"],
+            ["• ", ("退化隐患：", {"bold": True}),
+             "脱离重构约束后编码器可能压塌不同类，故强依赖 AE 预训练与早停。"]],
+           size=10.4, color=S.BODY, line=1.22, after=3)
+
+    # Right 2: IDEC loss conversion proof
+    card(rx, 4.52, rw, 2.32, S.DEEP_DARK, "5. IDEC：保留重构正则的等价权重换算证明")
+    d.equation(s, "idec_equiv", rx + 0.22, 4.88, scale=0.84, max_w=rw - 0.42)
+    d.text(s, rx + 0.22, 5.74, rw - 0.38, 1.02,
+           [["• 原论文 Guo et al. 写作 L_MSE + γ L_KL，两侧同除 γ 即化为本仓库的 L_KL + λ L_SSE，",
+             ("严格满足 λ = 1 / (γD)", {"bold": True, "color": S.DEEP_DARK}), "。"],
+            ["• ", ("尺度解释：", {"bold": True}),
+             "Fashion-MNIST 像素维 D = 784，原文默认 γ = 0.1 对应 λ ≈ 0.013；若 λ ≥ 1 则重构主导，压低聚类增益。"]],
+           size=10.4, color=S.BODY, line=1.24, after=3)
+
+
+def s11d_deriv_vade_contrast(d: Deck):
+    s = d.slide("S11d_deriv_vade_contrast", SECTION["deriv"],
+                "原始数学推导（二）：VaDE 变分下界与对比学习 / 余弦几何",
+                lede="给出 VaDE 闭式后验、InfoNCE 互信息下界与球面欧氏等价证明，并明确标出本仓库实现边界。",
+                source="完整证明见 docs/mathematical_foundations.md §5–§8；严格区分原论文公式与本仓库实现边界。")
+
+    def card(x, y, w, h, accent, title):
+        d.rect(s, x, y, w, h, fill=S.SURFACE, line=S.HAIRLINE, radius=0.04, line_w=0.9)
+        d.rect(s, x, y, 0.08, h, fill=accent)
+        d.text(s, x + 0.20, y + 0.09, w - 0.30, 0.30, title, size=12.5, bold=True, color=S.INK)
+
+    lx, lw = MX, 5.84
+    rx, rw = MX + lw + 0.35, 5.84
+
+    # Left 1: VaDE ELBO & closed-form optimal q*(c|x) = p(c|z)
+    card(lx, 1.74, lw, 2.48, S.GENERATIVE, "1. VaDE：从 Jensen 不等式到最优簇后验 q*(c|x) 闭式解")
+    d.text(s, lx + 0.22, 2.10, lw - 0.38, 0.36,
+           "平均场分解 q(z, c | x) = q(z | x) q(c | x)，展开对数边际似然下界 ELBO 后，唯一依赖 q(c|x) 的项为非负 KL：",
+           size=10.2, color=S.SECONDARY, line=1.20)
+    d.equation(s, "vade_qstar", lx + 0.22, 2.50, scale=0.84, max_w=lw - 0.42)
+    d.text(s, lx + 0.22, 3.24, lw - 0.38, 0.90,
+           [["• 非负 KL 仅在 ", ("q*(c | x) = p(c | z)", {"bold": True, "color": S.GENERATIVE}),
+             " 时归零并使 ELBO 紧致达到极大。"],
+            ["• 因此无需分类头，直接由 GMM 先验 (π_c, μ_c, σ_c²) 与样本 z 算贝叶斯软归属。"]],
+           size=10.5, color=S.BODY, line=1.25, after=3)
+
+    # Left 2: VaDE closed-form KL + SSE boundary
+    card(lx, 4.34, lw, 2.50, S.GENERATIVE, "2. VaDE：对角高斯闭式 KL 与重构似然边界")
+    d.equation(s, "vade_kl_closed", lx + 0.22, 4.74, scale=0.85, max_w=lw - 0.42)
+    d.text(s, lx + 0.22, 5.44, lw - 0.38, 1.32,
+           [["• 配合重参数 z = μ̃ + σ̃ ⊙ ε，KL 闭式解析、整条计算图低方差端到端可微。"],
+            ["• ", ("实现边界（写进结论）：", {"bold": True, "color": S.GENERATIVE}),
+             "本仓库重构项采用", ("每图平方误差 SSE", {"bold": True}),
+             "（等价 σ_x² = 1/2 高斯似然），而非原论文 Bernoulli 交叉熵；并对 KL 加 20 轮线性预热以防后验塌缩。"]],
+           size=10.5, color=S.BODY, line=1.26, after=4)
+
+    # Right 1: SimCLR InfoNCE MI lower bound
+    card(rx, 1.74, rw, 1.56, S.CONTRASTIVE, "3. SimCLR：NT-Xent 即两视图互信息 I(v₁; v₂) 下界")
+    d.equation(s, "infonce_mi", rx + 0.22, 2.12, scale=0.88, max_w=rw - 0.42)
+    d.text(s, rx + 0.22, 2.56, rw - 0.38, 0.66,
+           "最小化 NT-Xent 等价最大化同一图像两份随机增强视图间的互信息；前提是增强能保留物体语义并打散背景伪相关。",
+           size=10.5, color=S.BODY, line=1.26)
+
+    # Right 2: CC row/column contrast + H(Y) implementation boundary
+    card(rx, 3.42, rw, 1.72, S.CONTRASTIVE, "4. CC：实例/簇双对比与原论文簇熵项 H(Y)")
+    d.equation(s, "cc_entropy", rx + 0.22, 3.80, scale=0.86, max_w=rw - 0.42)
+    d.text(s, rx + 0.22, 4.38, rw - 0.38, 0.70,
+           [["行对比聚拢同图特征，列对比令不同簇列正交。", ("实现边界：", {"bold": True, "color": S.CONTRASTIVE}),
+             "本仓库采用 128 维小 CNN 且", ("未加入原论文 −H(Y) 熵正则", {"bold": True}),
+             "，小预算下易出现空簇、性能低于 ResNet-34 原文。"]],
+           size=10.3, color=S.BODY, line=1.24)
+
+    # Right 3: L2-normalized cosine <-> Euclidean equivalence
+    card(rx, 5.26, rw, 1.58, S.PRETRAINED, "5. 预训练特征：L2 归一后为何普通 K-means 即球面聚类？")
+    d.equation(s, "l2_cosine", rx + 0.22, 5.66, scale=0.86, max_w=rw - 0.42)
+    d.text(s, rx + 0.22, 6.08, rw - 0.38, 0.68,
+           "对冻结的 DINOv2 / CLIP 向量做 L2 归一（‖z‖₂ = 1），欧氏距离平方与余弦距离严格单调线性等价，故轻量 K-means 即可充分发挥语义几何。",
+           size=10.5, color=S.BODY, line=1.25)
+
+
+def s12a_datasets(d: Deck):
+    f = d.facts
+    s = d.slide("S12a_datasets", SECTION["design"],
+                "三个基准数据集构成从灰度笔画到自然图像的难度阶梯",
+                lede="均含 10 个均衡类别，固定 seed=42 分层抽样划分，系统覆盖线性可分、细粒度重叠与背景主导三种视觉难度。",
+                source="完整数据划分、预处理协议与 10 类明细见 docs/experiment_protocol.md §1。")
+    cards = [
+        ("mnist", S.CLASSICAL_DARK, "MNIST", "难度 1 · 基础校验",
+         "28 × 28 × 1 灰度（784 维）\n训练 20,000 / 测试 10,000\n（官方 60k 中分层抽 20k）",
+         "黑底白字 · 笔画居中对比度高\n像素空间已具备一定可分性",
+         "0、1、2、3、4、5、6、7、8、9（像素线性缩放至 [0, 1]；外部预训练分支双线性插值至 224² RGB 并做 ImageNet 标准化）。"),
+        ("fashion_mnist", S.DEEP, "Fashion-MNIST", "难度 2 · 主消融与压测载体",
+         "28 × 28 × 1 灰度（784 维）\n训练 20,000 / 测试 10,000\n（承载 E02 消融与 E03 敏感性）",
+         f"同件 T 恤右移 4px 比别类更远({f['pix_fraction_farther']:.1%})\n上装四类外轮廓高度重叠"
+         if isinstance(f.get("pix_fraction_farther"), (int, float)) else "平移 4px 像素失配严重\n上装四类外轮廓高度重叠",
+         "T-shirt/top、Trouser、Pullover、Dress、Coat、Sandal、Shirt、Sneaker、Bag、Ankle boot（含上装 / 鞋类 / 包裤三大群）。"),
+        ("cifar10", S.PRETRAINED, "CIFAR-10", "难度 3 · 自然图像极限",
+         "32 × 32 × 3 彩色（3,072 维）\n训练 10,000 / 测试 2,000\n（官方 50k/10k 分层抽样）",
+         "蓝天 / 草地 / 道路背景主导像素距离\n姿态、尺度、光照剧烈变化",
+         "airplane、automobile、bird、cat、deer、dog、frog、horse、ship、truck（像素近 ≠ 语义同类，专门检验从零训练的语义极限）。"),
+    ]
+    y0, ch, gap = 1.74, 1.60, 0.14
+    for i, (key, accent, name, badge, meta, challenge, classes) in enumerate(cards):
+        y = y0 + i * (ch + gap)
+        d.rect(s, MX, y, CW, ch, fill=S.SURFACE, line=S.HAIRLINE, radius=0.04, line_w=0.9)
+        d.rect(s, MX, y, 0.10, ch, fill=accent)
+        # Left metadata block
+        d.text(s, MX + 0.22, y + 0.12, 2.75, 0.34, name, size=17, bold=True, color=S.INK)
+        d.box(s, MX + 0.22, y + 0.48, 2.25, 0.28, badge, fill=S.PANEL, color=accent, size=9.8, bold=True,
+              line=accent, line_w=0.75, radius=0.25)
+        d.text(s, MX + 0.22, y + 0.82, 2.75, 0.72, meta, size=10.3, color=S.BODY, line=1.22)
+        # Middle-right sample strip image
+        d.image(s, ASSETS / f"strip_{key}.png", MX + 3.06, y + 0.14, w=5.75)
+        # Right difficulty callout box
+        d.rect(s, MX + 8.94, y + 0.12, 2.94, 0.62, fill=S.PANEL, line=S.HAIRLINE, radius=0.08, line_w=0.75)
+        d.text(s, MX + 9.04, y + 0.15, 2.76, 0.56, challenge, size=9.8, bold=True, color=accent, line=1.22, anchor="m")
+        # Bottom class roster line across right area
+        d.text(s, MX + 3.06, y + 0.86, 8.82, 0.66,
+               [[("10 类明细与预处理：", {"bold": True, "color": S.INK}), (classes, {})]],
+               size=10.5, color=S.BODY, line=1.25)
+
+
 def s12_setup(d: Deck):
     f = d.facts
-    s = d.slide("S12_setup", SECTION["exp"], "实验设计：3 个数据集、11 种方法，标签只在评分时使用")
-    rows = [("mnist", "MNIST", "手写数字 · 28×28 灰度", "训练 2 万 / 测试 1 万"),
-            ("fashion_mnist", "Fashion-MNIST", "服饰 · 28×28 灰度", "训练 2 万 / 测试 1 万"),
-            ("cifar10", "CIFAR-10", "自然图像 · 32×32 彩色", "训练 1 万 / 测试 2 千")]
-    y = 1.78
-    for key, name, desc, size in rows:
-        d.text(s, MX, y, 2.3, 0.34, name, size=16, bold=True, color=S.INK)
-        d.text(s, MX, y + 0.36, 2.3, 0.28, desc, size=11.5, color=S.SECONDARY)
-        d.text(s, MX, y + 0.64, 2.3, 0.28, size, size=11.5, color=S.SECONDARY)
-        d.image(s, ASSETS / f"strip_{key}.png", MX + 2.35, y + 0.04, w=4.9)
-        y += 1.20
-    x0 = 8.25
-    d.text(s, x0, 1.78, 4.4, 0.32, "方法（按家族着色，全篇一致）", size=13, color=S.SECONDARY)
-    fams = [(S.CLASSICAL, "经典方法", "K-means · PCA + K-means · GMM"),
-            (S.DEEP, "自编码器系", "AE + K-means · DEC · IDEC"),
-            (S.GENERATIVE, "生成式", "VaDE"),
-            (S.CONTRASTIVE, "对比学习", "SimCLR + K-means · CC"),
-            (S.PRETRAINED, "外部预训练", "DINOv2 · CLIP（冻结）")]
-    for i, (color, fam, names) in enumerate(fams):
-        yy = 2.22 + i * 0.64
-        d.dot(s, x0, yy + 0.08, color, d=0.16)
-        d.text(s, x0 + 0.28, yy, 1.45, 0.34, fam, size=14, bold=True, color=S.INK)
-        d.text(s, x0 + 1.66, yy + 0.01, 2.78, 0.56, names, size=12.5, color=S.BODY, line=1.2)
-    py = 5.50
-    d.rule(s, MX, py, CW, color=S.HAIRLINE, width=1)
-    rules = [
-        ("训练绝不读标签",
-         "fit 接口只输入图像；真实标签仅在最后评分（ACC / NMI / ARI）时读取。"),
-        ("怎么看核心指标 ARI",
-         "0 = 随机乱分，0.5 = 明显分出大类，1.0 = 与真实分类完全一致（后续图表主看 ARI）。"),
-        ("先锁协议 · 3 种子均值",
-         "超参数与早停规则事先写入配置；主实验跑 3 个随机种子报均值±标准差"
-         + (f"（共 {f['n_fits']:,} 次训练）。" if isinstance(f.get("n_fits"), int) else "。")),
+    n_rec = f"{f['n_records']:,}" if isinstance(f.get("n_records"), int) else DASH
+    n_fit = f"{f['n_fits']:,}" if isinstance(f.get("n_fits"), int) else DASH
+    n_noi = f"{f['n_noise']:,}" if isinstance(f.get("n_noise"), int) else DASH
+    n_e05 = str(f["n_exp_E05"]) if isinstance(f.get("n_exp_E05"), int) else DASH
+    s = d.slide("S12_setup", SECTION["design"],
+                "七组对照实验（E01–E05）：基准、消融、鲁棒性与特征分解",
+                lede=f"全套完成 {n_rec} 条有效评估记录（含 {n_fit} 次独立训练、{n_noi} 次测试噪声复评）及 {n_e05} 份嵌入快照，全部按同一协议复现。",
+                source="完整实验矩阵与超参数锁定于 configs/protocol.yaml 与 docs/experiment_protocol.md §2–§4。")
+    # Family legend strip
+    d.family_legend(s, MX, 1.72, include_pretrained=True)
+    d.text(s, MX + 6.95, 1.72, 5.08, 0.26, "11 种方法按五大家族统一着色（贯穿后文所有结果图）",
+           size=10.5, color=S.SECONDARY, align="r")
+
+    def _cnt(k, unit="条"):
+        v = f.get(k)
+        return f"{v} {unit}" if isinstance(v, int) else DASH
+
+    rows = [
+        ["编号", "实验主题", "数据集", "对比方法 / 受控因子", "有效规模", "回答的核心问题"],
+        ["E01", "从零训练主基准", "3 个数据集", "9 种从零方法（经典 / AE / 生成 / 对比）",
+         f"3 种子 · {_cnt('n_exp_E01')}", "从零训练谁领先？何时失效？"],
+        ["E02", "机制与结构消融", "Fashion-MNIST", "冻编码器 / 随机中心 / 无预训练 / λ / 维度 d",
+         f"3 种子 · {_cnt('n_exp_E02')}", "DEC 增益真正来自哪一步？"],
+        ["E02_fixed", "IDEC 固定轮次对照", "Fashion-MNIST", "关闭早停，固定 50 轮扫描 λ ∈ [0, 10]",
+         f"3 种子 · {_cnt('n_exp_E02_fixed')}", "排除早停干扰，λ 怎样起作用？"],
+        ["E03", "数据分布敏感性", "Fashion-MNIST", "样本量 / 长尾不平衡 / 离群点 / 簇数 K",
+         f"3 种子 · {_cnt('n_exp_E03')}", "小样本、偏斜、错估 K 如何影响？"],
+        ["E03_noise", "测试高斯噪声压测", "3 个数据集", "σ ∈ {0, 0.05, 0.1, 0.2, 0.3}，含双视角评估",
+         f"复评 · {_cnt('n_exp_E03_noise')}", "加噪后谁抗噪、谁会发生塌缩？"],
+        ["E04", "编码器 × 聚类器", "3 个数据集", "5 编码器（含 DINOv2 / CLIP）× 3 聚类器",
+         f"3 种子 · {_cnt('n_exp_E04')}", "改表示与换聚类器谁的跨度大？"],
+        ["E05", "空间几何与稳定性", "3 个数据集", "9 方法训练集嵌入快照 + 加噪配对 Jaccard",
+         f"单种子 · {_cnt('n_exp_E05', '份')}", "隐空间如何演化？分簇稳不稳？"],
     ]
-    for i, (head, body) in enumerate(rules):
-        x = MX + i * 4.05
-        d.text(s, x, py + 0.18, 3.85, 0.34, head, size=14.5, bold=True, color=S.DEEP if i == 1 else S.INK)
-        d.text(s, x, py + 0.56, 3.85, 0.88, body, size=12.5, color=S.SECONDARY, line=1.38)
+    d.table(s, MX, 2.04, CW, rows, col_w=[1.06, 1.72, 1.38, 3.62, 1.45, 2.80],
+            size=10.3, header_size=10.3, row_h=0.39,
+            align=["l", "l", "c", "l", "c", "l"],
+            bold_cells={(i, 0) for i in range(1, 8)}, header_fill=S.PANEL)
+
+    # Bottom 4 controlled-perturbation cards
+    imb5 = f"{f['imb_n_5']:,.0f}" if isinstance(f.get("imb_n_5"), (int, float)) else DASH
+    imb10 = f"{f['imb_n_10']:,.0f}" if isinstance(f.get("imb_n_10"), (int, float)) else DASH
+    imb50 = f"{f['imb_n_50']:,.0f}" if isinstance(f.get("imb_n_50"), (int, float)) else DASH
+    perts = [
+        (S.DEEP, "受控扰动 1 · 样本量梯度",
+         "1% (200 图) → 5% → 10% → 25% → 100% (20,000 图)；分层抽样检验深度编码器的数据门槛。"),
+        (S.GENERATIVE, "受控扰动 2 · 长尾不平衡",
+         f"仅在训练集按最大/最小类比 1:1 / 5:1 / 10:1 / 50:1 指数衰减重采样（3 种子均值约 {imb5} / {imb10} / {imb50} 图）。"),
+        (S.CONTRASTIVE, "受控扰动 3 · 离群点与簇数 K",
+         "以 0%–20% 比例用 Uniform[0,1] 纯噪声图替换训练样本；并独立扫描 K ∈ {5, 8, 10, 12, 15, 20}。"),
+        (S.PRETRAINED, "受控扰动 4 · 测试集加性噪声",
+         "在已训好模型的测试输入上叠加 N(0, σ²I) 并截断至 [0, 1]（σ 最高 0.3），测绝对 ARI 与簇成员漂移。"),
+    ]
+    py, pw, ph, pgap = 5.36, 2.88, 1.48, 0.17
+    for i, (accent, head, body) in enumerate(perts):
+        x = MX + i * (pw + pgap)
+        d.rect(s, x, py, pw, ph, fill=S.SURFACE, line=S.HAIRLINE, radius=0.05, line_w=0.9)
+        d.rect(s, x, py, pw, 0.07, fill=accent)
+        d.text(s, x + 0.14, py + 0.16, pw - 0.28, 0.30, head, size=11.5, bold=True, color=S.INK)
+        d.text(s, x + 0.14, py + 0.50, pw - 0.28, 0.90, body, size=10.2, color=S.BODY, line=1.28)
+
+
+def s12b_metrics_rules(d: Deck):
+    s = d.slide("S12b_metrics_rules", SECTION["design"],
+                "评价指标定义与四项防泄密实验铁律",
+                lede="所有实验结论建立在“训练零标签、规则事前锁、耗时端到端、预训练分表记”四条硬约束之上。",
+                source="协议与代码约束见 configs/protocol.yaml 与 AGENTS.md；全部图表由 scripts/analyze.py 从 results/raw 自动生成。")
+
+    lx, lw = MX, 6.18
+    rx, rw = MX + lw + 0.30, CW - lw - 0.30
+
+    # Left Card 1: ARI (primary metric)
+    d.rect(s, lx, 1.74, lw, 1.70, fill=S.SURFACE, line=S.HAIRLINE, radius=0.04, line_w=0.9)
+    d.rect(s, lx, 1.74, 0.09, 1.70, fill=S.DEEP)
+    d.text(s, lx + 0.22, 1.82, lw - 0.34, 0.28, "主指标：ARI（调整兰德指数，扣除随机重合期望）",
+           size=12.5, bold=True, color=S.INK)
+    d.equation(s, "metric_ari", lx + 0.22, 2.13, scale=0.72, max_w=lw - 0.44)
+    d.rect(s, lx + 0.22, 3.00, lw - 0.40, 0.34, fill="#EAF2FC", line=S.DEEP, radius=0.15, line_w=0.75)
+    d.text(s, lx + 0.30, 3.00, lw - 0.56, 0.34,
+           "读图直觉标尺： 0 ≈ 随机乱分　|　0.5 ≈ 明显分出大类　|　1.0 = 与真实分类完全一致",
+           size=10.3, bold=True, color=S.DEEP_DARK, align="c", anchor="m")
+
+    # Left Card 2: ACC & NMI side-by-side
+    d.rect(s, lx, 3.56, lw, 1.66, fill=S.SURFACE, line=S.HAIRLINE, radius=0.04, line_w=0.9)
+    d.rect(s, lx, 3.56, 0.09, 1.66, fill=S.CLASSICAL_DARK)
+    d.line(s, lx + lw / 2 + 0.04, 3.70, lx + lw / 2 + 0.04, 5.08, color=S.HAIRLINE, width=1.0)
+    # ACC sub-column
+    d.text(s, lx + 0.22, 3.64, 2.80, 0.26, "ACC（匈牙利最优匹配准确率）", size=11.5, bold=True, color=S.INK)
+    d.equation(s, "metric_acc", lx + 0.22, 3.96, scale=0.76, max_w=2.76)
+    d.text(s, lx + 0.22, 4.62, 2.82, 0.52,
+           "枚举簇号到类别的双向一一映射 m；要求 K_pred = K_true。",
+           size=10.0, color=S.BODY, line=1.22)
+    # NMI sub-column
+    mx2 = lx + lw / 2 + 0.18
+    d.text(s, mx2, 3.64, 2.75, 0.26, "NMI（归一化互信息）", size=11.5, bold=True, color=S.INK)
+    d.equation(s, "metric_nmi", mx2, 3.96, scale=0.76, max_w=2.66)
+    d.text(s, mx2, 4.62, 2.75, 0.52,
+           "支持任意 K_pred ≠ K_true；但簇数变多时比 ARI 更宽松。",
+           size=10.0, color=S.BODY, line=1.22)
+
+    # Left Card 3: Unsupervised Jaccard stability + Silhouette warning
+    d.rect(s, lx, 5.34, lw, 1.50, fill=S.SURFACE, line=S.HAIRLINE, radius=0.04, line_w=0.9)
+    d.rect(s, lx, 5.34, 0.09, 1.50, fill=S.CONTRASTIVE)
+    d.text(s, lx + 0.22, 5.42, lw - 0.34, 0.28, "无标签稳定性（宏观 Jaccard）与内部指标（Silhouette）",
+           size=12.0, bold=True, color=S.INK)
+    d.equation(s, "jaccard", lx + 0.22, 5.82, scale=0.70, max_w=2.20)
+    d.text(s, lx + 2.58, 5.74, lw - 2.76, 1.04,
+           [["• ", ("宏观 Jaccard：", {"bold": True}), "加噪 σ=0.1 前后簇成员经匈牙利对齐后的交并比均值，无需真实标签即可测稳定性。"],
+            ["• ", ("Silhouette 禁忌：", {"bold": True}), "只在同一嵌入维度内比较，绝不跨 10 维与 384/784 维直接比大小。"]],
+           size=10.1, color=S.BODY, line=1.24, after=3)
+
+    # Right column: 4 hard protocol iron rules
+    rules = [
+        (S.DEEP, "铁律 1 · 标签严格隔离（无任何数据泄密）",
+         "所有模型 fit(x) 不读标签；测试标签只在 run_one / eval_noise 返回后评分。不平衡子集仅按训练集构造比例，不参与损失、早停或选种子。"),
+        (S.CLASSICAL_DARK, "铁律 2 · 早停与追加轮次事前写入配置",
+         "DEC / IDEC 早停仅看训练集簇分配变化率 Δ < 0.1%（连续 2 次）；追加训练轮次只看训练损失是否仍在下降。看到测试集分数后绝不改规则或换种子。"),
+        (S.GENERATIVE, "铁律 3 · 端到端耗时记账与零手填数据",
+         "训练时间必须包含预训练 + 微调 + 聚类全链路（如 DEC 含 AE 预训练）。全部图与表由 analyze.py 从 results/raw 自动生成，失败运行原样保留。"),
+        (S.PRETRAINED, "铁律 4 · 同口径统计与外部预训练分表",
+         "主表统一报 3 种子均值±标准差，耗时对比仅采纳同卡 RTX 4060 的 E01 记录；DINOv2 / CLIP 借助外部数据，与从零训练严格分表报告。"),
+    ]
+    ry0, rh, rgap = 1.74, 1.17, 0.14
+    for i, (accent, head, body) in enumerate(rules):
+        y = ry0 + i * (rh + rgap)
+        d.rect(s, rx, y, rw, rh, fill=S.SURFACE, line=S.HAIRLINE, radius=0.05, line_w=0.9)
+        d.rect(s, rx, y, 0.09, rh, fill=accent)
+        d.text(s, rx + 0.22, y + 0.11, rw - 0.34, 0.28, head, size=12.0, bold=True, color=accent)
+        d.text(s, rx + 0.22, y + 0.42, rw - 0.34, 0.68, body, size=10.1, color=S.BODY, line=1.24)
 
 
 def s13_benchmark(d: Deck):
@@ -1687,9 +1945,10 @@ def a06_references(d: Deck, t: dict):
 
 
 SLIDES = [s01_cover, s02_question, s03_statistics, s04_pixel_distance, s05_core_idea, s06_paradigms, s07_dec,
-          s08_idec, s09_vade, s10_contrastive, s11_pretrained, s11b_architectures, s12_setup, s13_benchmark,
-          s14_geometry, s15_repr_vs_clusterer, s16_pixels_vs_dinov2, s17_noise, s18_sample_size, s19_components,
-          s20_cost, s21_stability, s22_verdict, s23_selection_guide, s24_limits]
+          s08_idec, s09_vade, s10_contrastive, s11_pretrained, s11b_architectures,
+          s11c_deriv_classical_dec, s11d_deriv_vade_contrast, s12a_datasets, s12_setup, s12b_metrics_rules,
+          s13_benchmark, s14_geometry, s15_repr_vs_clusterer, s16_pixels_vs_dinov2, s17_noise, s18_sample_size,
+          s19_components, s20_cost, s21_stability, s22_verdict, s23_selection_guide, s24_limits]
 APPENDIX = [a01_table, a02_ablations, a03_sensitivity, a04_encoder_table, a05_stability_table, a06_references]
 
 

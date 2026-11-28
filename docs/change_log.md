@@ -4,6 +4,17 @@
 
 ## 2026-11-28
 
+### 汇报与首页结构重组：原始数学推导与实验设计前置、各结果对比后置
+
+- **扩充 4 页前置理论与实验设计页（正文 25 → 29 页 + 6 页附录，总计 35 页）**：
+  - 新增第 13 页 `S11c_deriv_classical_dec`（K-means 各向同性噪声分解、PCA 线性重构等价、GMM EM 与像素对角方差轻噪坍缩、DEC Eq. 4–5 精确梯度、IDEC $\lambda = 1/(\gamma D)$ 等价换算）；
+  - 新增第 14 页 `S11d_deriv_vade_contrast`（VaDE 平均场 ELBO 与闭式后验 $q^*(c\mid x)=p(c\mid z)$、对角高斯闭式 KL 与每图 SSE 边界、SimCLR InfoNCE 互信息下界、CC 行列对比与省略 $-H(Y)$ 边界、L2 归一化余弦等价）；
+  - 新增第 15 页 `S12a_datasets`（MNIST / Fashion-MNIST / CIFAR-10 样例图、维度与分层切分、全部 10 类明细及三档难度阶梯）；
+  - 升级第 16 页 `S12_setup`（五家族统一色标 + E01–E05 七组实验动态规模表 + 4 类受控扰动卡片）；
+  - 新增第 17 页 `S12b_metrics_rules`（ARI / ACC / NMI / 宏观 Jaccard 精确公式 + Silhouette 同维边界 + 标签隔离/早停锁定/端到端耗时/分表报告四项实验铁律）。
+- **全部实验结果对比统一后置**：第 18–26 页集中展示从零训练基准、t-SNE 几何、编码器×聚类器、像素 vs DINOv2、噪声鲁棒性、小样本、组件与 $\lambda$ 消融、成本前沿及无标签稳定性对比，随后第 27–29 页收束为命题回答与选型指南；同步重排 `README.md`，将理论推导、数据集与实验设计前置，将所有结果对比与主要结论置于后半部分。
+- 新增 13 张 600 dpi 透明底 LaTeX 公式图（`scripts/render_equations.py` 共 23 张），同步更新 `presentation/speaker_notes.md`、`presentation/speaker_notes.docx`、`presentation/outline.md`、`presentation/figure_registry.md`、`tests/test_audit_and_ppt.py` 并导出 35 页 PDF。
+
 ### 原始数学推导、数据集与实验设计文档整理
 
 - **重写 [数学基础与原始推导](mathematical_foundations.md)**：补齐统一符号表与教材章节映射、K-means 交替极小化与各向同性噪声保序证明、PCA 最大方差/最小重构等价证明、GMM 的 EM 推导与标准化像素对角协方差轻噪坍缩机理、DEC 原始梯度（Xie et al. Eq. 4–5）逐行求导、IDEC 权重换算证明（$\lambda = 1/(\gamma D)$）、VaDE 完整 ELBO 展开与最优簇后验 $q^*(c\mid x)=p(c\mid z)$ 证明、SimCLR NT-Xent/InfoNCE 与 CC 行列双对比及簇熵正则、L2 归一化余弦等价性，以及 ACC / NMI / ARI / 轮廓系数 / 簇均衡度 / E05 Macro Cluster Jaccard 精确公式，并逐节标注原论文与课程实现边界。
